@@ -1,0 +1,244 @@
+{
+  "version": 2,
+  "locale": "es-MX",
+  "note": "Frases reales de Dorian, capturadas en el spike de Fase 0.5 (2026-08-24). Crece con uso real. Ver ADR-0003.",
+  "baseline": {
+    "fecha": "2026-08-24",
+    "ios": "26.x",
+    "conteo": 1.0,
+    "monto": 1.0,
+    "categoria_sin_aprendizaje": 0.75,
+    "categoria_con_aprendizaje": 0.9
+  },
+  "thresholds": {
+    "count": 0.95,
+    "amount": 0.9,
+    "category": 0.8,
+    "subcategory": 0.6
+  },
+  "cases": [
+    {
+      "id": 1,
+      "input": "Compré unos dulces y salí salió en 131 pagué en efectivo",
+      "expected": [
+        {
+          "amount": 131,
+          "category": "despensa",
+          "payment": "efectivo"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "input": "Gomitas y papas 1000 ah ah no 131 pesos y ayer pagué gasolina 1010 pesos",
+      "expected": [
+        {
+          "amount": 131,
+          "category": "despensa"
+        },
+        {
+          "amount": 1010,
+          "category": "transporte",
+          "subcategory": "gasolina"
+        }
+      ],
+      "note": "autocorrección + 2 gastos + fecha relativa; el regex ve 3 números → marca revisión, es correcto"
+    },
+    {
+      "id": 3,
+      "input": "Papas de la tienda 28 pesos",
+      "expected": [
+        {
+          "amount": 28,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "input": "Despensa 1000 pesos en el sol en el Walmart",
+      "expected": [
+        {
+          "amount": 1000,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "input": "Compré unas flores para mi novia de 150 pesos",
+      "expected": [
+        {
+          "amount": 150,
+          "category": "otro"
+        }
+      ],
+      "hard": true,
+      "note": "no hay categoría de regalos — candidato a revisar la taxonomía"
+    },
+    {
+      "id": 6,
+      "input": "Unos mangos Enchilados del Walmart en 82 pesos",
+      "expected": [
+        {
+          "amount": 82,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "input": "Un Boing de mango de 20 pesos",
+      "expected": [
+        {
+          "amount": 20,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "input": "78 pesos de casetas",
+      "expected": [
+        {
+          "amount": 78,
+          "category": "transporte",
+          "subcategory": "casetas"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "input": "60 pesos de fruta de tuna",
+      "expected": [
+        {
+          "amount": 60,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "input": "Luces LED para el carro 472 pesos",
+      "expected": [
+        {
+          "amount": 472,
+          "category": "transporte",
+          "subcategory": "vehiculo"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "input": "Líquido para parabrisas para la camioneta 70 pesos",
+      "expected": [
+        {
+          "amount": 70,
+          "category": "transporte",
+          "subcategory": "vehiculo"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "input": "Almohada para dormir 400 pesos",
+      "expected": [
+        {
+          "amount": 400,
+          "category": "hogar"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "input": "Estacionamiento 10 pesos en efectivo",
+      "expected": [
+        {
+          "amount": 10,
+          "category": "transporte",
+          "subcategory": "estacionamiento",
+          "payment": "efectivo"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "input": "Videojuego 1800 pesos",
+      "expected": [
+        {
+          "amount": 1800,
+          "category": "ocio",
+          "subcategory": "videojuegos"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "input": "Bocina 800 pesos para hiking",
+      "expected": [
+        {
+          "amount": 800,
+          "category": "ocio"
+        }
+      ],
+      "hard": true
+    },
+    {
+      "id": 16,
+      "input": "Pago para acampar 200 pesos",
+      "expected": [
+        {
+          "amount": 200,
+          "category": "ocio",
+          "subcategory": "camping"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "input": "Desayuno en el hiking 120 pesos",
+      "expected": [
+        {
+          "amount": 120,
+          "category": "comida"
+        }
+      ],
+      "hard": true,
+      "note": "ambigüedad genuina: comida vs actividad. El aprendizaje NO lo resuelve"
+    },
+    {
+      "id": 18,
+      "input": "Clases de salsa 300 pesos",
+      "expected": [
+        {
+          "amount": 300,
+          "category": "ocio"
+        }
+      ],
+      "hard": true,
+      "note": "trampa léxica: 'salsa' activa comida"
+    },
+    {
+      "id": 19,
+      "input": "Chicles 18 pesos",
+      "expected": [
+        {
+          "amount": 18,
+          "category": "despensa"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "input": "Gimnasio, 300 pesos transferencia",
+      "expected": [
+        {
+          "amount": 300,
+          "category": "personal",
+          "subcategory": "gym",
+          "payment": "transferencia"
+        }
+      ]
+    }
+  ]
+}
