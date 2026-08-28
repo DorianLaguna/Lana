@@ -1,0 +1,17 @@
+--swiftversion 6.0
+--indent 4
+--maxwidth 120
+--self remove
+--semicolons never
+--trimwhitespace always
+--voidtype void
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen same-line
+--commas inline
+--redundanttype inferred
+--stripunusedargs closure-only
+--importgrouping testable-bottom
+--exclude Lana/Packages/*/.build,.build,DerivedData
+--disable wrapMultilineStatementBraces

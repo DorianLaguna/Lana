@@ -6,47 +6,179 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		05790C3365A4708E8F7FB304 /* LanaWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 733BC7CFAF183F64C24E1679 /* LanaWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		11A74A9F303F8B1E007CE1D5 /* LanaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74A9E303F8B1E007CE1D5 /* LanaCore */; };
+		11A74AA2303F8B3A007CE1D5 /* LanaParsing in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AA1303F8B3A007CE1D5 /* LanaParsing */; };
+		11A74AA5303F8B51007CE1D5 /* LanaPurchases in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AA4303F8B51007CE1D5 /* LanaPurchases */; };
+		11A74AA8303F8B6A007CE1D5 /* LanaPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AA7303F8B6A007CE1D5 /* LanaPersistence */; };
+		11A74AAB303F8B80007CE1D5 /* LanaDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AAA303F8B80007CE1D5 /* LanaDesign */; };
+		11A74AAE303F8BE1007CE1D5 /* EntryFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AAD303F8BE1007CE1D5 /* EntryFeature */; };
+		11A74AB1303F8BF2007CE1D5 /* DashboardFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB0303F8BF2007CE1D5 /* DashboardFeature */; };
+		11A74AB4303F8C07007CE1D5 /* BudgetsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB3303F8C07007CE1D5 /* BudgetsFeature */; };
+		11A74AB7303F8C23007CE1D5 /* SharedFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB6303F8C23007CE1D5 /* SharedFeature */; };
+		11A74ABA303F8C36007CE1D5 /* CardsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB9303F8C36007CE1D5 /* CardsFeature */; };
+		11A74ABD303F8C45007CE1D5 /* InsightsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74ABC303F8C45007CE1D5 /* InsightsFeature */; };
+		11A74AC0303F8C53007CE1D5 /* SettingsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74ABF303F8C53007CE1D5 /* SettingsFeature */; };
+		11A74AD330406A6C007CE1D5 /* LanaSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AD230406A6C007CE1D5 /* LanaSpeech */; };
+		1CA267AC607E16AE2CB6283F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 536C513585411B665D846716 /* Foundation.framework */; };
+		AB428C86CCAB78F63D8C74F0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDF94FB960772C3FD5248821 /* WidgetKit.framework */; };
+		C0E94B4866BF491E1C0F6120 /* LanaDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 8CB49B3C3577DEF45188EF96 /* LanaDesign */; };
+		EFD75062175567A236C2BEF9 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B937157E83FC83B7B9A18E3 /* SwiftUI.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		11A74AC9303F8D0B007CE1D5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 11A7EB00303F76A9007CE1D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 11A7EB07303F76A9007CE1D5;
+			remoteInfo = Lana;
+		};
+		F31DD6F792158D344B7F6C9A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 11A7EB00303F76A9007CE1D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4FEB1B0E9483733057A3A789;
+			remoteInfo = LanaWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		30AE00E62790349DC96521A5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				05790C3365A4708E8F7FB304 /* LanaWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0B937157E83FC83B7B9A18E3 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/SwiftUI.framework; sourceTree = DEVELOPER_DIR; };
+		11A74AC5303F8D0B007CE1D5 /* LanaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LanaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		11A7EB08303F76A9007CE1D5 /* Lana.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lana.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		536C513585411B665D846716 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		733BC7CFAF183F64C24E1679 /* LanaWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LanaWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDF94FB960772C3FD5248821 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/WidgetKit.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		11A7EB18303F76AB007CE1D5 /* Exceptions for "Lana" folder in "Lana" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				.claude,
+				CLAUDE.md,
+				Docs,
 				Info.plist,
+				Packages,
+				PLAN.md,
+				README.md,
+				Tests,
 			);
 			target = 11A7EB07303F76A9007CE1D5 /* Lana */;
+		};
+		8986A308C15D95D784A0EA8A /* Exceptions for "LanaWidget" folder in "LanaWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4FEB1B0E9483733057A3A789 /* LanaWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		11A74AC6303F8D0B007CE1D5 /* LanaTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LanaTests;
+			sourceTree = "<group>";
+		};
 		11A7EB0A303F76A9007CE1D5 /* Lana */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				11A7EB18303F76AB007CE1D5 /* Exceptions for "Lana" folder in "Lana" target */,
 			);
+			explicitFolders = (
+				.claude,
+				Docs,
+				Packages,
+				Tests,
+			);
 			path = Lana;
+			sourceTree = "<group>";
+		};
+		A9590DBA9C217D27BB598B28 /* LanaWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8986A308C15D95D784A0EA8A /* Exceptions for "LanaWidget" folder in "LanaWidgetExtension" target */,
+			);
+			path = LanaWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		11A7EB05303F76A9007CE1D5 /* Frameworks */ = {
+		11A74AC2303F8D0B007CE1D5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		11A7EB05303F76A9007CE1D5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11A74AB4303F8C07007CE1D5 /* BudgetsFeature in Frameworks */,
+				11A74AAB303F8B80007CE1D5 /* LanaDesign in Frameworks */,
+				11A74ABD303F8C45007CE1D5 /* InsightsFeature in Frameworks */,
+				11A74AD330406A6C007CE1D5 /* LanaSpeech in Frameworks */,
+				11A74AA8303F8B6A007CE1D5 /* LanaPersistence in Frameworks */,
+				11A74AC0303F8C53007CE1D5 /* SettingsFeature in Frameworks */,
+				11A74ABA303F8C36007CE1D5 /* CardsFeature in Frameworks */,
+				11A74AB1303F8BF2007CE1D5 /* DashboardFeature in Frameworks */,
+				11A74AB7303F8C23007CE1D5 /* SharedFeature in Frameworks */,
+				11A74AA5303F8B51007CE1D5 /* LanaPurchases in Frameworks */,
+				11A74A9F303F8B1E007CE1D5 /* LanaCore in Frameworks */,
+				11A74AAE303F8BE1007CE1D5 /* EntryFeature in Frameworks */,
+				11A74AA2303F8B3A007CE1D5 /* LanaParsing in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D624ADE3404AC6F847E4631 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1CA267AC607E16AE2CB6283F /* Foundation.framework in Frameworks */,
+				AB428C86CCAB78F63D8C74F0 /* WidgetKit.framework in Frameworks */,
+				EFD75062175567A236C2BEF9 /* SwiftUI.framework in Frameworks */,
+				C0E94B4866BF491E1C0F6120 /* LanaDesign in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		11A74AD130406A6C007CE1D5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D5F84B1E6EBCE3012981A54F /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		11A7EAFF303F76A9007CE1D5 = {
 			isa = PBXGroup;
 			children = (
 				11A7EB0A303F76A9007CE1D5 /* Lana */,
+				11A74AC6303F8D0B007CE1D5 /* LanaTests */,
+				11A74AD130406A6C007CE1D5 /* Frameworks */,
 				11A7EB09303F76A9007CE1D5 /* Products */,
+				A9590DBA9C217D27BB598B28 /* LanaWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -54,13 +186,46 @@
 			isa = PBXGroup;
 			children = (
 				11A7EB08303F76A9007CE1D5 /* Lana.app */,
+				11A74AC5303F8D0B007CE1D5 /* LanaTests.xctest */,
+				733BC7CFAF183F64C24E1679 /* LanaWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D5F84B1E6EBCE3012981A54F /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				536C513585411B665D846716 /* Foundation.framework */,
+				EDF94FB960772C3FD5248821 /* WidgetKit.framework */,
+				0B937157E83FC83B7B9A18E3 /* SwiftUI.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		11A74AC4303F8D0B007CE1D5 /* LanaTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 11A74ACB303F8D0B007CE1D5 /* Build configuration list for PBXNativeTarget "LanaTests" */;
+			buildPhases = (
+				11A74AC1303F8D0B007CE1D5 /* Sources */,
+				11A74AC2303F8D0B007CE1D5 /* Frameworks */,
+				11A74AC3303F8D0B007CE1D5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				11A74ACA303F8D0B007CE1D5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				11A74AC6303F8D0B007CE1D5 /* LanaTests */,
+			);
+			name = LanaTests;
+			productName = LanaTests;
+			productReference = 11A74AC5303F8D0B007CE1D5 /* LanaTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		11A7EB07303F76A9007CE1D5 /* Lana */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 11A7EB19303F76AB007CE1D5 /* Build configuration list for PBXNativeTarget "Lana" */;
@@ -68,20 +233,58 @@
 				11A7EB04303F76A9007CE1D5 /* Sources */,
 				11A7EB05303F76A9007CE1D5 /* Frameworks */,
 				11A7EB06303F76A9007CE1D5 /* Resources */,
+				30AE00E62790349DC96521A5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E75203BC973C632155BFD0E4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				11A7EB0A303F76A9007CE1D5 /* Lana */,
 			);
 			name = Lana;
 			packageProductDependencies = (
+				11A74A9E303F8B1E007CE1D5 /* LanaCore */,
+				11A74AA1303F8B3A007CE1D5 /* LanaParsing */,
+				11A74AA4303F8B51007CE1D5 /* LanaPurchases */,
+				11A74AA7303F8B6A007CE1D5 /* LanaPersistence */,
+				11A74AAA303F8B80007CE1D5 /* LanaDesign */,
+				11A74AAD303F8BE1007CE1D5 /* EntryFeature */,
+				11A74AB0303F8BF2007CE1D5 /* DashboardFeature */,
+				11A74AB3303F8C07007CE1D5 /* BudgetsFeature */,
+				11A74AB6303F8C23007CE1D5 /* SharedFeature */,
+				11A74AB9303F8C36007CE1D5 /* CardsFeature */,
+				11A74ABC303F8C45007CE1D5 /* InsightsFeature */,
+				11A74ABF303F8C53007CE1D5 /* SettingsFeature */,
+				11A74AD230406A6C007CE1D5 /* LanaSpeech */,
 			);
 			productName = Lana;
 			productReference = 11A7EB08303F76A9007CE1D5 /* Lana.app */;
 			productType = "com.apple.product-type.application";
+		};
+		4FEB1B0E9483733057A3A789 /* LanaWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A3A5558BEAC4E0A3A61BD7D /* Build configuration list for PBXNativeTarget "LanaWidgetExtension" */;
+			buildPhases = (
+				A585A0A650EF26DBF49F2AD4 /* Sources */,
+				6D624ADE3404AC6F847E4631 /* Frameworks */,
+				404C58CDFEFDE82A005297E6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A9590DBA9C217D27BB598B28 /* LanaWidget */,
+			);
+			name = LanaWidgetExtension;
+			packageProductDependencies = (
+				8CB49B3C3577DEF45188EF96 /* LanaDesign */,
+			);
+			productName = LanaWidgetExtension;
+			productReference = 733BC7CFAF183F64C24E1679 /* LanaWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -93,7 +296,14 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					11A74AC4303F8D0B007CE1D5 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 11A7EB07303F76A9007CE1D5;
+					};
 					11A7EB07303F76A9007CE1D5 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					4FEB1B0E9483733057A3A789 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -107,18 +317,49 @@
 			);
 			mainGroup = 11A7EAFF303F76A9007CE1D5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				11A74A9D303F8B1E007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaCore" */,
+				11A74AA0303F8B3A007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaParsing" */,
+				11A74AA3303F8B51007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaPurchases" */,
+				11A74AA6303F8B6A007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaPersistence" */,
+				11A74AA9303F8B80007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaDesign" */,
+				11A74AAC303F8BE1007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/EntryFeature" */,
+				11A74AAF303F8BF2007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/DashboardFeature" */,
+				11A74AB2303F8C07007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/BudgetsFeature" */,
+				11A74AB5303F8C23007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SharedFeature" */,
+				11A74AB8303F8C36007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/CardsFeature" */,
+				11A74ABB303F8C45007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/InsightsFeature" */,
+				11A74ABE303F8C53007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SettingsFeature" */,
+				11A74AD030406A1D007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaSpeech" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 11A7EB09303F76A9007CE1D5 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				11A7EB07303F76A9007CE1D5 /* Lana */,
+				11A74AC4303F8D0B007CE1D5 /* LanaTests */,
+				4FEB1B0E9483733057A3A789 /* LanaWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		11A74AC3303F8D0B007CE1D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		11A7EB06303F76A9007CE1D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		404C58CDFEFDE82A005297E6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -128,7 +369,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		11A74AC1303F8D0B007CE1D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		11A7EB04303F76A9007CE1D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A585A0A650EF26DBF49F2AD4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -137,7 +392,63 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		11A74ACA303F8D0B007CE1D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 11A7EB07303F76A9007CE1D5 /* Lana */;
+			targetProxy = 11A74AC9303F8D0B007CE1D5 /* PBXContainerItemProxy */;
+		};
+		E75203BC973C632155BFD0E4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LanaWidgetExtension;
+			target = 4FEB1B0E9483733057A3A789 /* LanaWidgetExtension */;
+			targetProxy = F31DD6F792158D344B7F6C9A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		11A74ACC303F8D0B007CE1D5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QJZY679F9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dorianlaguna.LanaTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lana.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Lana";
+			};
+			name = Debug;
+		};
+		11A74ACD303F8D0B007CE1D5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QJZY679F9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dorianlaguna.LanaTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lana.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Lana";
+			};
+			name = Release;
+		};
 		11A7EB1A303F76AB007CE1D5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -167,7 +478,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -201,7 +512,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -327,9 +638,59 @@
 			};
 			name = Release;
 		};
+		17CAC54BF30F6F8EA47C2E75 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QJZY679F9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LanaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LanaWidget;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dorianlaguna.Lana.LanaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A23A98DCF00E5705C85B9C3F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QJZY679F9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LanaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LanaWidget;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dorianlaguna.Lana.LanaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		11A74ACB303F8D0B007CE1D5 /* Build configuration list for PBXNativeTarget "LanaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				11A74ACC303F8D0B007CE1D5 /* Debug */,
+				11A74ACD303F8D0B007CE1D5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		11A7EB03303F76A9007CE1D5 /* Build configuration list for PBXProject "Lana" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -348,7 +709,131 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		4A3A5558BEAC4E0A3A61BD7D /* Build configuration list for PBXNativeTarget "LanaWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A23A98DCF00E5705C85B9C3F /* Release */,
+				17CAC54BF30F6F8EA47C2E75 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		11A74A9D303F8B1E007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaCore;
+		};
+		11A74AA0303F8B3A007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaParsing" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaParsing;
+		};
+		11A74AA3303F8B51007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaPurchases" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaPurchases;
+		};
+		11A74AA6303F8B6A007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaPersistence" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaPersistence;
+		};
+		11A74AA9303F8B80007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaDesign" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaDesign;
+		};
+		11A74AAC303F8BE1007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/EntryFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/EntryFeature;
+		};
+		11A74AAF303F8BF2007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/DashboardFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/DashboardFeature;
+		};
+		11A74AB2303F8C07007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/BudgetsFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/BudgetsFeature;
+		};
+		11A74AB5303F8C23007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SharedFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/SharedFeature;
+		};
+		11A74AB8303F8C36007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/CardsFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/CardsFeature;
+		};
+		11A74ABB303F8C45007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/InsightsFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/InsightsFeature;
+		};
+		11A74ABE303F8C53007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SettingsFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/SettingsFeature;
+		};
+		11A74AD030406A1D007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaSpeech" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaSpeech;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		11A74A9E303F8B1E007CE1D5 /* LanaCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaCore;
+		};
+		11A74AA1303F8B3A007CE1D5 /* LanaParsing */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaParsing;
+		};
+		11A74AA4303F8B51007CE1D5 /* LanaPurchases */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaPurchases;
+		};
+		11A74AA7303F8B6A007CE1D5 /* LanaPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaPersistence;
+		};
+		11A74AAA303F8B80007CE1D5 /* LanaDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaDesign;
+		};
+		11A74AAD303F8BE1007CE1D5 /* EntryFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EntryFeature;
+		};
+		11A74AB0303F8BF2007CE1D5 /* DashboardFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DashboardFeature;
+		};
+		11A74AB3303F8C07007CE1D5 /* BudgetsFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BudgetsFeature;
+		};
+		11A74AB6303F8C23007CE1D5 /* SharedFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SharedFeature;
+		};
+		11A74AB9303F8C36007CE1D5 /* CardsFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CardsFeature;
+		};
+		11A74ABC303F8C45007CE1D5 /* InsightsFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = InsightsFeature;
+		};
+		11A74ABF303F8C53007CE1D5 /* SettingsFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SettingsFeature;
+		};
+		11A74AD230406A6C007CE1D5 /* LanaSpeech */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11A74AD030406A1D007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaSpeech" */;
+			productName = LanaSpeech;
+		};
+		8CB49B3C3577DEF45188EF96 /* LanaDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LanaDesign;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 11A7EB00303F76A9007CE1D5 /* Project object */;
 }

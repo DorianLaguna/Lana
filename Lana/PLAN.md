@@ -29,6 +29,8 @@ Cada decisión de diseño se mide contra eso.
 | Subcategorías | Abiertas, autogeneradas, opcionales | 0011 |
 | Aprendizaje | Correcciones inyectadas como vocabulario | 0012 |
 | Tickets | OCR con Vision, no modelo multimodal | 0010 |
+| Tarjetas (persistencia) | Entidad Core Data plana, no evento; mismo contenedor | 0014 |
+| Voz | Speech framework on-device, parada manual, alimenta el mismo parser | 0015 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
 
@@ -38,6 +40,8 @@ Cada decisión de diseño se mide contra eso.
 
 ### v1.0
 - Captura por texto en lenguaje natural
+- **Captura por voz on-device** (decisión 2026-08-26, ADR-0015) — otra
+  forma de producir texto, alimenta el mismo parser
 - Parseo a `{monto, concepto, categoría, fecha}`
 - Corrección manual de cualquier campo, con aprendizaje por ejemplos
 - **Ingresos** además de gastos
@@ -57,9 +61,9 @@ Cada decisión de diseño se mide contra eso.
 - Sync entre devices del mismo usuario
 
 ### Fuera de v1.0
-Entrada por voz, widgets, exportación CSV, presupuestos compartidos, meses a
-plazos (MSI), ciclos de corte de saldos compartidos, desglose automático de
-tickets por renglón, comprobantes fiscales.
+Widgets, exportación CSV, presupuestos compartidos, meses a plazos (MSI),
+ciclos de corte de saldos compartidos, desglose automático de tickets por
+renglón, comprobantes fiscales.
 
 > Nota de decisión: se recomendó dejar la UI de split para v1.1 y lanzar en ~6
 > semanas para empezar el hábito antes. Se decidió incluirla completa en v1.0
@@ -82,6 +86,7 @@ Lana/
 │   │   ├── Projection/           # Disponible por quincena
 │   │   └── Protocols/            # ExpenseStore, ExpenseParsing, InsightQuerying…
 │   ├── LanaParsing/              # FoundationModels
+│   ├── LanaSpeech/               # Speech framework, transcripción on-device
 │   ├── LanaPersistence/          # Core Data + CloudKit + CKShare
 │   ├── LanaPurchases/            # StoreKit 2
 │   ├── LanaDesign/               # Tokens, temas, componentes
@@ -107,13 +112,16 @@ se conocen entre sí ni conocen implementaciones concretas.
 
 Cada fase cierra con algo que corre.
 
-### Fase 0 — Cimientos · 1-2 días
-- [ ] Proyecto Xcode + paquetes locales con dependencias declaradas
-- [ ] SwiftLint + SwiftFormat + Swift 6 strict concurrency
-- [ ] CI en GitHub Actions
-- [ ] `.claude/` configurado
+### Fase 0 — Cimientos · ✅ COMPLETADA 2026-08-26
+- [x] Proyecto Xcode + paquetes locales con dependencias declaradas
+- [x] SwiftLint + SwiftFormat + Swift 6 strict concurrency
+- [x] CI en GitHub Actions
+- [x] `.claude/` configurado
 
-**Cierre:** `xcodebuild test` verde en CI.
+**Cierre:** `xcodebuild build` verde en CI, más `swift test` verde en los 12
+paquetes locales. El target `LanaTests` (a nivel de app) se creó pero se dejó
+sin enlazar a propósito — no hay nada real que probar ahí hasta que existan
+ViewModels (Fase 5+). Ahí se retoma y el job de CI vuelve a ser `test`.
 
 ### Fase 0.5 — Spike del parser · ✅ COMPLETADA 2026-08-24
 
@@ -130,88 +138,294 @@ Confirmado: el modelo entiende español mexicano coloquial. El `AmountValidator`
 es obligatorio — se observaron 45→45000 y suma de dos gastos en uno.
 Hallazgos en ADR-0011, 0012, 0013 y en la skill `foundation-models`.
 
-### Fase 1 — Dominio · 4-6 días
+### Fase 1 — Dominio · ✅ COMPLETADA 2026-08-26
 Esta fase define lo que no se puede cambiar después. Tómate el tiempo.
 
-- [ ] `Money`: `Decimal` + moneda. **Nunca `Double`.**
-- [ ] `Currency` con tasa histórica por transacción
-- [ ] Eventos inmutables: `ExpenseAdded`, `IncomeAdded`, `ExpenseCorrected`,
+- [x] `Money`: `Decimal` + moneda. **Nunca `Double`.**
+- [x] `Currency` con tasa histórica por transacción
+- [x] Eventos inmutables: `ExpenseAdded`, `IncomeAdded`, `ExpenseCorrected`,
       `ExpenseVoided`, `SettlementRecorded`
-- [ ] `PaymentMethod`: efectivo, débito, crédito, transferencia
-- [ ] `Card`: alias, últimos 4, límite, día de corte, fecha límite.
+- [x] `PaymentMethod`: efectivo, débito, crédito, transferencia
+- [x] `Card`: alias, últimos 4, límite, día de corte, fecha límite.
       **Nunca el número completo, CVV ni vencimiento.**
-- [ ] `SplitRule`: iguales, solo el pagador, **proporcional con shares congelados**,
+- [x] `SplitRule`: iguales, solo el pagador, **proporcional con shares congelados**,
       porcentaje, montos exactos
-- [ ] `Participant` y `SharedList`
-- [ ] `Ledger`: pliega eventos → saldos. Puro, sin dependencias, muy probado.
-- [ ] **Dos ledgers independientes**: deuda con tarjetas y deuda con personas.
+- [x] `Participant` y `SharedList`
+- [x] `Ledger`: pliega eventos → saldos. Puro, sin dependencias, muy probado.
+- [x] **Dos ledgers independientes**: deuda con tarjetas y deuda con personas.
       Nunca se suman ni se mezclan.
-- [ ] Ciclos de corte: saldo actual vs saldo al corte por tarjeta
-- [ ] `Projection`: disponible por quincena. **Solo cuenta lo que tiene fecha.**
-- [ ] Simplificación de deudas para 3+ personas
-- [ ] Protocolos: `ExpenseStore`, `ExpenseParsing`, `InsightQuerying`, `PurchaseGating`
-- [ ] Implementaciones en memoria para tests y previews
+- [x] Ciclos de corte: saldo actual vs saldo al corte por tarjeta
+- [x] `Projection`: disponible por quincena. **Solo cuenta lo que tiene fecha.**
+- [x] Simplificación de deudas para 3+ personas
+- [x] Protocolos: `ExpenseStore`, `ExpenseParsing`, `InsightQuerying`, `PurchaseGating`
+- [x] Implementaciones en memoria para tests y previews
 
-**Cierre:** el ledger calcula saldos correctos en escenarios de 2 y 4 personas con
-correcciones, anulaciones y liquidaciones de por medio. Todo sin simulador.
+**Cierre:** `PersonLedger`/`CardLedger` calculan saldos correctos en escenarios
+de 2 y 4 personas con correcciones, anulaciones y liquidaciones de por medio,
+incluyendo un test explícito de que el orden de los eventos no cambia el
+resultado (ADR-0005). 34 tests en `LanaCore`, todo vía `swift test`, sin
+simulador. `ExpenseParsing`/`InsightQuerying` llevan tipos mínimos
+(`ParseResult`, `LedgerTool`) suficientes para que el protocolo compile — su
+forma real se define en Fase 3 y Fase 9 respectivamente.
 
-### Fase 2 — Persistencia · 4-5 días
-- [ ] Core Data + `NSPersistentCloudKitContainer`
-- [ ] Zona privada para lo personal, **zona propia por lista compartida**
-- [ ] Modelo compatible con CloudKit (todo con default u opcional)
-- [ ] Fallback a local si no hay iCloud
-- [ ] Round-trips y migraciones probadas
+Se agregó un sexto evento, `CardPaymentRecorded`, que estaba documentado en
+`Docs/DATA-FLOW.md` pero faltaba en este checklist — pagar la tarjeta no es un
+gasto y hacía falta antes de fijar el esquema de Core Data en Fase 2.
+`CardLedger.outstandingStatementBalance` neta los pagos contra lo facturado.
 
-### Fase 3 — Parser · 4-6 días
-- [ ] `ParsedTransaction` con `@Generable` y `@Guide` por campo
-- [ ] Distinguir ingreso de gasto
-- [ ] Moneda explícita cuando el texto la menciona
-- [ ] Método de pago y tarjeta desde el texto ("con la Nu", "en efectivo")
-- [ ] `@Generable` aparte para modo compartido (pagador + regla de división)
-- [ ] `AmountValidator` por regex; **su resultado gana sobre el modelo**
-- [ ] Los 4 casos de `availability` con UI distinta cada uno
-- [ ] `prewarm()` al abrir la captura
-- [ ] Subcategorías con fuzzy match y vocabulario que crece (ADR-0011)
-- [ ] Aprendizaje: correcciones como pares término→categoría (ADR-0012)
-- [ ] **Cero cifras en las instrucciones** (ADR-0013)
-- [ ] Filtro determinista: descartar gastos con monto ≤ 0
-- [ ] Golden set ≥80 frases propias
-- [ ] Suite de accuracy por campo: conteo, monto, categoría, subcategoría
+Nota de implementación: un literal fraccionario asignado a `Decimal` pasa por
+`Double` antes de convertirse (`1234.56` puede dar `1234.5599999999997952`) —
+documentado en el doc comment de `Money`. Construir montos exactos con
+`Decimal(string:)`, nunca con el literal directo.
 
-**Cierre:** ≥90% en monto, ≥80% en categoría. El monto no se negocia.
+### Fase 2 — Persistencia · ✅ COMPLETADA 2026-08-26
+- [x] Core Data + `NSPersistentCloudKitContainer`
+- [x] Zona privada para lo personal, **zona propia por lista compartida**
+- [x] Modelo compatible con CloudKit (todo con default u opcional)
+- [x] Fallback a local si no hay iCloud
+- [x] Round-trips y migraciones probadas
 
-### Fase 4 — Sistema de diseño · 3-4 días
-- [ ] Tokens semánticos, escala de espaciado, tipografía
-- [ ] Los seis temas con contraste verificado en claro y oscuro
-- [ ] Rampa de 8 colores de categoría derivada del tema
-- [ ] Componentes base: fila de transacción, tarjeta, campo de entrada, estados vacíos
-- [ ] `#Preview` que itera los seis temas
+**Cierre:** `CoreDataExpenseStore` (`LanaPersistence`) implementa `ExpenseStore`
+guardando cada `save`/`delete` como un `ExpenseEvent` nuevo (nunca muta nada,
+ADR-0005) y leyendo vía `ExpenseProjection`. 9 tests cubren round-trip,
+corrección (guardar dos veces el mismo id), anulación, filtro por rango, e
+ingreso sin categoría — incluyendo persistir de verdad en disco entre dos
+instancias distintas del store. El esquema tiene `CDSharedList` ←→ `CDEvent`
+como relación (Docs/.claude/skills/cloudkit-sharing): compartir una lista via
+`NSPersistentCloudKitContainer.share(_:to:)` mueve automáticamente sus
+eventos a la zona nueva del share, porque son parte del mismo grafo de
+objetos — verificado que el grafo está bien armado, no que el share real
+funciona (eso requiere cuenta de iCloud y dos devices físicos, ADR-0004,
+fuera de alcance hasta Fase 8).
 
-### Fase 5 — Captura · 4-5 días
-- [ ] Entrada, preview del parseo, confirmar
-- [ ] Edición inline antes de guardar
-- [ ] **Guardar nunca se bloquea** — lo ambiguo entra con `needsReview`
-- [ ] Onboarding para Apple Intelligence no disponible
+Dos decisiones de implementación que vale la pena dejar anotadas:
+- El modelo de Core Data se construye en código
+  (`LanaManagedObjectModel.swift`), no con un `.xcdatamodeld` editado en
+  Xcode: SwiftPM copia ese archivo tal cual pero no lo compila a `.momd` —
+  eso requiere `momc`, que solo corre como build phase de Xcode, y
+  `swift test --package-path Packages/LanaPersistence` (Docs/CLAUDE.md) tiene
+  que funcionar standalone.
+- "Migraciones probadas" hoy significa que la infraestructura está lista
+  (`shouldMigrateStoreAutomatically`/`shouldInferMappingModelAutomatically`)
+  y que las columnas son todas opcionales — no que se ejecutó una migración
+  real, porque todavía no existe una v2 del esquema contra la cual migrar.
 
-**Cierre:** abrir → escribir → confirmar. Tres pasos, ni uno más.
+### Fase 3 — Parser · ⏳ EN PROGRESO 2026-08-26 — ver cierre
+- [x] `ParsedTransaction` con `@Generable` y `@Guide` por campo
+- [x] Distinguir ingreso de gasto
+- [x] Moneda explícita cuando el texto la menciona
+- [x] Método de pago y tarjeta desde el texto ("con la Nu", "en efectivo")
+- [x] `@Generable` aparte para modo compartido (pagador + regla de división)
+- [x] `AmountValidator` por regex; **su resultado gana sobre el modelo**
+- [x] Los 4 casos de `availability` mapeados (`ParserAvailability`) — la UI
+      distinta para cada uno es trabajo de Fase 5 (pantalla de captura)
+- [x] `prewarm()` expuesto — llamarlo al abrir la captura es trabajo de Fase 5
+- [x] Subcategorías con fuzzy match y vocabulario que crece (ADR-0011)
+- [x] Aprendizaje: correcciones como pares término→categoría (ADR-0012)
+- [x] **Cero cifras en las instrucciones** (ADR-0013) — probado
+- [x] Filtro determinista: descartar gastos con monto ≤ 0
+- [ ] Golden set ≥80 frases propias — sigue en 20, ver nota
+- [x] Suite de accuracy por campo: conteo, monto, categoría, subcategoría
+      (`swift run parser-eval Tests/Fixtures/golden-set.json`, dentro de
+      `Packages/LanaParsing`)
 
-### Fase 6 — Dashboard · 4-5 días
-- [ ] Lista agrupada por día, con ingresos y gastos
-- [ ] Total del mes, desglose por categoría (Swift Charts)
-- [ ] Navegación entre meses
-- [ ] Bandeja de `needsReview`
+**Cierre real, medido contra el golden set de 20 casos × 3 corridas (Apple
+Intelligence disponible en esta máquina, no simulado):**
+
+| Campo | Resultado | Umbral | ¿Pasa? |
+|---|---|---|---|
+| Monto | 98.4% (62/63) | 90% | ✓ |
+| Conteo | 98.3% (59/60) | 95% | ✓ |
+| Categoría | 68.3% (43/63) | 80% | ✗ |
+| Subcategoría | 43.5% (10/23) | 60% | ✗ |
+
+**Monto no se negocia y ya pasa.** En el camino se corrigió un bug real en
+`AmountValidator`: números de 4+ dígitos sin coma de miles ("1000") se
+partían mal por un regex mal armado — eso, no el modelo, causaba la mayoría
+de las fallas de monto iniciales (85.7% → 98.4% con el fix).
+
+**Categoría y subcategoría no llegan al umbral sin aprendizaje.** El
+`@Guide` se afinó en 3 rondas (comida/despensa quedó particularmente
+confuso: "dulces", "mangos enchilados", "Boing" se clasifican como `comida`
+en vez de `despensa` de forma consistente) y subió de 41.3% a 68.3%, pero
+se estancó ahí — más ajustes al guide sobre el mismo golden set de 20 casos
+arriesgan sobreajustar sin generalizar. El baseline original del spike
+(Fase 0.5) también fue 75% *sin aprendizaje* y solo llegó a 90% *con*
+8 correcciones reales (ADR-0012) — el mecanismo de aprendizaje existe y está
+probado (`CorrectionVocabulary`), pero no hay uso real todavía que lo
+alimente. Varios de los fallos de categoría/subcategoría (bocina→ocio,
+acampar→ocio, chicles→despensa, gimnasio→personal) son exactamente el
+patrón que ADR-0012 documenta como resuelto por aprendizaje, no por prompt.
+
+**Pendiente, no bloqueante para seguir de fase:** el golden set sigue en 20
+casos reales (el checklist pide ≥80) — no se generaron frases sintéticas
+para no distorsionar la métrica (ver conversación 2026-08-26). Crece con uso
+real, como ya dice la nota del archivo.
+
+### Fase 4 — Sistema de diseño · ✅ COMPLETADA 2026-08-26
+- [x] Tokens semánticos, escala de espaciado, tipografía
+- [x] Los seis temas con contraste verificado en claro y oscuro
+- [x] Rampa de 8 colores de categoría derivada del tema
+- [x] Componentes base: fila de transacción, tarjeta, campo de entrada, estados vacíos
+- [x] `#Preview` que itera los seis temas
+
+**Cierre:** `LanaColors` (accent/highlight/categoryRamp/surface/texto/
+semánticos), `Space` (4/8/16/24/32/48pt), `LanaTextStyle` (ligado a Dynamic
+Type) y 4 componentes (`TransactionRow`, `LanaCard`, `LanaTextField`,
+`EmptyStateView`), cada uno con `#Preview` iterando los 6 temas. 11 tests en
+`LanaDesign` verifican contraste WCAG real (≥4.5:1, los 6 primarios y
+secundarios en claro y oscuro, más los semánticos fijos) y que la rampa de
+8 colores de categoría queda separada por 45° — sin necesitar un contexto de
+renderizado.
+
+Los 6 hex del ADR-0006 no cumplían 4.5:1 en ambas apariencias a la vez con
+el mismo valor (matemáticamente casi imposible: un color no puede ser
+oscuro contra blanco y claro contra negro simultáneamente). Cada tema quedó
+con una variante clara y una oscura, ajustando solo luminosidad y
+conservando tono y saturación — la identidad de marca se mantiene, el hex
+original se conservó en el modo donde ya cumplía. `LanaDesign` no está
+conectado a la app todavía (`ContentView.swift` sigue siendo el placeholder
+de Fase 0) — eso empieza en Fase 5.
+
+### Fase 5 — Captura · ✅ COMPLETADA 2026-08-26
+- [x] Entrada, preview del parseo, confirmar
+- [x] Edición inline antes de guardar
+- [x] **Guardar nunca se bloquea** — lo ambiguo entra con `needsReview`
+- [x] Onboarding para Apple Intelligence no disponible
+
+**Cierre:** `EntryModel` (`@MainActor @Observable`, sin SwiftUI) implementa
+abrir (`onAppear` revisa disponibilidad y precalienta) → escribir (`submit`
+parsea y llena `drafts`, editables inline vía `DraftCard`) → confirmar
+(`confirm` guarda todos los borradores). `EntryView` no decide nada, solo
+refleja `stage`. Los 4 casos de `ParsingAvailability` tienen su propia
+pantalla en `AvailabilityOnboardingView`. 9 tests en `EntryModel` cubren el
+flujo completo, incluido uno explícito de que confirmar con
+`needsReview: true` sí guarda (no bloquea) y otro de que editar un borrador
+antes de confirmar persiste la edición, no el original del parser.
+
+Tres brechas reales entre fases anteriores, encontradas al construir esta:
+- `ParsingAvailability` (los 4 casos) vivía en `LanaParsing`, pero las
+  features solo pueden depender de `LanaCore`/`LanaDesign` — se movió el
+  tipo a `LanaCore` y `ExpenseParsing` ahora expone `availability` y
+  `prewarm()` en el protocolo.
+- `ParseResult` no distinguía ingreso de gasto (`kind`) pese a que el
+  parser sí lo extrae desde Fase 3 — se perdía en el mapeo.
+- `subcategory` llegaba hasta `ParseResult` pero nunca a `Expense` ni a los
+  eventos (`ExpenseAdded`/`ExpenseCorrected`) — se habría perdido al
+  guardar. Se propagó de punta a punta y se agregó un test de round-trip.
+
+`EntryFeature` no está conectado al target de la app todavía —
+`ContentView.swift` sigue siendo el placeholder de Fase 0, y la instancia
+real de `FoundationModelsExpenseParsing` + `CoreDataExpenseStore` (en vez de
+las de memoria usadas en tests y `#Preview`) se conecta cuando exista la
+composición de la app (`App/AppDependencies.swift`, Docs/ARCHITECTURE.md) —
+no es una fase propia en este plan todavía.
+
+### Fase 6 — Dashboard · ✅ COMPLETADA 2026-08-26
+- [x] Lista agrupada por día, con ingresos y gastos
+- [x] Total del mes, desglose por categoría (Swift Charts)
+- [x] Navegación entre meses
+- [x] Bandeja de `needsReview`
+
+**Cierre:** `DashboardModel` (`@MainActor @Observable`) carga el mes vigente,
+agrupa por día, separa totales por moneda (nunca los suma entre sí —
+Docs/CONVENTIONS.md), y expone `needsReviewItems`. `DashboardView` usa
+`Charts` (`CategoryBreakdownChart`) para el desglose, con el color de cada
+categoría derivado de un hash estable (no del `Hashable` de Swift, que
+cambia de semilla en cada corrida) para no depender de `LanaParsing`. 7
+tests cubren agrupación, navegación entre meses, separación de monedas y el
+filtro de revisión.
+
+**Además de la fase, y a petición explícita del usuario ("ya quiero empezar
+a ver algo en mi cel"), se conectó todo al target de la app** — trabajo que
+no es una fase propia en este plan:
+- `AppDependencies` (`App/`, Docs/ARCHITECTURE.md → Composición): el único
+  lugar que conoce las implementaciones concretas. `.live()` usa
+  `FoundationModelsExpenseParsing` + `CoreDataExpenseStore` **local, sin
+  CloudKit** — `Lana.entitlements` todavía no tiene un contenedor de iCloud
+  provisionado (`icloud-container-identifiers` vacío), así que forzar uno
+  habría reventado (visto en Fase 2). `purchases` usa `InMemoryPurchaseGating`
+  como stand-in hasta Fase 10 (`LanaPurchases` real, StoreKit 2).
+- `ContentView` arma `AppDependencies` de forma async y muestra un
+  `TabView` (Captura / Dashboard) una vez lista.
+- Se borraron `Persistence.swift` y el `Lana.xcdatamodeld` de la plantilla
+  de Xcode — código muerto desde que existe `LanaPersistence.CoreDataExpenseStore`.
+- Verificado corriendo la app de verdad en el iPhone físico conectado
+  (`xcrun devicectl`): instala, lanza y no crashea.
+
+Pendiente para cuando el usuario provisiones un contenedor de iCloud en
+Xcode (Signing & Capabilities): pasar `AppDependencies.live()` a detectar
+`CloudKitAvailability.hasActiveAccount` y usar el identificador real.
+
+### Fase 6.5 — Voz, Tarjetas y Ajustes · ✅ COMPLETADA — ver nota de auditoría 2026-08-27
+Nace de un rediseño de UI/UX pedido explícitamente por el usuario (mockup
+en Claude Design, aprobado 2026-08-26): Captura se integra al Dashboard
+(sin tab propio) detrás de un FAB de micrófono, y aparecen dos secciones
+nuevas que no tenían fase propia — Tarjetas y Ajustes.
+
+- [x] `SpeechTranscribing` (`LanaCore`) + paquete `LanaSpeech` (Speech
+      framework, on-device, parada manual) — ADR-0015
+- [x] Captura por voz integrada al flujo de `EntryFeature`: escuchar →
+      transcribir → el mismo `submit()`/parseo/revisión que ya existía
+- [x] Se cierra un hueco de Fase 3: `EntryModel` ahora sí llama
+      `vocabularyStore.record(...)` cuando el usuario corrige la categoría
+      (ADR-0012 quedaba construido pero nunca disparado) — `EntryModel.swift:266`
+- [x] `CardStore` (`LanaCore`) + `CDCard` (`LanaPersistence`, misma
+      instancia/contenedor que `CoreDataExpenseStore`) — ADR-0014
+- [x] `CorrectionVocabularyStore` se mueve a `LanaCore`
+      (`category: String`, ya no `ExpenseCategory`) y gana persistencia
+      real (`CDVocabularyEntry`) + `delete(term:)`/`deleteAll()`
+- [x] `CardsFeature`: lista, alta/edición, detalle con gastos y desglose
+      por categoría de esa tarjeta. Deuda = cargos de crédito en el ciclo
+      de corte vigente — y de hecho **ya incluye registrar pagos**
+      (`AddCardPaymentView`/`CardDetailModel.recordPayment`), adelantado de
+      Fase 7.5
+- [x] `SettingsFeature`: selector de los 6 temas (persistido), vocabulario
+      aprendido visible con borrado individual y total
+- [x] Dashboard: dos tarjetas de estadística (Gastado/Ingresos) en vez de
+      una sola; desglose por categoría tappable → detalle con transacciones
+      de esa categoría (más un segundo desglose por forma de pago, no
+      pedido en el checklist original)
+- [x] `MainTabView`: 4 tabs (Dashboard/Tarjetas/**Compartido**/Ajustes —
+      Compartido se adelantó de Fase 8 a petición explícita del usuario),
+      tema ya no fijo en Cobalto
+
+**Cierre real (auditoría 2026-08-27):** esta fase se dio por pendiente en
+el plan durante un tiempo mientras ya estaba terminada en el código —el
+plan no se actualizó en el momento. Verificado leyendo cada archivo, no
+solo su existencia. `outstandingStatementBalance` (saldo al corte neto de
+pagos) también quedó resuelto aquí vía `CardPaymentStore`/
+`CoreDataCardPaymentStore`, adelantando esa parte de Fase 7.5.
 
 ### Fase 7 — Presupuestos · 2-3 días
 - [ ] CRUD mensual por categoría, con avance
 - [ ] Presentación como dato, sin tono de regaño
 
-### Fase 7.5 — Tarjetas y proyección · 8-11 días ← el diferenciador real
-- [ ] CRUD de tarjetas con corte y fecha límite
-- [ ] Deuda por tarjeta: saldo actual y saldo al corte, separados
-- [ ] Al registrar con tarjeta, mostrar a qué corte cae y cuándo se paga
-- [ ] Proyección de quincena: ingresos − compromisos con fecha = disponible
+**Estado (auditoría 2026-08-27):** `BudgetsFeature` sigue siendo un
+scaffold puro (`enum BudgetsFeature { static let moduleName }`), sin
+importar en la app real. Nada hecho todavía.
+
+### Fase 7.5 — Tarjetas y proyección · 5-7 días ← el diferenciador real
+- [x] CRUD de tarjetas con corte y fecha límite — hecho en Fase 6.5
+- [x] Deuda por tarjeta del ciclo vigente — hecho en Fase 6.5
+- [x] Saldo al corte neto de pagos (`outstandingStatementBalance`) —
+      hecho en Fase 6.5 vía `CardPaymentStore`
+- [x] Al registrar con tarjeta, mostrar a qué corte cae y cuándo se paga
+      — cubierto por `UpcomingCardPaymentsSection`/`UpcomingCardPaymentsModel`
+      en el Dashboard
+- [ ] Proyección de quincena: ingresos − compromisos con fecha = disponible.
+      **`Projection.swift` (`LanaCore`) ya existe y está probado**
+      (`available(currentBalance:commitments:through:)`), pero no se llama
+      desde ninguna feature todavía — falta la UI que lo conecte
 - [ ] Cuentas por cobrar en sección aparte, **nunca sumadas al disponible**
-- [ ] App Intent "Agregar transacción" + guía de configuración de Shortcuts
+- [x] App Intent "Agregar transacción" — `AddTransactionIntent`
+      (`Lana/Intents/AddTransactionIntent.swift`), match de tarjeta por
+      heurística de texto contra el nombre que da el trigger de Wallet
+      (`Card.bestMatch`, `LanaCore`, probado), categoría sugerida vía el
+      parser existente cuando el modelo está disponible. Detalle de
+      implementación en ADR-0019. **Falta:** la guía de configuración de
+      Shortcuts dentro del onboarding — sin ella la función no existe para
+      la mayoría de los usuarios (ADR-0009)
 - [ ] **Todo lo capturado por Apple Pay entra con `needsReview`**
 - [ ] Alerta de tarjeta cerca del límite, como dato y no como reproche
 
@@ -227,12 +441,24 @@ correcciones, anulaciones y liquidaciones de por medio. Todo sin simulador.
 ### Fase 8 — Compartir · 6-8 días ← la fase más riesgosa
 - [ ] Crear lista, generar `CKShare`, invitar por share sheet
 - [ ] Aceptar invitación, incluyendo con la app cerrada
-- [ ] Registrar gasto con pagador y regla de división
-- [ ] Vista de saldos: quién debe a quién, **con tendencia** además del número
-- [ ] Registrar liquidación, con método de pago
+- [x] Registrar gasto con pagador y regla de división — `SharedExpenseCaptureView`
+- [x] Vista de saldos: quién debe a quién, **con tendencia** además del número
+      — `ParticipantBalance.Trend`, `BalancesView`
+- [x] Registrar liquidación, con método de pago — `SettleUpView`
 - [ ] Recordatorio suave al cruzar umbral de monto o antigüedad (configurable)
 - [ ] Permisos: participantes corrigen lo propio, no lo ajeno
 - [ ] Prueba real en dos devices físicos con cuentas distintas
+
+**Estado (auditoría 2026-08-27):** la mitad "producto" ya es real y
+probada — CRUD de listas (`CoreDataSharedListStore`), split, saldos con
+tendencia, liquidaciones. La mitad que da nombre a la fase y a su fama de
+riesgosa — CloudKit sharing real entre dos cuentas de iCloud — **no ha
+empezado**: no hay `CKShare`, ni invitación, ni aceptación en
+`LanaApp.swift`. `CreateSharedListModel` lo documenta explícito: los
+participantes son "locales por ahora, hasta que exista identidad real de
+CKShare". `AppDependencies.live()` sigue con `cloudKitContainerIdentifier:
+nil` — sin contenedor de iCloud provisionado, la app entera sigue en modo
+local sin sync entre devices.
 
 ### Fase 9 — Consultas en lenguaje natural · 3-4 días
 - [ ] Tools deterministas: `totalPorCategoria`, `comparaMeses`, `mayoresGastos`,
@@ -331,14 +557,15 @@ y `design-reviewer` antes de commit → `adr-writer` si tocaste estructura.
 | 4 — Diseño | 3-4 |
 | 5 — Captura | 4-5 |
 | 6 — Dashboard | 4-5 |
+| 6.5 — Voz, Tarjetas y Ajustes | 6-8 |
 | 7 — Presupuestos | 2-3 |
-| 7.5 — Tarjetas y proyección | 8-11 |
+| 7.5 — Tarjetas y proyección | 5-7 |
 | 7.8 — Tickets | 3-4 |
 | 8 — Compartir | 6-8 |
 | 9 — Consultas | 3-4 |
 | 10 — Monetización | 2 |
 | 11 — Lanzamiento | 4-5 |
-| **Total** | **~53-71 días enfocados** |
+| **Total** | **~59-79 días enfocados** |
 
 En calendario real con otras cosas encima: **5 a 7 meses**.
 

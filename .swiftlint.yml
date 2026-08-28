@@ -1,0 +1,56 @@
+excluded:
+  - .build
+  - DerivedData
+  - Lana/Packages/*/.build
+  - Lana/Packages/LanaFeatures/*/.build
+  - Lana.xcodeproj
+  - Lana/Assets.xcassets
+  - Lana/Lana.xcdatamodeld
+
+opt_in_rules:
+  - force_unwrapping
+  - missing_docs
+  - explicit_init
+  - unused_import
+  - empty_count
+  - contains_over_first_not_nil
+  - toggle_bool
+  - unavailable_function
+  - fatal_error_message
+  - overridden_super_call
+
+# `!` prohibido salvo en tests (Docs/CONVENTIONS.md → Opcionales). SwiftLint
+# no soporta `excluded:` por-regla para reglas estándar (solo para
+# custom_rules) — las excepciones puntuales en tests van con
+# `// swiftlint:disable:next force_unwrapping`.
+force_unwrapping:
+  severity: error
+
+# `///` en todo lo público (Docs/CONVENTIONS.md → Comentarios)
+missing_docs:
+  severity: warning
+  excluded_kinds: [extension]
+
+line_length:
+  warning: 120
+  error: 150
+  ignores_urls: true
+  ignores_comments: true
+
+identifier_name:
+  min_length: 2
+
+# Best-effort: SwiftLint no tiene regla nativa para sufijos -ing/-able en
+# protocolos (Docs/CONVENTIONS.md → Nombres); el caso semántico lo cubre
+# swift-reviewer.
+custom_rules:
+  protocol_naming_convention:
+    included: ".*\\.swift"
+    excluded: ".*Tests.*"
+    regex: 'protocol\s+[A-Z][A-Za-z0-9]*?(?<!ing)(?<!able)(?<!Able)\s*[:{]'
+    message: "Los protocolos terminan en -ing o -able (Docs/CONVENTIONS.md)."
+    severity: warning
+  todo_sin_contexto:
+    regex: '//\s*TODO:\s*$'
+    message: "Un TODO necesita contexto y no vive más de un PR (Docs/CONVENTIONS.md)."
+    severity: warning

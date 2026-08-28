@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XCODE_VERSION: "26.4.1"
+
+jobs:
+  lint-and-format:
+    name: Lint & format
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install swiftlint swiftformat
+      - run: swiftformat --lint .
+      - run: swiftlint --strict
+
+  package-tests:
+    name: Swift Package tests (sin simulador)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+      - name: swift test por cada paquete local
+        working-directory: Lana
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for pkg in Packages/*/Package.swift Packages/LanaFeatures/*/Package.swift; do
+            dir=$(dirname "$pkg")
+            echo "== swift test --package-path $dir =="
+            swift test --package-path "$dir"
+          done
+
+  # LanaTests (el target de tests a nivel de app) existe pero no está enlazado
+  # a los paquetes locales todavía — no hay nada real que probar ahí hasta que
+  # haya ViewModels (Fase 5+). Por ahora este job solo valida que la app
+  # compila con los 12 paquetes integrados. Cuando LanaTests tenga tests
+  # reales, cambiar `build` por `test` aquí.
+  xcodebuild-build:
+    name: xcodebuild build (scheme Lana)
+    runs-on: macos-26
+    needs: [lint-and-format, package-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+      - run: xcodebuild -resolvePackageDependencies -project Lana.xcodeproj -scheme Lana
+      - run: >
+          xcodebuild -scheme Lana
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          build

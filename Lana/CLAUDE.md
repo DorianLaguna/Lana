@@ -100,5 +100,18 @@ mal por gastar. Esto aplica al copy y al color.
 
 ## Fuera de v1.0
 
-Voz, App Intents, escaneo de tickets, widgets, exportación, presupuestos
-compartidos. Si una tarea empieza a rozar esto, para y pregunta.
+Escaneo de tickets, exportación, presupuestos compartidos. Si una tarea
+empieza a rozar esto, para y pregunta.
+
+Captura por voz **ya está dentro de v1.0** (decisión 2026-08-26, ver
+ADR-0015) — es on-device vía el Speech framework de Apple, con parada
+manual (el usuario toca el micrófono de nuevo para terminar). Es "otra
+forma de producir texto" que alimenta el mismo parser — no es un segundo
+parser ni un segundo camino de captura.
+
+Un widget de Home Screen con un App Intent mínimo **ya está dentro de
+v1.0** (decisión 2026-08-27, ver ADR-0018) — un solo widget que abre la
+app directo en modo escucha, vía un deep link (`lana://capture`), para
+capturar con el menor número de toques posible. No es un widget
+informativo (no muestra saldos ni gastos) ni un App Intent de Siri
+completo — solo el atajo de abrir-y-escuchar.

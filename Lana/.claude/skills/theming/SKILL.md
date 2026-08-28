@@ -32,14 +32,16 @@ public struct LanaColors {
     public let accent: Color          // primario: acciones, selección, foco
     public let accentMuted: Color     // primario al 15%: fondos de estado activo
     public let highlight: Color       // secundario: datos, gráficas, categorías
-    public let categoryRamp: [Color]  // 8 tonos derivados del par, en orden fijo
+    public let categoryRamp: [Color]  // 12 tonos derivados del par, en orden fijo
 
-    // Fijos en todos los temas
+    // Por tema — cada uno con su propia variante clara/oscura (ADR-0016)
     public let surface: Color         // fondo de pantalla
     public let surfaceRaised: Color   // tarjetas, hojas
     public let textPrimary: Color
     public let textSecondary: Color
     public let separator: Color
+
+    // Fijos en todos los temas (ADR-0006)
     public let positive: Color        // ingresos
     public let warning: Color         // presupuesto cerca del límite
     public let critical: Color        // sobregiro, errores
@@ -49,6 +51,16 @@ public struct LanaColors {
 **Semánticos fijos:** `positive`, `warning` y `critical` **no cambian con el tema**.
 Si el rojo de alerta cambiara según el tema, el usuario tendría que reaprender qué
 significa. La personalización es identidad, no semántica.
+
+**Superficie y texto sí cambian por tema (ADR-0016).** Hasta antes de ese ADR eran
+también fijos — el pedido fue que elegir un tema cambiara la app entera, no solo
+acentos pequeños. Para 5 de los 6 temas los valores por tema son idénticos a los
+que antes eran globales (sin diferencia visual). Obsidiana es la excepción: usa un
+fondo casi negro **forzado en sus dos variantes**, clara y oscura — no un tinte
+que siga el modo del sistema — porque el pedido explícito fue que se sienta
+"siempre oscuro" sin importar si el dispositivo está en modo claro. Por eso
+`ContentView` también aplica `.preferredColorScheme(.dark)` cuando Obsidiana está
+activo: eso cubre la barra de estado y el teclado, que `LanaColors` no controla.
 
 ## Los seis temas
 
@@ -62,14 +74,20 @@ en claro y oscuro.
 | Jacaranda | `#6C4FB3` | `#4FA88B` |
 | Nopal | `#2F7A4F` | `#E0457B` |
 | Bugambilia | `#C2185B` | `#F2A007` |
-| Obsidiana | `#2B2B33` | `#C9A227` |
+| Obsidiana | `#7D7D91` | `#C9A227` |
 
 Los nombres vienen del mundo del usuario, no de la rueda de color. "Jacaranda"
 comunica algo; "Morado 2" no.
 
-**Al agregar un tema nuevo:** verifica contraste en claro y oscuro contra
-`surface`, `surfaceRaised` y `textPrimary`, y confirma que la rampa de categorías
-mantenga 8 tonos distinguibles entre sí. Un par que no pasa no entra.
+Obsidiana es el único tema donde primario/secundario **no** varían entre variante
+clara y oscura — con la superficie forzada a casi negro en ambas (ver arriba), el
+tono pensado originalmente para verse sobre blanco ya no tenía contra qué
+funcionar, así que ambas variantes usan el mismo tono pensado para fondo oscuro.
+
+**Al agregar un tema nuevo:** verifica contraste en claro y oscuro contra la
+`surface`, `surfaceRaised` y `textPrimary` **propias de ese tema**, y confirma que
+la rampa de categorías mantenga sus tonos distinguibles entre sí. Un par que no
+pasa no entra.
 
 ## Colores de categoría
 
