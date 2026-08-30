@@ -16,6 +16,10 @@ public struct RecurringItem: Sendable, Hashable, Identifiable, Codable {
     /// `nil` para ingresos — igual que `Expense.category` (solo los gastos
     /// se categorizan, v1.0).
     public var category: String?
+    /// `nil` para ingresos, igual que `category` — mismo campo que
+    /// `Expense.subcategory`, para que un recurrente registrado no pierda
+    /// esa granularidad frente a un gasto capturado a mano.
+    public var subcategory: String?
     /// El día del mes en que normalmente cae, solo como referencia visual
     /// — no dispara nada por sí mismo.
     public var dayOfMonth: Int
@@ -35,6 +39,7 @@ public struct RecurringItem: Sendable, Hashable, Identifiable, Codable {
         amount: Money,
         kind: Expense.Kind,
         category: String? = nil,
+        subcategory: String? = nil,
         dayOfMonth: Int,
         paymentMethod: PaymentMethod? = nil,
         lastRegisteredMonth: Date? = nil) throws {
@@ -50,6 +55,7 @@ public struct RecurringItem: Sendable, Hashable, Identifiable, Codable {
         self.amount = amount
         self.kind = kind
         self.category = kind == .income ? nil : category
+        self.subcategory = kind == .income ? nil : subcategory
         self.dayOfMonth = dayOfMonth
         self.paymentMethod = kind == .income ? nil : paymentMethod
         self.lastRegisteredMonth = lastRegisteredMonth

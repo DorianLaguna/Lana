@@ -65,6 +65,32 @@ public struct ParsedTransaction: Sendable {
     """)
     public var cardHint: String
 
+    @Guide(description: """
+    true SOLO si el texto dice explícitamente que este gasto se comparte, \
+    se divide o se reparte con otra persona (p. ej. 'lo dividimos', 'es \
+    compartido', 'a medias con Ana', 'entre los dos'). Decir simplemente \
+    quién lo pagó NO es compartir: 'pagué la gasolina', 'compré despensa', \
+    'lo puse yo' son gastos personales normales y esto debe ser false. La \
+    enorme mayoría de las frases son gastos personales — ante la duda, \
+    false.
+    """)
+    public var isShared: Bool
+
+    @Guide(description: """
+    Solo cuando isShared es true: quién pagó, tal como aparece en el texto \
+    — un nombre propio (p. ej. 'Ana') o 'yo' si lo pagó quien está \
+    dictando. Vacío si isShared es false o si el texto no dice quién pagó.
+    """)
+    public var payerHint: String
+
+    @Guide(description: """
+    Solo cuando isShared es true: cómo se divide, si el texto lo menciona: \
+    'igual' (partes iguales), 'yo' (solo quien pagó, sin dividir), o una \
+    proporción o porcentaje descrito en el texto. Vacío si no se menciona \
+    ninguna división.
+    """)
+    public var splitHint: String
+
     @Guide(description: "true si algo quedó ambiguo o dudoso y conviene que la persona lo revise antes de confirmar.")
     public var needsReview: Bool
 }

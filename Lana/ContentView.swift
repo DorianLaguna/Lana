@@ -15,6 +15,7 @@ import UIKit
 /// La raíz de la app: arma `AppDependencies` (async por `CoreDataExpenseStore`)
 /// y solo entonces muestra la navegación real.
 struct ContentView: View {
+    let appDelegate: AppDelegate
     @State private var dependencies: AppDependencies?
     @State private var loadError: String?
 
@@ -30,7 +31,14 @@ struct ContentView: View {
         }
         .task {
             do {
-                dependencies = try await AppDependencies.live()
+                let dependencies = try await AppDependencies.live()
+                self.dependencies = dependencies
+                // Conecta el store real para que `AppDelegate` pueda
+                // aceptar invitaciones de `CKShare` (ADR-0020) — incluye
+                // procesar cualquiera que haya llegado mientras esto cargaba.
+                if let concreteExpenseStore = dependencies.concreteExpenseStore {
+                    appDelegate.attach(store: concreteExpenseStore)
+                }
             } catch {
                 loadError = error.localizedDescription
             }
@@ -84,11 +92,13 @@ private struct MainTabView: View {
             store: dependencies.store,
             cardStore: dependencies.cardStore,
             speech: dependencies.speech,
-            vocabularyStore: dependencies.vocabularyStore))
+            vocabularyStore: dependencies.vocabularyStore,
+            sharedListStore: dependencies.sharedListStore))
         _dashboardModel = State(initialValue: DashboardModel(
             store: dependencies.store,
             vocabularyStore: dependencies.vocabularyStore,
-            cardStore: dependencies.cardStore))
+            cardStore: dependencies.cardStore,
+            sharedListStore: dependencies.sharedListStore))
         _recurringItemsModel = State(initialValue: RecurringItemsModel(
             recurringItemStore: dependencies.recurringItemStore,
             store: dependencies.store,
@@ -102,8 +112,11 @@ private struct MainTabView: View {
             cardPaymentStore: dependencies.cardPaymentStore))
         _sharedListModel = State(initialValue: SharedListModel(
             sharedListStore: dependencies.sharedListStore,
-            expenseStore: dependencies.store))
-        _settingsModel = State(initialValue: SettingsModel(vocabularyStore: dependencies.vocabularyStore))
+            expenseStore: dependencies.store,
+            parser: dependencies.parser))
+        _settingsModel = State(initialValue: SettingsModel(
+            vocabularyStore: dependencies.vocabularyStore,
+            syncStatusReporting: dependencies.syncStatus))
     }
 
     /// Nunca `@Environment(\.lana)` aquí: esta vista es la que APLICA
@@ -122,7 +135,13 @@ private struct MainTabView: View {
             DashboardView(
                 model: dashboardModel,
                 recurringItemsModel: recurringItemsModel,
-                upcomingCardPaymentsModel: upcomingCardPaymentsModel)
+                upcomingCardPaymentsModel: upcomingCardPaymentsModel,
+                // `SharedFeature` no puede construir esto (las features no
+                // se importan entre sí) — un gasto editado o borrado aquí
+                // puede ser compartido, y sin este aviso el saldo en
+                // "Compartido" se quedaba con la cifra vieja hasta salir y
+                // volver a entrar a esa lista.
+                onExpenseChanged: { Task { await sharedListModel.refreshCurrentDetail() } })
                 .tabItem { Label("Dashboard", systemImage: "chart.bar") }
                 .tag(Tab.dashboard)
 
@@ -170,7 +189,11 @@ private struct MainTabView: View {
                     isCapturePresented = false
                     autoStartListening = false
                     entryModel.startOver()
-                    Task { await dashboardModel.onAppear() }
+                    Task {
+                        await dashboardModel.onAppear()
+                        // Un gasto capturado aquí puede ser compartido.
+                        await sharedListModel.refreshCurrentDetail()
+                    }
                 },
                 autoStartListening: autoStartListening)
                 // No pantalla completa — es un momento rápido de captura,
@@ -196,6 +219,13 @@ private struct MainTabView: View {
                 Task {
                     await dashboardModel.onAppear()
                     await cardsModel.onAppear()
+                    // `cardsModel.onAppear()` solo refresca la lista de
+                    // tarjetas y su deuda — el detalle empujado en el stack
+                    // (si el usuario está drilled-down en una tarjeta) es
+                    // una instancia aparte con su propia copia de gastos.
+                    await cardsModel.refreshCurrentCardDetail()
+                    // El gasto editado/borrado puede ser compartido.
+                    await sharedListModel.refreshCurrentDetail()
                 }
             })
         }

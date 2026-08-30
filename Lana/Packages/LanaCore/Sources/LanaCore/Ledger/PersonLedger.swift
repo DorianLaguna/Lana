@@ -67,6 +67,49 @@ public struct PersonLedger: Sendable {
         return Self.simplify(balances, currency: currency)
     }
 
+    /// El detalle, gasto por gasto, de la relación directa entre `from` y
+    /// `to` en `sharedListID` — el "por qué" detrás de un `Debt`. A
+    /// diferencia de `simplifiedDebts`, que con 3+ participantes puede
+    /// combinar deudas transitivas (A le debe a B, B le debe a C se
+    /// simplifica a A le debe a C directamente), esto es literalmente "qué
+    /// gastos involucraron a estos dos y cuánto le tocó a cada quien" —
+    /// ignora a cualquier tercer participante. Con exactamente dos
+    /// participantes en la lista, la suma de `signedEffect` siempre coincide
+    /// con el `Debt` simplificado; con 3+, es la historia real entre ambos,
+    /// que puede no ser idéntica a la cifra ya simplificada (ADR-0024).
+    /// Un gasto `.payerOnly` nunca contribuye — nadie más debe nada de él.
+    public func contributions(
+        between from: ParticipantID,
+        and to: ParticipantID,
+        in sharedListID: SharedListID) -> [DebtContribution] {
+        let resolved = LedgerFold.resolve(events)
+        var results: [DebtContribution] = []
+        for transaction in resolved.values {
+            guard transaction.kind == .expense,
+                  !transaction.isVoided,
+                  transaction.sharedListID == sharedListID,
+                  let payer = transaction.payer,
+                  payer == from || payer == to,
+                  let split = transaction.split,
+                  let portions = try? split.portions(of: transaction.amount),
+                  let fromShare = portions[from],
+                  let toShare = portions[to]
+            else { continue }
+
+            let signedEffect = payer == to ? fromShare.amount : -toShare.amount
+            results.append(DebtContribution(
+                id: transaction.id,
+                date: transaction.date,
+                concept: transaction.concept,
+                amount: transaction.amount,
+                payer: payer,
+                fromShare: fromShare,
+                toShare: toShare,
+                signedEffect: signedEffect))
+        }
+        return results.sorted { $0.date < $1.date }
+    }
+
     private static func simplify(_ balances: [ParticipantID: Decimal], currency: Currency) -> [Debt] {
         var remaining = balances.filter { $0.value != 0 }
         var debts: [Debt] = []

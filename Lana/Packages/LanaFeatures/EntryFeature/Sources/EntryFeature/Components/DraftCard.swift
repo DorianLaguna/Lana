@@ -13,12 +13,23 @@ public struct DraftCard: View {
     @Binding private var draft: DraftTransaction
     private let cards: [Card]
     private let allSubcategories: [String: [String]]
+    private let sharedLists: [SharedList]
+    /// Cómo mostrar el nombre de un participante — `EntryModel` es quien
+    /// sabe cuál es "yo" en cada lista, este componente no.
+    private let viewerName: (ParticipantID, SharedListID) -> String
     @State private var isEnteringCustomSubcategory = false
 
-    public init(draft: Binding<DraftTransaction>, cards: [Card], allSubcategories: [String: [String]] = [:]) {
+    public init(
+        draft: Binding<DraftTransaction>,
+        cards: [Card],
+        allSubcategories: [String: [String]] = [:],
+        sharedLists: [SharedList] = [],
+        viewerName: @escaping (ParticipantID, SharedListID) -> String = { _, _ in "Alguien" }) {
         _draft = draft
         self.cards = cards
         self.allSubcategories = allSubcategories
+        self.sharedLists = sharedLists
+        self.viewerName = viewerName
     }
 
     public var body: some View {
@@ -58,6 +69,7 @@ public struct DraftCard: View {
                 if draft.kind == .expense {
                     categoryPicker
                     subcategoryPicker
+                    sharedExpenseBanner
                 }
 
                 DatePicker("Fecha", selection: $draft.date, displayedComponents: .date)
@@ -111,6 +123,106 @@ public struct DraftCard: View {
                 LanaTextField("Nombre de la subcategoría", text: $draft.subcategory)
             }
         }
+    }
+
+    /// Si el texto se detectó como compartido (`EntryModel.applySharedMatch`,
+    /// ADR-0025), esto es lo único que hace visible que el gasto va a ir a
+    /// una lista y no al Dashboard personal — sin esto, confirmar sería
+    /// invisible: el usuario nunca vería a dónde fue su dinero hasta entrar
+    /// a esa lista después. "Quitar" no borra el gasto, solo revierte la
+    /// detección — el gasto se guarda como personal, como si el texto nunca
+    /// hubiera mencionado a nadie.
+    @ViewBuilder
+    private var sharedExpenseBanner: some View {
+        if let sharedListID = draft.sharedListID, let list = sharedLists.first(where: { $0.id == sharedListID }) {
+            VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                HStack(spacing: Space.sm.rawValue) {
+                    Image(systemName: "person.2")
+                        .foregroundStyle(lana.textSecondary)
+                    Text("Compartido en \(list.name)")
+                        .lanaFont(.caption)
+                        .foregroundStyle(lana.textSecondary)
+                    Spacer()
+                    Button("Quitar") {
+                        draft.sharedListID = nil
+                        draft.payer = nil
+                        draft.split = nil
+                    }
+                    .lanaFont(.caption)
+                }
+                Picker("Pagó", selection: payerBinding(in: list)) {
+                    ForEach(list.participants) { participant in
+                        Text(displayName(participant, in: list)).tag(participant.id)
+                    }
+                }
+                .lanaFont(.body)
+                .foregroundStyle(lana.textPrimary)
+
+                splitBreakdown(in: list)
+            }
+        }
+    }
+
+    /// Cómo queda repartido antes de confirmar (ADR-0029) — el borrador ya
+    /// traía la lista y el pagador, pero no cuánto le toca a cada quien, que
+    /// es lo único que hace verificable la detección automática.
+    @ViewBuilder
+    private func splitBreakdown(in list: SharedList) -> some View {
+        if draft.split != nil {
+            Picker("División", selection: splitKindBinding(in: list)) {
+                ForEach(SplitRuleKind.resolvable(in: list)) { kind in
+                    Text(kind.displayName).tag(SplitRuleKind?.some(kind))
+                }
+            }
+            .lanaFont(.body)
+            .foregroundStyle(lana.textPrimary)
+            ForEach(draft.splitShares) { share in
+                HStack {
+                    Text(displayNameByID(share.participant, in: list))
+                    if share.isPayer {
+                        Text("pagó")
+                            .foregroundStyle(lana.textSecondary)
+                    }
+                    Spacer()
+                    Text(share.amount.formatted())
+                        .monospacedDigit()
+                }
+                .lanaFont(.caption)
+                .foregroundStyle(lana.textSecondary)
+            }
+        }
+    }
+
+    private func displayNameByID(_ id: ParticipantID, in list: SharedList) -> String {
+        viewerName(id, list.id)
+    }
+
+    /// Cambiar la regla la resuelve contra la lista al vuelo — solo se
+    /// ofrecen las que no piden un número por participante (ADR-0030), así
+    /// que `resolve(in:)` nunca devuelve `nil` para lo que está en el picker.
+    private func splitKindBinding(in list: SharedList) -> Binding<SplitRuleKind?> {
+        Binding(
+            get: { draft.split.map(SplitRuleKind.init) },
+            set: { kind in
+                if let resolved = kind?.resolve(in: list) {
+                    draft.split = resolved
+                }
+            })
+    }
+
+    /// El pagador nunca queda vacío mientras el gasto sea de una lista — si
+    /// la detección no lo resolvió, cae al primer participante y el picker
+    /// deja corregirlo antes de confirmar.
+    private func payerBinding(in list: SharedList) -> Binding<ParticipantID> {
+        Binding(
+            get: { draft.payer ?? list.participants.first?.id ?? ParticipantID() },
+            set: { draft.payer = $0 })
+    }
+
+    /// "Yo" en lugar del nombre propio (ADR-0028) — `viewerName` lo resuelve
+    /// `EntryModel`, que es quien conoce la identidad marcada en cada lista.
+    private func displayName(_ participant: Participant, in list: SharedList) -> String {
+        viewerName(participant.id, list.id)
     }
 
     private enum SubcategorySelection: Hashable {

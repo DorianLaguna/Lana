@@ -11,7 +11,8 @@ struct SharedListModelTests {
         let list = SharedList(name: "Depa", participants: [Participant(displayName: "Alice")], defaultSplit: .payerOnly)
         let model = SharedListModel(
             sharedListStore: InMemorySharedListStore(seed: [list]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
 
         await model.onAppear()
 
@@ -23,7 +24,8 @@ struct SharedListModelTests {
         let list = SharedList(name: "Depa", participants: [Participant(displayName: "Alice")], defaultSplit: .payerOnly)
         let model = SharedListModel(
             sharedListStore: InMemorySharedListStore(seed: [list]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
         await model.onAppear()
 
         await model.delete(list)
@@ -124,7 +126,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list]),
-            expenseStore: expenseStore)
+            expenseStore: expenseStore,
+            parser: InMemoryExpenseParsing())
 
         let saved = await model.recordExpense(
             amount: Money(amount: 100, currency: .mxn),
@@ -153,7 +156,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
 
         await model.onAppear(asOf: referenceDate)
 
@@ -186,7 +190,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
 
         await model.onAppear(asOf: referenceDate)
 
@@ -207,7 +212,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
         await model.onAppear(asOf: referenceDate)
 
         let settled = await model.recordSettlement(
@@ -236,7 +242,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
         await model.onAppear(asOf: referenceDate)
 
         let settled = await model.recordSettlement(
@@ -263,11 +270,37 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
 
         await model.onAppear(asOf: referenceDate)
 
         #expect(model.balances.allSatisfy { $0.trend == .growing })
+    }
+
+    @Test("contributions(for:) detalla el gasto detrás de la deuda ya cargada")
+    func contributionsDetallaElGastoDetrasDeLaDeudaYaCargada() async throws {
+        let list = SharedList(
+            name: "Depa",
+            participants: [alice, bob],
+            defaultSplit: .equally(among: [alice.id, bob.id]))
+        let event = expenseAdded(
+            amount: 100, payer: alice.id, split: .equally(among: [alice.id, bob.id]),
+            sharedListID: list.id, recordedAt: referenceDate)
+        let model = SharedListDetailModel(
+            list: list,
+            sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
+        await model.onAppear(asOf: referenceDate)
+        let debt = try #require(model.debts.first)
+
+        let contributions = model.contributions(for: debt)
+
+        #expect(contributions.count == 1)
+        #expect(contributions.first?.concept == "gasto")
+        let contributionsSum = contributions.reduce(Decimal(0)) { $0 + $1.signedEffect }
+        #expect(contributionsSum == debt.amount.amount)
     }
 
     @Test("Un saldo grabado hace más de 30 días, sin cambios recientes, marca tendencia estable")
@@ -283,7 +316,8 @@ struct SharedListDetailModelTests {
         let model = SharedListDetailModel(
             list: list,
             sharedListStore: InMemorySharedListStore(seed: [list], events: [event]),
-            expenseStore: InMemoryExpenseStore())
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing())
 
         await model.onAppear(asOf: referenceDate)
 

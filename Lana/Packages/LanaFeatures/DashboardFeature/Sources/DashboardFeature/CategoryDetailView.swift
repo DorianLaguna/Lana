@@ -55,7 +55,10 @@ public struct CategoryDetailView: View {
                     }
                 }
 
-                DaySectionListView(sections: model.daySections, onSelect: onExpenseTap)
+                DaySectionListView(
+                    sections: model.daySections,
+                    onSelect: onExpenseTap,
+                    viewerIdentities: model.viewerIdentities)
             }
             .padding(Space.md.rawValue)
         }
@@ -64,23 +67,27 @@ public struct CategoryDetailView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-            .task { await model.onAppear() }
     }
 }
 
 #Preview {
-    NavigationStack {
-        CategoryDetailView(model: CategoryDetailModel(
-            category: "despensa",
-            store: InMemoryExpenseStore(seed: [
-                Expense(
-                    kind: .expense,
-                    amount: Money(amount: 620, currency: .mxn),
-                    concept: "Súper semanal",
-                    category: "despensa",
-                    subcategory: "abarrotes",
-                    date: Date())
-            ]),
-            month: Date()), onExpenseTap: { _ in })
+    let dashboard = DashboardModel(
+        store: InMemoryExpenseStore(seed: [
+            Expense(
+                kind: .expense,
+                amount: Money(amount: 620, currency: .mxn),
+                concept: "Súper semanal",
+                category: "despensa",
+                subcategory: "abarrotes",
+                date: Date())
+        ]),
+        vocabularyStore: InMemoryCorrectionVocabularyStore(),
+        cardStore: InMemoryCardStore(),
+        sharedListStore: InMemorySharedListStore())
+    return NavigationStack {
+        CategoryDetailView(
+            model: CategoryDetailModel(category: "despensa", dashboard: dashboard),
+            onExpenseTap: { _ in })
     }
+    .task { await dashboard.onAppear() }
 }

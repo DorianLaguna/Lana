@@ -28,16 +28,19 @@ public struct FoundationModelsExpenseParsing: ExpenseParsing {
     // bug real detrás de "le digo con qué tarjeta y no la reconoce".
     private let cardStore: (any CardStore)?
     private let expenseStore: (any ExpenseStore)?
+    private let sharedListStore: (any SharedListStore)?
     private let subcategoryMatcher = SubcategoryMatcher()
     private let dateExtractor = RelativeDateExtractor()
 
     public init(
         vocabularyStore: CorrectionVocabularyStore? = nil,
         cardStore: (any CardStore)? = nil,
-        expenseStore: (any ExpenseStore)? = nil) {
+        expenseStore: (any ExpenseStore)? = nil,
+        sharedListStore: (any SharedListStore)? = nil) {
         self.vocabularyStore = vocabularyStore
         self.cardStore = cardStore
         self.expenseStore = expenseStore
+        self.sharedListStore = sharedListStore
     }
 
     public var availability: ParsingAvailability {
@@ -52,10 +55,12 @@ public struct FoundationModelsExpenseParsing: ExpenseParsing {
         let vocabulary = await vocabularyStore?.topEntries(limit: 20) ?? []
         let cardAliases = await (try? cardStore?.cards().map(\.alias)) ?? []
         let subcategoriesByCategory = await Self.loadSubcategoriesByCategory(from: expenseStore)
+        let participantNames = await Self.loadSharedParticipantNames(from: sharedListStore)
         let instructions = ParserInstructions.build(
             subcategoriesByCategory: subcategoriesByCategory,
             correctionVocabulary: vocabulary,
-            cardAliases: cardAliases)
+            cardAliases: cardAliases,
+            sharedParticipantNames: participantNames)
 
         let session = LanguageModelSession(instructions: instructions)
         let response = try await session.respond(to: text, generating: ParsedTransactionBatch.self)
@@ -81,6 +86,9 @@ public struct FoundationModelsExpenseParsing: ExpenseParsing {
                 date: date,
                 paymentMethodHint: Self.paymentMethodHint(from: validated.transaction.paymentMethodHint),
                 cardAliasHint: validated.transaction.cardHint.isEmpty ? nil : validated.transaction.cardHint,
+                isShared: validated.transaction.isShared,
+                payerHint: validated.transaction.payerHint.isEmpty ? nil : validated.transaction.payerHint,
+                splitHint: validated.transaction.splitHint.isEmpty ? nil : validated.transaction.splitHint,
                 needsReview: validated.needsReview)
         }
     }
@@ -131,5 +139,16 @@ public struct FoundationModelsExpenseParsing: ExpenseParsing {
             bySubcategory[category, default: []].insert(subcategory)
         }
         return bySubcategory.mapValues { $0.sorted() }
+    }
+
+    /// Los nombres de todas las listas compartidas del usuario, sin
+    /// distinguir a cuál pertenece cada quien — el modelo solo necesita
+    /// reconocer el nombre real, resolver a cuál lista y participante
+    /// corresponde pasa después, fuera de `LanaParsing` (ADR-0025).
+    private static func loadSharedParticipantNames(from sharedListStore: (any SharedListStore)?) async -> [String] {
+        guard let sharedListStore else { return [] }
+        guard let lists = try? await sharedListStore.lists() else { return [] }
+        let names = lists.flatMap { $0.participants.map(\.displayName) }
+        return Array(Set(names)).sorted()
     }
 }

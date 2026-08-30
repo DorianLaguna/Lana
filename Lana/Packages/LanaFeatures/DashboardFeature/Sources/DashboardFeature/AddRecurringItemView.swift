@@ -8,6 +8,7 @@ public struct AddRecurringItemView: View {
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss
     @Bindable private var model: AddRecurringItemModel
+    @State private var isEnteringCustomSubcategory = false
     private let onDone: () -> Void
 
     public init(model: AddRecurringItemModel, onDone: @escaping () -> Void) {
@@ -42,6 +43,64 @@ public struct AddRecurringItemView: View {
                 Text(category.displayName).tag(category.rawValue)
             }
         }
+    }
+
+    /// Mismo patrón que `EditExpenseView.subcategoryPicker` — sin opción
+    /// "Automático", la selección refleja `model.subcategory` directamente.
+    private var subcategoryPicker: some View {
+        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+            Picker("Subcategoría", selection: subcategorySelection) {
+                Text("Sin subcategoría").tag(SubcategorySelection.none)
+                ForEach(subcategoryOptions, id: \.self) { subcategory in
+                    Text(subcategory.capitalized).tag(SubcategorySelection.existing(subcategory))
+                }
+                Text("Otra…").tag(SubcategorySelection.custom)
+            }
+
+            if isEnteringCustomSubcategory {
+                LanaTextField("Nombre de la subcategoría", text: $model.subcategory)
+            }
+        }
+    }
+
+    private enum SubcategorySelection: Hashable {
+        case none
+        case existing(String)
+        case custom
+    }
+
+    private var subcategoryOptions: [String] {
+        var options = Set(model.allSubcategories[model.category] ?? [])
+        if !model.subcategory.isEmpty, !isEnteringCustomSubcategory {
+            options.insert(model.subcategory)
+        }
+        return options.sorted()
+    }
+
+    private var subcategorySelection: Binding<SubcategorySelection> {
+        Binding(
+            get: {
+                if isEnteringCustomSubcategory {
+                    return .custom
+                }
+                if model.subcategory.isEmpty {
+                    return .none
+                }
+                return .existing(model.subcategory)
+            },
+            set: { selection in
+                switch selection {
+                case .none:
+                    isEnteringCustomSubcategory = false
+                    model.subcategory = ""
+                case let .existing(name):
+                    isEnteringCustomSubcategory = false
+                    model.subcategory = name
+                case .custom:
+                    isEnteringCustomSubcategory = true
+                    model.subcategory = ""
+                }
+            })
     }
 
     private var paymentMethodPicker: some View {
@@ -79,6 +138,7 @@ public struct AddRecurringItemView: View {
                     LanaTextField("Nombre", text: $model.name)
                     if model.kind == .expense {
                         categoryPicker
+                        subcategoryPicker
                     }
                 }
 
@@ -126,6 +186,7 @@ public struct AddRecurringItemView: View {
                         .foregroundStyle(lana.critical)
                 }
             }
+            .task { await model.onAppear() }
             .navigationTitle("Recurrente")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -158,7 +219,11 @@ public struct AddRecurringItemView: View {
 
 #Preview {
     ForEach(LanaTheme.allCases) { theme in
-        AddRecurringItemView(model: AddRecurringItemModel(recurringItemStore: InMemoryRecurringItemStore()), onDone: {})
+        AddRecurringItemView(
+            model: AddRecurringItemModel(
+                recurringItemStore: InMemoryRecurringItemStore(),
+                store: InMemoryExpenseStore()),
+            onDone: {})
             .lanaTheme(theme)
     }
 }

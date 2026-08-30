@@ -31,7 +31,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: cardStore,
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "gasolina 300 con la Nu"
         await model.submit()
@@ -64,7 +65,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: cardStore,
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "300 gasolina con la tarjeta Banamex"
         await model.submit()
@@ -97,7 +99,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: cardStore,
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "gasolina 300 con crédito de la Nu"
         await model.submit()
@@ -118,7 +121,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "gasolina 300 con la azul"
         await model.submit()
@@ -138,7 +142,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "café 85 en efectivo"
         await model.submit()
@@ -154,7 +159,8 @@ struct EntryModelPaymentMethodTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "café 85"
         await model.submit()

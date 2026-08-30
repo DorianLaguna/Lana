@@ -59,6 +59,30 @@ struct RecurringItemsModelTests {
         #expect(saved.first?.needsReview == false)
     }
 
+    @Test("Registrar un recurrente conserva su subcategoría en el gasto")
+    func registrarUnRecurrenteConservaSuSubcategoria() async throws {
+        let recurringItemStore = InMemoryRecurringItemStore()
+        let item = try RecurringItem(
+            name: "Streaming",
+            amount: Money(amount: 199, currency: .mxn),
+            kind: .expense,
+            category: "entretenimiento",
+            subcategory: "suscripciones",
+            dayOfMonth: 3)
+        try await recurringItemStore.save(item)
+
+        let store = InMemoryExpenseStore()
+        let model = RecurringItemsModel(
+            recurringItemStore: recurringItemStore,
+            store: store,
+            cardStore: InMemoryCardStore())
+        await model.onAppear()
+        try await model.register(item)
+
+        let saved = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(saved.first?.subcategory == "suscripciones")
+    }
+
     @Test("Registrar un recurrente dos veces crea dos gastos — no hay deduplicado silencioso")
     func registrarDosVecesCreaDosGastos() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
@@ -192,7 +216,7 @@ struct AddRecurringItemModelTests {
     @Test("Guardar un ítem válido lo persiste en el store")
     func guardarUnItemValidoLoPersiste() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore)
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "Renta"
         model.amount = 8000
         model.kind = .expense
@@ -210,7 +234,7 @@ struct AddRecurringItemModelTests {
     @Test("Nombre vacío no guarda y deja ver el error")
     func nombreVacioNoGuarda() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore)
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "  "
         model.amount = 100
 
@@ -232,7 +256,10 @@ struct AddRecurringItemModelTests {
             dayOfMonth: 5)
         try await recurringItemStore.save(existing)
 
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, editing: existing)
+        let model = AddRecurringItemModel(
+            recurringItemStore: recurringItemStore,
+            store: InMemoryExpenseStore(),
+            editing: existing)
         model.amount = 8500
         _ = await model.save()
 
@@ -242,10 +269,27 @@ struct AddRecurringItemModelTests {
         #expect(items.first?.amount.amount == 8500)
     }
 
+    @Test("Guardar un ítem con subcategoría la persiste")
+    func guardarUnItemConSubcategoriaLaPersiste() async throws {
+        let recurringItemStore = InMemoryRecurringItemStore()
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
+        model.name = "Streaming"
+        model.amount = 199
+        model.kind = .expense
+        model.category = "entretenimiento"
+        model.subcategory = "suscripciones"
+        model.dayOfMonth = 3
+
+        _ = await model.save()
+
+        let items = try await recurringItemStore.items()
+        #expect(items.first?.subcategory == "suscripciones")
+    }
+
     @Test("Un ingreso no lleva categoría aunque el formulario tenga una escrita")
     func unIngresoNoLlevaCategoria() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore)
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "Sueldo"
         model.amount = 15000
         model.kind = .income
@@ -261,7 +305,7 @@ struct AddRecurringItemModelTests {
     @Test("Un gasto guarda con qué se paga, incluyendo transferencia")
     func unGastoGuardaConQueSePaga() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore)
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "Streaming"
         model.amount = 199
         model.kind = .expense
@@ -277,7 +321,7 @@ struct AddRecurringItemModelTests {
     @Test("Un ingreso nunca guarda con qué se paga, aunque el formulario tenga uno elegido")
     func unIngresoNuncaGuardaConQueSePaga() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
-        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore)
+        let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "Sueldo"
         model.amount = 15000
         model.kind = .income

@@ -91,6 +91,26 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
     public let subcategory: String?
     public let date: Date?
     public let paymentMethod: PaymentMethod?
+    /// Mueve el gasto a una lista compartida, o lo cambia de lista
+    /// (ADR-0027). `nil` conserva la que tuviera — para **quitarle** la
+    /// lista y volverlo personal se usa `clearsSharedContext`, porque en
+    /// este tipo `nil` siempre significa "no cambies esto", nunca "ponlo en
+    /// nada".
+    public let sharedListID: SharedListID?
+    /// Vuelve el gasto personal: borra `sharedListID`, `payer` y `split` de
+    /// golpe (ADR-0027). Existe como bandera explícita justamente porque
+    /// `nil` en los demás campos ya significa "conserva lo anterior"; sin
+    /// esto no había forma de expresar "sácalo de la lista" con una
+    /// corrección, y habría que borrar el gasto y recapturarlo.
+    public let clearsSharedContext: Bool
+    /// Solo aplica a gastos de una lista compartida — quién pagó
+    /// (ADR-0023). `nil` conserva al pagador original.
+    public let payer: ParticipantID?
+    /// Solo aplica a gastos de una lista compartida — cómo se divide
+    /// (ADR-0023). `nil` conserva el split original. La proporción sigue
+    /// congelándose en el evento (ADR-0007): corregirla aplica desde este
+    /// punto del historial, no reescribe el split de correcciones previas.
+    public let split: SplitRule?
     public let needsReview: Bool?
     public let recordedAt: Date
 
@@ -103,6 +123,10 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
         subcategory: String? = nil,
         date: Date? = nil,
         paymentMethod: PaymentMethod? = nil,
+        sharedListID: SharedListID? = nil,
+        clearsSharedContext: Bool = false,
+        payer: ParticipantID? = nil,
+        split: SplitRule? = nil,
         needsReview: Bool? = nil,
         recordedAt: Date = Date()) {
         self.id = id
@@ -113,6 +137,10 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
         self.subcategory = subcategory
         self.date = date
         self.paymentMethod = paymentMethod
+        self.sharedListID = sharedListID
+        self.clearsSharedContext = clearsSharedContext
+        self.payer = payer
+        self.split = split
         self.needsReview = needsReview
         self.recordedAt = recordedAt
     }

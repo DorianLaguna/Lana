@@ -11,16 +11,19 @@ public struct BalancesView: View {
     private let debts: [Debt]
     private let participantName: (ParticipantID) -> String
     private let onSettle: (Debt) -> Void
+    private let onSelectDebt: (Debt) -> Void
 
     public init(
         balances: [ParticipantBalance],
         debts: [Debt],
         participantName: @escaping (ParticipantID) -> String,
-        onSettle: @escaping (Debt) -> Void) {
+        onSettle: @escaping (Debt) -> Void,
+        onSelectDebt: @escaping (Debt) -> Void) {
         self.balances = balances
         self.debts = debts
         self.participantName = participantName
         self.onSettle = onSettle
+        self.onSelectDebt = onSelectDebt
     }
 
     public var body: some View {
@@ -91,14 +94,22 @@ public struct BalancesView: View {
 
     private func debtRow(_ debt: Debt) -> some View {
         HStack(spacing: Space.sm.rawValue) {
-            Text("\(participantName(debt.from)) le debe a \(participantName(debt.to))")
-                .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
-            Spacer()
-            Text(debt.amount.formatted())
-                .lanaFont(.caption)
-                .monospacedDigit()
-                .foregroundStyle(lana.textPrimary)
+            Button {
+                onSelectDebt(debt)
+            } label: {
+                HStack(spacing: Space.sm.rawValue) {
+                    Text("\(participantName(debt.from)) le debe a \(participantName(debt.to))")
+                        .lanaFont(.caption)
+                        .foregroundStyle(lana.textSecondary)
+                    Spacer()
+                    Text(debt.amount.formatted())
+                        .lanaFont(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(lana.textPrimary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             Button("Liquidar") {
                 onSettle(debt)
             }
@@ -120,7 +131,8 @@ public struct BalancesView: View {
             ],
             debts: [Debt(from: bob.id, to: alice.id, amount: Money(amount: 250, currency: .mxn))],
             participantName: { $0 == alice.id ? alice.displayName : bob.displayName },
-            onSettle: { _ in })
+            onSettle: { _ in },
+            onSelectDebt: { _ in })
             .padding(Space.md.rawValue)
             .lanaTheme(theme)
     }

@@ -99,7 +99,7 @@ public struct RecurringItemsSection: View {
             Text(item.name)
                 .lanaFont(.body)
                 .foregroundStyle(lana.textPrimary)
-            HStack(spacing: 4) {
+            HStack(spacing: Space.xs.rawValue) {
                 Text("Día \(item.dayOfMonth)")
                 if let label = paymentMethodLabel(item.paymentMethod) {
                     Text("·")

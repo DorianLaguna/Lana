@@ -32,7 +32,17 @@ public final class DashboardModel {
     private let store: any ExpenseStore
     private let vocabularyStore: any CorrectionVocabularyStore
     private let cardStore: any CardStore
-    private let calendar: Calendar
+    private let sharedListStore: any SharedListStore
+    /// No `private` — `CategoryDetailModel`/`PaymentMethodDetailModel`
+    /// (mismo target) lo necesitan para `daySections` sobre los gastos que
+    /// derivan de este mismo modelo, sin guardar su propia copia (ver el
+    /// comment de esos tipos para el porqué).
+    let calendar: Calendar
+    /// Qué participante es "yo" en cada lista compartida — cacheado aquí
+    /// tras cargar el mes, para no volver a llamar al store (async) cada
+    /// vez que se suma un gasto (`Expense.personalAmount`, ADR-0022). Se lee
+    /// también desde `DashboardView` para pasarlo a `DaySectionListView`.
+    public private(set) var viewerIdentities: [SharedListID: ParticipantID] = [:]
 
     /// - Parameters:
     ///   - store: de dónde se leen las transacciones.
@@ -40,16 +50,21 @@ public final class DashboardModel {
     ///     al editar un gasto ya guardado.
     ///   - cardStore: de dónde se leen las tarjetas, para el drill-down de
     ///     "Por forma de pago" — saber con cuál tarjeta se pagó cada cosa.
+    ///   - sharedListStore: de dónde se lee qué participante de una lista
+    ///     compartida es "yo", para sumar la parte real de un gasto
+    ///     compartido y no el total (`Expense.personalAmount`).
     ///   - referenceDate: qué mes mostrar al aparecer. Por defecto, hoy.
     public init(
         store: any ExpenseStore,
         vocabularyStore: any CorrectionVocabularyStore,
         cardStore: any CardStore,
+        sharedListStore: any SharedListStore,
         referenceDate: Date = Date(),
         calendar: Calendar = .current) {
         self.store = store
         self.vocabularyStore = vocabularyStore
         self.cardStore = cardStore
+        self.sharedListStore = sharedListStore
         self.calendar = calendar
         month = calendar.dateInterval(of: .month, for: referenceDate)?.start ?? referenceDate
     }
@@ -60,17 +75,26 @@ public final class DashboardModel {
     }
 
     /// El drill-down de una categoría, para el mes que ya se está viendo
-    /// (Fase 6.5) — `store` se queda encapsulado en `DashboardModel`, la
-    /// vista nunca lo toca directo.
+    /// (Fase 6.5). Deriva sus gastos de este mismo modelo en vez de
+    /// cargar su propia copia — antes tenía su propio `onAppear()` que
+    /// leía el store por separado, y editar o borrar un gasto desde ese
+    /// drill-down lo quitaba de aquí pero la copia aparte del drill-down se
+    /// quedaba vieja hasta salir y volver a entrar (el bug real detrás de
+    /// "dice que no hay ningún registro" justo después de guardar). Al
+    /// derivar en vivo de `expenses`, no hay una segunda copia que se pueda
+    /// desincronizar.
     public func makeCategoryDetailModel(for category: String) -> CategoryDetailModel {
-        CategoryDetailModel(category: category, store: store, month: month, calendar: calendar)
+        CategoryDetailModel(category: category, dashboard: self)
     }
 
     /// El drill-down de una forma de pago (Fase 6.5) — antes tocar una
     /// rebanada de "Por forma de pago" no llevaba a ningún lado (el tap
     /// callback estaba vacío, `CategoryBreakdownChart(...) { _ in }`).
+    /// Mismo principio que `makeCategoryDetailModel`: deriva sus gastos de
+    /// aquí, `cardStore` es lo único que sigue siendo suyo (la lista de
+    /// tarjetas no vive en `DashboardModel`).
     public func makePaymentMethodDetailModel(for label: String) -> PaymentMethodDetailModel {
-        PaymentMethodDetailModel(label: label, store: store, cardStore: cardStore, month: month, calendar: calendar)
+        PaymentMethodDetailModel(label: label, dashboard: self, cardStore: cardStore)
     }
 
     /// Editar un gasto/ingreso ya guardado — hasta ahora no había forma de
@@ -78,7 +102,11 @@ public final class DashboardModel {
     /// aprende de tus correcciones") nunca se cumplía: no había nada que
     /// corregir después de capturar.
     public func makeEditExpenseModel(for expense: Expense) -> EditExpenseModel {
-        EditExpenseModel(expense: expense, store: store, vocabularyStore: vocabularyStore)
+        EditExpenseModel(
+            expense: expense,
+            store: store,
+            vocabularyStore: vocabularyStore,
+            sharedListStore: sharedListStore)
     }
 
     /// "Navegación entre meses" (Docs/PLAN.md → Fase 6).
@@ -106,11 +134,38 @@ public final class DashboardModel {
         errorMessage = nil
         do {
             expenses = try await store.expenses(in: range)
+            viewerIdentities = await Self.loadViewerIdentities(for: expenses, from: sharedListStore)
         } catch {
             errorMessage = error.localizedDescription
             expenses = []
         }
         isLoading = false
+    }
+
+    /// `internal`, no `private` — `CategoryDetailModel`/`PaymentMethodDetailModel`
+    /// (mismo target) hacen exactamente esta misma resolución sobre su
+    /// propio subconjunto de gastos.
+    static func loadViewerIdentities(
+        for expenses: [Expense],
+        from sharedListStore: any SharedListStore) async -> [SharedListID: ParticipantID] {
+        await loadViewerIdentities(
+            for: Array(Set(expenses.compactMap(\.sharedListID))),
+            from: sharedListStore)
+    }
+
+    /// Igual que la de arriba, pero partiendo de los ids directamente —
+    /// `EditExpenseModel` los necesita para todas las listas del usuario,
+    /// no solo las presentes en un conjunto de gastos (ADR-0027).
+    static func loadViewerIdentities(
+        for sharedListIDs: [SharedListID],
+        from sharedListStore: any SharedListStore) async -> [SharedListID: ParticipantID] {
+        var identities: [SharedListID: ParticipantID] = [:]
+        for sharedListID in Set(sharedListIDs) {
+            if let viewerID = try? await sharedListStore.viewerParticipantID(for: sharedListID) {
+                identities[sharedListID] = viewerID
+            }
+        }
+        return identities
     }
 
     /// Agrupadas por día, el día más reciente primero.
@@ -125,7 +180,8 @@ public final class DashboardModel {
         for expense in expenses {
             switch expense.kind {
             case .expense:
-                expensesByCurrency[expense.amount.currency, default: 0] += expense.amount.amount
+                let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
+                expensesByCurrency[personal.currency, default: 0] += personal.amount
             case .income:
                 incomeByCurrency[expense.amount.currency, default: 0] += expense.amount.amount
             }
@@ -146,7 +202,8 @@ public final class DashboardModel {
         var totals: [Currency: [String: Decimal]] = [:]
         for expense in expenses where expense.kind == .expense {
             let category = expense.category ?? "otro"
-            totals[expense.amount.currency, default: [:]][category, default: 0] += expense.amount.amount
+            let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
+            totals[personal.currency, default: [:]][category, default: 0] += personal.amount
         }
         return totals
             .flatMap { currency, byCategory in
@@ -178,7 +235,8 @@ public final class DashboardModel {
         var totals: [Currency: [String: Decimal]] = [:]
         for expense in expenses where expense.kind == .expense {
             let label = Self.paymentMethodLabel(expense.paymentMethod)
-            totals[expense.amount.currency, default: [:]][label, default: 0] += expense.amount.amount
+            let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
+            totals[personal.currency, default: [:]][label, default: 0] += personal.amount
         }
         return totals
             .flatMap { currency, byLabel in

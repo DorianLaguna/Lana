@@ -18,54 +18,49 @@ public struct SubcategoryTotal: Identifiable, Sendable {
 /// y las transacciones de esa categoría, agrupadas por día (Fase 6.5, calca
 /// `CategoriaDetalle.dc.html`). La vista no decide nada — solo refleja esto
 /// (Docs/ARCHITECTURE.md).
+///
+/// Deriva todo de `DashboardModel.expenses` en vez de cargar su propia
+/// copia — antes tenía un `onAppear()` que releía el store por separado, y
+/// esa copia solo se refrescaba si alguien se acordaba de llamarlo nuevo
+/// después de editar o borrar. En la práctica nunca era el momento correcto
+/// (SwiftUI reconstruye este modelo cuando `DashboardView` se vuelve a
+/// dibujar, así que un refresco explícito llamado justo después podía
+/// terminar operando sobre una instancia ya reemplazada) — el bug real
+/// detrás de "guardé el cambio y dice que no hay ningún registro". Sin una
+/// segunda copia, no hay nada que quede desincronizado: en cuanto
+/// `DashboardModel.expenses` se actualiza, este drill-down se actualiza
+/// solo.
 @MainActor
 @Observable
 public final class CategoryDetailModel {
     /// La categoría que se está viendo.
     public let category: String
-    /// Los gastos de esta categoría, dentro del mes.
-    public private(set) var expenses: [Expense] = []
-    /// `true` mientras se está cargando.
-    public private(set) var isLoading = false
-    /// El último error, si algo falló al cargar.
-    public private(set) var errorMessage: String?
-
-    private let store: any ExpenseStore
-    private let month: Date
-    private let calendar: Calendar
+    private let dashboard: DashboardModel
 
     /// - Parameters:
     ///   - category: la categoría a filtrar.
-    ///   - store: de dónde se leen las transacciones.
-    ///   - month: el mes que ya se está viendo en el dashboard.
-    public init(category: String, store: any ExpenseStore, month: Date, calendar: Calendar = .current) {
+    ///   - dashboard: de dónde salen los gastos del mes vigente — el mismo
+    ///     modelo que ya está en pantalla, nunca una copia propia.
+    public init(category: String, dashboard: DashboardModel) {
         self.category = category
-        self.store = store
-        self.month = month
-        self.calendar = calendar
+        self.dashboard = dashboard
     }
 
-    /// Carga los gastos de esta categoría. Se llama cuando la pantalla aparece.
-    public func onAppear() async {
-        guard let monthInterval = calendar.dateInterval(of: .month, for: month) else { return }
-        // Mismo ajuste que `DashboardModel.load()`: el `end` de
-        // `dateInterval(of: .month)` es la medianoche del mes siguiente.
-        let range = DateInterval(start: monthInterval.start, end: monthInterval.end.addingTimeInterval(-1))
-        isLoading = true
-        errorMessage = nil
-        do {
-            let all = try await store.expenses(in: range)
-            expenses = all.filter { $0.kind == .expense && ($0.category ?? "otro") == category }
-        } catch {
-            errorMessage = error.localizedDescription
-            expenses = []
-        }
-        isLoading = false
+    /// Los gastos de esta categoría, dentro del mes.
+    public var expenses: [Expense] {
+        dashboard.expenses.filter { $0.kind == .expense && ($0.category ?? "otro") == category }
     }
 
-    /// Cuánto se gastó en total, en esta categoría, este mes.
+    /// Ver el mismo campo en `DashboardModel` — nunca su propia copia.
+    public var viewerIdentities: [SharedListID: ParticipantID] {
+        dashboard.viewerIdentities
+    }
+
+    /// Cuánto se gastó en total, en esta categoría, este mes — la parte
+    /// real de quien mira, no el total de un gasto compartido
+    /// (`Expense.personalAmount`).
     public var total: Decimal {
-        expenses.reduce(0) { $0 + $1.amount.amount }
+        expenses.reduce(0) { $0 + $1.personalAmount(viewerIdentities: viewerIdentities).amount }
     }
 
     /// La moneda de los gastos de esta categoría — `.mxn` si no hay ninguno.
@@ -77,7 +72,8 @@ public final class CategoryDetailModel {
     public var subcategoryTotals: [SubcategoryTotal] {
         var totals: [String: Decimal] = [:]
         for expense in expenses {
-            totals[expense.subcategory ?? "otro", default: 0] += expense.amount.amount
+            let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
+            totals[expense.subcategory ?? "otro", default: 0] += personal.amount
         }
         return totals
             .map { SubcategoryTotal(subcategory: $0.key, amount: $0.value, currency: currency) }
@@ -86,6 +82,6 @@ public final class CategoryDetailModel {
 
     /// Los gastos de esta categoría, agrupados por día.
     public var daySections: [DaySection] {
-        expenses.groupedByDay(calendar: calendar)
+        expenses.groupedByDay(calendar: dashboard.calendar)
     }
 }

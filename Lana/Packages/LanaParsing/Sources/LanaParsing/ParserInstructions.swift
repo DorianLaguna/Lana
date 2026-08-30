@@ -13,7 +13,8 @@ public enum ParserInstructions {
     public static func build(
         subcategoriesByCategory: [ExpenseCategory: [String]] = [:],
         correctionVocabulary: [CorrectionEntry] = [],
-        cardAliases: [String] = []) -> String {
+        cardAliases: [String] = [],
+        sharedParticipantNames: [String] = []) -> String {
         var sections: [String] = [base]
 
         if !subcategoriesByCategory.isEmpty {
@@ -24,6 +25,9 @@ public enum ParserInstructions {
         }
         if !cardAliases.isEmpty {
             sections.append(cardSection(cardAliases))
+        }
+        if !sharedParticipantNames.isEmpty {
+            sections.append(participantSection(sharedParticipantNames))
         }
 
         return sections.joined(separator: "\n\n")
@@ -69,5 +73,14 @@ public enum ParserInstructions {
 
     private static func cardSection(_ aliases: [String]) -> String {
         "Alias de tarjetas que la persona ya tiene: " + aliases.joined(separator: ", ")
+    }
+
+    private static func participantSection(_ names: [String]) -> String {
+        """
+        Nombres de personas con quienes esta persona ya comparte gastos: \
+        \(names.joined(separator: ", ")). Si el texto menciona dividir un \
+        gasto con alguien, usa el nombre real de esta lista cuando \
+        corresponda, en vez de una variante.
+        """
     }
 }

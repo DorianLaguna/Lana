@@ -13,7 +13,8 @@ struct EntryModelClearTranscriptTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         model.inputText = "algo"
 
         await model.clearTranscript()
@@ -29,7 +30,8 @@ struct EntryModelClearTranscriptTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: speech,
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
 
         let listening = Task { await model.startListening() }
         while model.stage != .listening {

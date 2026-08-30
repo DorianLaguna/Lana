@@ -14,6 +14,7 @@ extension CoreDataExpenseStore: RecurringItemStore {
             row.currency = item.amount.currency.rawValue
             row.kind = item.kind == .income ? "income" : "expense"
             row.category = item.category
+            row.subcategory = item.subcategory
             row.dayOfMonth = Int16(item.dayOfMonth)
             switch item.paymentMethod {
             case .cash:
@@ -77,6 +78,7 @@ extension CoreDataExpenseStore: RecurringItemStore {
             amount: Money(amount: amount as Decimal, currency: Currency(rawValue: currency)),
             kind: kind == "income" ? .income : .expense,
             category: row.category,
+            subcategory: row.subcategory,
             dayOfMonth: Int(row.dayOfMonth),
             paymentMethod: paymentMethod,
             lastRegisteredMonth: row.lastRegisteredMonth)

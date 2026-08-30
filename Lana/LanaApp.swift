@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct LanaApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(appDelegate: appDelegate)
         }
     }
 }

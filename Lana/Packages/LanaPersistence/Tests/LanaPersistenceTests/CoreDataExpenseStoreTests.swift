@@ -80,6 +80,88 @@ struct CoreDataExpenseStoreTests {
         #expect(results.first?.concept == "café con Ana")
     }
 
+    @Test("Guardar dos veces el mismo id sí corrige quién pagó y cómo se divide (ADR-0023)")
+    func guardarDosVecesCorrigePayerYSplit() async throws {
+        let store = try await makeStore()
+        let alice = ParticipantID()
+        let bob = ParticipantID()
+        let listID = SharedListID()
+        var expense = Expense(
+            kind: .expense,
+            amount: Money(amount: 100, currency: .mxn),
+            concept: "renta",
+            category: "hogar",
+            date: Date(timeIntervalSince1970: 1_700_000_000),
+            sharedListID: listID,
+            payer: alice,
+            split: .payerOnly)
+        try await store.save(expense)
+
+        expense.payer = bob
+        expense.split = .equally(among: [alice, bob])
+        try await store.save(expense)
+
+        let results = try await store.expenses(in: fullRange())
+        #expect(results.count == 1)
+        #expect(results.first?.payer == bob)
+        #expect(results.first?.split == .equally(among: [alice, bob]))
+    }
+
+    @Test("Guardar sin lista un gasto que la tenía lo vuelve personal, sin borrarlo (ADR-0027)")
+    func guardarSinListaLoVuelvePersonal() async throws {
+        let store = try await makeStore()
+        let alice = ParticipantID()
+        let bob = ParticipantID()
+        var expense = Expense(
+            kind: .expense,
+            amount: Money(amount: 100, currency: .mxn),
+            concept: "gasolina",
+            category: "transporte",
+            date: Date(timeIntervalSince1970: 1_700_000_000),
+            sharedListID: SharedListID(),
+            payer: alice,
+            split: .equally(among: [alice, bob]))
+        try await store.save(expense)
+
+        expense.sharedListID = nil
+        expense.payer = nil
+        expense.split = nil
+        try await store.save(expense)
+
+        let results = try await store.expenses(in: fullRange())
+        #expect(results.count == 1)
+        #expect(results.first?.concept == "gasolina")
+        #expect(results.first?.amount.amount == 100)
+        #expect(results.first?.sharedListID == nil)
+        #expect(results.first?.payer == nil)
+        #expect(results.first?.split == nil)
+    }
+
+    @Test("Guardar con lista un gasto personal lo mueve a esa lista (ADR-0027)")
+    func guardarConListaMueveElGastoPersonal() async throws {
+        let store = try await makeStore()
+        let alice = ParticipantID()
+        let bob = ParticipantID()
+        let listID = SharedListID()
+        var expense = Expense(
+            kind: .expense,
+            amount: Money(amount: 100, currency: .mxn),
+            concept: "gasolina",
+            category: "transporte",
+            date: Date(timeIntervalSince1970: 1_700_000_000))
+        try await store.save(expense)
+
+        expense.sharedListID = listID
+        expense.payer = alice
+        expense.split = .equally(among: [alice, bob])
+        try await store.save(expense)
+
+        let results = try await store.expenses(in: fullRange())
+        #expect(results.count == 1)
+        #expect(results.first?.sharedListID == listID)
+        #expect(results.first?.payer == alice)
+    }
+
     @Test("Borrar anula el gasto — no aparece más en las lecturas")
     func borrarAnulaElGasto() async throws {
         let store = try await makeStore()
@@ -204,131 +286,5 @@ struct CoreDataExpenseStoreTests {
 
         #expect(list.events?.count == 1)
         #expect((list.events?.anyObject() as? CDEvent)?.id == event.id)
-    }
-
-    // MARK: - CardStore (ADR-0014, mismo container que ExpenseStore)
-
-    @Test("Guardar y leer una tarjeta hace round-trip completo")
-    func tarjetaHaceRoundTrip() async throws {
-        let store = try await makeStore()
-        let card = try Card(
-            alias: "BBVA Oro",
-            lastFourDigits: "4821",
-            limit: Money(amount: 10000, currency: .mxn),
-            cutoffDay: 15,
-            dueDay: 5)
-
-        try await store.save(card)
-        let results = try await store.cards()
-
-        #expect(results.count == 1)
-        #expect(results.first?.id == card.id)
-        #expect(results.first?.alias == "BBVA Oro")
-        #expect(results.first?.limit == card.limit)
-    }
-
-    @Test("El tipo y el color de la tarjeta hacen round-trip")
-    func tarjetaTipoYColorHacenRoundTrip() async throws {
-        let store = try await makeStore()
-        let card = try Card(
-            alias: "Nu débito",
-            lastFourDigits: "1234",
-            limit: Money(amount: 10000, currency: .mxn),
-            cutoffDay: 15,
-            dueDay: 5,
-            kind: .debit,
-            colorHex: "#6C4FB3")
-
-        try await store.save(card)
-        let results = try await store.cards()
-
-        #expect(results.first?.kind == .debit)
-        #expect(results.first?.colorHex == "#6C4FB3")
-    }
-
-    @Test("Guardar de nuevo la misma tarjeta la reemplaza, no la duplica")
-    func tarjetaGuardarDeNuevoReemplaza() async throws {
-        let store = try await makeStore()
-        var card = try Card(
-            alias: "BBVA Oro",
-            lastFourDigits: "4821",
-            limit: Money(amount: 10000, currency: .mxn),
-            cutoffDay: 15,
-            dueDay: 5)
-        try await store.save(card)
-
-        card.alias = "BBVA Platino"
-        try await store.save(card)
-
-        let results = try await store.cards()
-        #expect(results.count == 1)
-        #expect(results.first?.alias == "BBVA Platino")
-    }
-
-    @Test("Borrar quita la tarjeta del store")
-    func tarjetaBorrarLaQuita() async throws {
-        let store = try await makeStore()
-        let card = try Card(
-            alias: "BBVA Oro",
-            lastFourDigits: "4821",
-            limit: Money(amount: 10000, currency: .mxn),
-            cutoffDay: 15,
-            dueDay: 5)
-        try await store.save(card)
-        try await store.delete(id: card.id)
-
-        let results = try await store.cards()
-        #expect(results.isEmpty)
-    }
-
-    // MARK: - CorrectionVocabularyStore (ADR-0012, ADR-0014)
-
-    @Test("Registrar un término hace round-trip completo")
-    func vocabularioHaceRoundTrip() async throws {
-        let store = try await makeStore()
-        await store.record(term: "bocina", category: "ocio")
-
-        let entries = await store.topEntries(limit: 10)
-        #expect(entries.count == 1)
-        #expect(entries.first?.term == "bocina")
-        #expect(entries.first?.category == "ocio")
-        #expect(entries.first?.useCount == 1)
-    }
-
-    @Test("Corregir el mismo término suma useCount en vez de duplicar")
-    func vocabularioMismoTerminoSumaUseCount() async throws {
-        let store = try await makeStore()
-        await store.record(term: "bocina", category: "ocio")
-        await store.record(term: "Bocina", category: "ocio")
-        await store.record(term: " bocina ", category: "ocio")
-
-        let entries = await store.allEntries()
-        #expect(entries.count == 1)
-        #expect(entries.first?.useCount == 3)
-    }
-
-    @Test("delete olvida solo el término indicado")
-    func vocabularioDeleteOlvidaUnTermino() async throws {
-        let store = try await makeStore()
-        await store.record(term: "bocina", category: "ocio")
-        await store.record(term: "chicles", category: "despensa")
-
-        await store.delete(term: "bocina")
-
-        let entries = await store.allEntries()
-        #expect(entries.count == 1)
-        #expect(entries.first?.term == "chicles")
-    }
-
-    @Test("deleteAll olvida todo el vocabulario")
-    func vocabularioDeleteAllOlvidaTodo() async throws {
-        let store = try await makeStore()
-        await store.record(term: "bocina", category: "ocio")
-        await store.record(term: "chicles", category: "despensa")
-
-        await store.deleteAll()
-
-        let entries = await store.allEntries()
-        #expect(entries.isEmpty)
     }
 }

@@ -18,6 +18,23 @@ public final class CardsModel {
     public private(set) var isLoading = false
     /// El último error, si algo falló al cargar o guardar.
     public private(set) var errorMessage: String?
+    /// El detalle de tarjeta que está empujado en el stack ahora mismo, si
+    /// hay uno — `ContentView` lo usa para refrescarlo después de editar o
+    /// borrar un gasto desde ahí. Ese editor vive en `DashboardFeature` y
+    /// se presenta desde `ContentView` (las features no se importan entre
+    /// sí), fuera del `NavigationStack` de `CardsView` — sin esto, borrar
+    /// un gasto desde el detalle de una tarjeta lo quitaba del store pero
+    /// la lista en pantalla se quedaba con la copia vieja hasta salir y
+    /// volver a entrar a la tarjeta, y parecía que no se había borrado.
+    /// `makeCardDetailModel` reutiliza esta MISMA instancia mientras se siga
+    /// viendo la misma tarjeta — no basta con guardar la referencia si cada
+    /// llamada crea una instancia nueva: `CardsView.navigationDestination`
+    /// vuelve a llamar a este método en cualquier redibujado del árbol
+    /// (por ejemplo cuando `cards`/`debtByCardID` cambian), y sin
+    /// reutilizar la instancia, un refresco explícito llamado justo
+    /// después de guardar podía terminar operando sobre una instancia ya
+    /// reemplazada por una en blanco.
+    public private(set) var currentCardDetailModel: CardDetailModel?
 
     private let cardStore: any CardStore
     private let store: any ExpenseStore
@@ -66,7 +83,19 @@ public final class CardsModel {
     /// El drill-down de una tarjeta (Fase 6.5) — `store`/`cardPaymentStore`
     /// se quedan encapsulados aquí, la vista nunca los toca directo.
     public func makeCardDetailModel(for card: Card) -> CardDetailModel {
-        CardDetailModel(card: card, store: store, cardPaymentStore: cardPaymentStore, calendar: calendar)
+        if let existing = currentCardDetailModel, existing.card.id == card.id {
+            existing.updateCard(card)
+            return existing
+        }
+        let model = CardDetailModel(card: card, store: store, cardPaymentStore: cardPaymentStore, calendar: calendar)
+        currentCardDetailModel = model
+        return model
+    }
+
+    /// Refresca el detalle de tarjeta en pantalla, si hay uno — ver el
+    /// comentario de `currentCardDetailModel`.
+    public func refreshCurrentCardDetail() async {
+        await currentCardDetailModel?.onAppear()
     }
 
     /// El formulario de agregar (`editing: nil`) o editar una tarjeta.

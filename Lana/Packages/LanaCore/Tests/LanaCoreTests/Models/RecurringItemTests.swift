@@ -40,6 +40,29 @@ struct RecurringItemTests {
             dayOfMonth: 15)
         #expect(item.category == nil)
     }
+
+    @Test("Un gasto puede llevar subcategoría")
+    func gastoPuedeLlevarSubcategoria() throws {
+        let item = try RecurringItem(
+            name: "Streaming",
+            amount: Money(amount: 199, currency: .mxn),
+            kind: .expense,
+            category: "entretenimiento",
+            subcategory: "suscripciones",
+            dayOfMonth: 3)
+        #expect(item.subcategory == "suscripciones")
+    }
+
+    @Test("Un ingreso nunca lleva subcategoría, aunque se pase una")
+    func ingresoNuncaLlevaSubcategoria() throws {
+        let item = try RecurringItem(
+            name: "Sueldo",
+            amount: Money(amount: 15000, currency: .mxn),
+            kind: .income,
+            subcategory: "otro",
+            dayOfMonth: 15)
+        #expect(item.subcategory == nil)
+    }
 }
 
 @Suite("InMemoryRecurringItemStore")

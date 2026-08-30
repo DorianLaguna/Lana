@@ -18,6 +18,8 @@ public struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.lg.rawValue) {
+                    syncStatusRow
+
                     VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                         Text("Tema")
                             .lanaFont(.caption)
@@ -60,6 +62,56 @@ public struct SettingsView: View {
                         Task { await model.deleteAll() }
                     }
             }
+        }
+    }
+
+    /// Que el usuario sepa que su información sí está respaldada en la nube
+    /// — nunca solo "iCloud está activo": si el sync falló en silencio,
+    /// decirlo aquí también (ADR-0020). Tono "dato, no alarma" incluso para
+    /// `.failed` (Docs/CLAUDE.md → Tono del producto).
+    private var syncStatusRow: some View {
+        LanaCard {
+            HStack(spacing: Space.sm.rawValue) {
+                syncStatusIcon
+                Text(syncStatusText)
+                    .lanaFont(.caption)
+                    .foregroundStyle(lana.textSecondary)
+                Spacer()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var syncStatusIcon: some View {
+        switch model.syncStatus {
+        case .disabled:
+            Image(systemName: "icloud.slash")
+                .foregroundStyle(lana.textSecondary)
+        case .syncing:
+            ProgressView()
+                .controlSize(.small)
+        case .synced:
+            Image(systemName: "checkmark.icloud")
+                .foregroundStyle(lana.textSecondary)
+        case .failed:
+            Image(systemName: "exclamationmark.icloud")
+                .foregroundStyle(lana.textSecondary)
+        }
+    }
+
+    private var syncStatusText: String {
+        switch model.syncStatus {
+        case .disabled:
+            "Sin iCloud activo — tus datos solo viven en este dispositivo"
+        case .syncing:
+            "Sincronizando…"
+        case let .synced(lastSuccess):
+            "Sincronizado con iCloud — \(lastSuccess.formatted(.relative(presentation: .named)))"
+        case .failed:
+            """
+            No se pudo respaldar en iCloud la última vez — tus datos siguen aquí, en tu \
+            dispositivo. Revisa tu conexión o el espacio disponible en iCloud.
+            """
         }
     }
 
@@ -208,6 +260,7 @@ extension String {
                 CorrectionEntry(term: "bocina", category: "ocio", useCount: 4),
                 CorrectionEntry(term: "chicles", category: "despensa", useCount: 7)
             ]),
+            syncStatusReporting: InMemorySyncStatusReporting(.synced(lastSuccess: .now)),
             userDefaults: UserDefaults(suiteName: "preview") ?? .standard))
             .lanaTheme(theme)
     }

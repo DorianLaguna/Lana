@@ -28,6 +28,20 @@ public struct ParseResult: Sendable, Hashable {
     /// El alias de tarjeta que mencionó el texto (p. ej. "la Nu"), sin
     /// resolver — `nil` si no mencionó ninguna.
     public var cardAliasHint: String?
+    /// `true` solo si el texto dijo explícitamente que el gasto se comparte
+    /// o se divide con alguien más — decir quién lo pagó no basta
+    /// (ADR-0027). Es la única señal que convierte una captura normal en un
+    /// gasto de lista compartida; `payerHint`/`splitHint` no significan nada
+    /// sin esto en `true`.
+    public var isShared: Bool
+    /// Quién pagó, tal como lo dijo el texto ("Ana", "yo") — sin resolver
+    /// contra el roster real de ninguna lista todavía (eso requiere conocer
+    /// las listas compartidas del usuario, que `LanaParsing` no tiene). `nil`
+    /// si el texto no lo dijo, o si `isShared` es `false`.
+    public var payerHint: String?
+    /// Cómo se divide, tal como lo dijo el texto ("igual", "yo", "60-40"),
+    /// sin resolver contra un `SplitRule` real. `nil` si no se mencionó.
+    public var splitHint: String?
     public var needsReview: Bool
 
     public init(
@@ -39,6 +53,9 @@ public struct ParseResult: Sendable, Hashable {
         date: Date? = nil,
         paymentMethodHint: PaymentMethodHint? = nil,
         cardAliasHint: String? = nil,
+        isShared: Bool = false,
+        payerHint: String? = nil,
+        splitHint: String? = nil,
         needsReview: Bool = true) {
         self.kind = kind
         self.amount = amount
@@ -48,6 +65,9 @@ public struct ParseResult: Sendable, Hashable {
         self.date = date
         self.paymentMethodHint = paymentMethodHint
         self.cardAliasHint = cardAliasHint
+        self.isShared = isShared
+        self.payerHint = payerHint
+        self.splitHint = splitHint
         self.needsReview = needsReview
     }
 }

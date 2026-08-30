@@ -29,6 +29,23 @@ extension CoreDataExpenseStoreTests {
         #expect(results.first?.category == "hogar")
     }
 
+    @Test("La subcategoría de un recurrente hace round-trip completo")
+    func subcategoriaDeRecurrenteHaceRoundTrip() async throws {
+        let store = try await makeStore()
+        let item = try RecurringItem(
+            name: "Streaming",
+            amount: Money(amount: 199, currency: .mxn),
+            kind: .expense,
+            category: "entretenimiento",
+            subcategory: "suscripciones",
+            dayOfMonth: 3)
+
+        try await store.save(item)
+        let results = try await store.items()
+
+        #expect(results.first?.subcategory == "suscripciones")
+    }
+
     @Test("Un ingreso recurrente hace round-trip sin categoría")
     func ingresoRecurrenteHaceRoundTripSinCategoria() async throws {
         let store = try await makeStore()

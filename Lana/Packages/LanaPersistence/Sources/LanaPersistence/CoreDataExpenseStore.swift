@@ -14,6 +14,11 @@ public actor CoreDataExpenseStore: ExpenseStore {
     // mismo container (ADR-0014: evitar un segundo `NSPersistentContainer`).
     let container: NSPersistentCloudKitContainer
     let context: NSManagedObjectContext
+    /// `nil` = store puramente local, sin iCloud — guardado para que
+    /// `shareURL(for:)` (`CoreDataSharedListSharing.swift`) pueda volver a
+    /// checar disponibilidad real contra el mismo contenedor sin que quien
+    /// llama tenga que repetir el identificador.
+    let cloudKitContainerIdentifier: String?
 
     /// - Parameters:
     ///   - inMemory: para tests y `#Preview` — no toca disco. Ignorado si
@@ -23,7 +28,7 @@ public actor CoreDataExpenseStore: ExpenseStore {
     ///   - cloudKitContainerIdentifier: `nil` cae a almacenamiento local sin
     ///     iCloud (sin esto, `NSPersistentCloudKitContainerOptions` no se
     ///     configura y el store nunca intenta sincronizar). Quien construye
-    ///     el store decide esto según `FileManager.ubiquityIdentityToken`.
+    ///     el store decide esto según `CloudKitAvailability.hasActiveAccount(containerIdentifier:)`.
     public init(
         inMemory: Bool = false,
         storeURL: URL? = nil,
@@ -67,6 +72,7 @@ public actor CoreDataExpenseStore: ExpenseStore {
         backgroundContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
         self.container = container
         context = backgroundContext
+        self.cloudKitContainerIdentifier = cloudKitContainerIdentifier
     }
 
     /// El store de producción: sincroniza con CloudKit si hay una cuenta de
@@ -74,8 +80,9 @@ public actor CoreDataExpenseStore: ExpenseStore {
     /// (Docs/.claude/skills/cloudkit-sharing: "la app cae a modo local...
     /// No revientes.").
     public static func live(cloudKitContainerIdentifier: String) async throws -> CoreDataExpenseStore {
-        try await CoreDataExpenseStore(
-            cloudKitContainerIdentifier: CloudKitAvailability.hasActiveAccount ? cloudKitContainerIdentifier : nil)
+        let hasAccount = await CloudKitAvailability.hasActiveAccount(containerIdentifier: cloudKitContainerIdentifier)
+        return try await CoreDataExpenseStore(
+            cloudKitContainerIdentifier: hasAccount ? cloudKitContainerIdentifier : nil)
     }
 
     /// Suelta el store de disco explícitamente. No hace falta en el ciclo de
@@ -94,10 +101,56 @@ public actor CoreDataExpenseStore: ExpenseStore {
     public func save(_ expense: Expense) async throws {
         try await context.perform { [context] in
             let alreadyExists = try Self.rootEventExists(forRawID: expense.id.rawValue, in: context)
-            let event = Self.makeEvent(for: expense, correcting: alreadyExists)
+            // Para saber si esta corrección saca el gasto de una lista
+            // compartida hay que conocer su estado vigente — `nil` en
+            // `sharedListID` significa "conserva", no "quítalo" (ADR-0027).
+            let wasShared = try alreadyExists
+                && Self.currentSharedListID(forRawID: expense.id.rawValue, in: context) != nil
+            let event = Self.makeEvent(for: expense, correcting: alreadyExists, wasShared: wasShared)
             try Self.insert(event, in: context)
             try Self.saveIfNeeded(context)
         }
+    }
+
+    /// La lista compartida vigente de un gasto, ya plegadas sus correcciones
+    /// — no la del evento raíz, que pudo haber cambiado desde entonces.
+    ///
+    /// Trae solo los eventos que pueden hablar de ESTE gasto, no el ledger
+    /// entero: su evento raíz (que lleva su id en la columna) más las
+    /// correcciones y anulaciones, que apuntan a él dentro del payload y por
+    /// eso no se filtran por columna. `LedgerFold` resuelve cada raíz por
+    /// separado, así que el subconjunto da exactamente lo mismo que el log
+    /// completo — pero plegar el log completo en cada edición volvía guardar
+    /// más lento conforme crecía el historial, para leer un solo campo.
+    ///
+    /// Propaga el error en vez de tragárselo: un fetch fallido aquí se leía
+    /// como "no estaba compartido", y con eso la corrección se guardaba sin
+    /// limpiar `sharedListID`/`payer`/`split`, dejando el gasto atribuido a
+    /// una lista de la que se le quiso sacar, en silencio.
+    private static func currentSharedListID(
+        forRawID rawID: UUID,
+        in context: NSManagedObjectContext) throws -> SharedListID? {
+        let request = CDEvent.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "id == %@ OR kind == %@ OR kind == %@",
+            rawID as CVarArg, "expenseCorrected", "expenseVoided")
+        let decoder = JSONDecoder()
+        let rootID = EventID(rawValue: rawID)
+        let events = try context.fetch(request)
+            .compactMap { row -> ExpenseEvent? in
+                guard let payload = row.payload else { return nil }
+                return try? decoder.decode(ExpenseEvent.self, from: payload)
+            }
+            .filter { event in
+                switch event {
+                case let .expenseCorrected(correction): correction.correctsEventID == rootID
+                case let .expenseVoided(void): void.voidsEventID == rootID
+                default: event.id == rootID
+                }
+            }
+        return ExpenseProjection.expenses(from: events)
+            .first { $0.id.rawValue == rawID }?
+            .sharedListID
     }
 
     public func expenses(in range: DateInterval) async throws -> [Expense] {
@@ -142,7 +195,10 @@ public actor CoreDataExpenseStore: ExpenseStore {
         return try context.count(for: request) > 0
     }
 
-    private static func makeEvent(for expense: Expense, correcting alreadyExists: Bool) -> ExpenseEvent {
+    private static func makeEvent(
+        for expense: Expense,
+        correcting alreadyExists: Bool,
+        wasShared: Bool) -> ExpenseEvent {
         guard alreadyExists else {
             switch expense.kind {
             case .expense:
@@ -175,6 +231,13 @@ public actor CoreDataExpenseStore: ExpenseStore {
             subcategory: expense.subcategory,
             date: expense.date,
             paymentMethod: expense.paymentMethod,
+            sharedListID: expense.sharedListID,
+            // Estaba en una lista y llega sin ninguna = se pidió volverlo
+            // personal. Es la única lectura posible: `nil` por sí solo
+            // significa "no cambies esto" (ADR-0027).
+            clearsSharedContext: wasShared && expense.sharedListID == nil,
+            payer: expense.payer,
+            split: expense.split,
             needsReview: expense.needsReview))
     }
 

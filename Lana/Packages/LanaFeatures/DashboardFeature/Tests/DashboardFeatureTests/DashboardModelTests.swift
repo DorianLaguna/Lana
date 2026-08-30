@@ -47,6 +47,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -65,6 +66,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -86,6 +88,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 15),
             calendar: calendar)
         await model.onAppear()
@@ -112,6 +115,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -145,6 +149,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -168,6 +173,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -188,6 +194,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -207,6 +214,7 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
@@ -225,16 +233,43 @@ struct DashboardModelTests {
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
             referenceDate: date(2026, 8, 10),
             calendar: calendar)
         await model.onAppear()
         await model.goToPreviousMonth()
 
         let detail = model.makeCategoryDetailModel(for: "despensa")
-        await detail.onAppear()
 
         #expect(detail.expenses.count == 1)
         #expect(detail.total == 50)
+    }
+
+    @Test("Un drill-down de categoría refleja los cambios de DashboardModel sin refrescarse aparte — el bug reportado")
+    func drillDownDeCategoriaReflejaCambiosSinRefrescoAparte() async throws {
+        let store = InMemoryExpenseStore()
+        let saved = expense(amount: 100, category: "transporte", date: date(2026, 8, 5))
+        try await store.save(saved)
+
+        let model = DashboardModel(
+            store: store,
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
+            referenceDate: date(2026, 8, 10),
+            calendar: calendar)
+        await model.onAppear()
+
+        let detail = model.makeCategoryDetailModel(for: "transporte")
+        #expect(detail.expenses.count == 1)
+
+        // Borrar el gasto y recargar `model` — sin llamar nada en `detail`
+        // directamente, ya que en la app real es una instancia aparte que
+        // `DashboardView` podría haber reconstruido mientras tanto.
+        try await store.delete(id: saved.id)
+        await model.onAppear()
+
+        #expect(detail.expenses.isEmpty)
     }
 }
 
@@ -267,18 +302,25 @@ struct CategoryDetailModelTests {
             date: date)
     }
 
+    private func dashboard(store: any ExpenseStore, referenceDate: Date) -> DashboardModel {
+        DashboardModel(
+            store: store,
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
+            referenceDate: referenceDate,
+            calendar: calendar)
+    }
+
     @Test("Filtra solo la categoría pedida, sin tocar las demás")
     func filtraSoloLaCategoriaPedida() async throws {
         let store = InMemoryExpenseStore()
         try await store.save(expense(amount: 100, category: "despensa", date: date(2026, 8, 5)))
         try await store.save(expense(amount: 200, category: "transporte", date: date(2026, 8, 6)))
 
-        let model = CategoryDetailModel(
-            category: "despensa",
-            store: store,
-            month: date(2026, 8, 10),
-            calendar: calendar)
-        await model.onAppear()
+        let dashboardModel = dashboard(store: store, referenceDate: date(2026, 8, 10))
+        await dashboardModel.onAppear()
+        let model = CategoryDetailModel(category: "despensa", dashboard: dashboardModel)
 
         #expect(model.expenses.count == 1)
         #expect(model.total == 100)
@@ -299,12 +341,9 @@ struct CategoryDetailModelTests {
             date: date(2026, 8, 6)))
         try await store.save(expense(amount: 30, category: "despensa", subcategory: "limpieza", date: date(2026, 8, 7)))
 
-        let model = CategoryDetailModel(
-            category: "despensa",
-            store: store,
-            month: date(2026, 8, 10),
-            calendar: calendar)
-        await model.onAppear()
+        let dashboardModel = dashboard(store: store, referenceDate: date(2026, 8, 10))
+        await dashboardModel.onAppear()
+        let model = CategoryDetailModel(category: "despensa", dashboard: dashboardModel)
 
         let totals = model.subcategoryTotals
         let abarrotes = try #require(totals.first { $0.subcategory == "abarrotes" })

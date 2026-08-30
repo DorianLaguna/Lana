@@ -49,6 +49,24 @@ public final class EntryModel {
     private let cardStore: any CardStore
     private let speech: any SpeechTranscribing
     private let vocabularyStore: any CorrectionVocabularyStore
+    private let sharedListStore: any SharedListStore
+    /// Las listas compartidas del usuario — para resolver
+    /// `ParseResult.payerHint`/`splitHint` contra un roster real
+    /// (`SharedExpenseMatch.bestMatch`, ADR-0025), y para que `DraftCard`
+    /// muestre a qué lista/participante se asignó un borrador. Se recarga
+    /// en cada `onAppear()`, igual que `cards`/`allSubcategories`.
+    public private(set) var sharedLists: [SharedList] = []
+    private var viewerIdentities: [SharedListID: ParticipantID] = [:]
+
+    /// Muestra "Yo" en lugar del nombre propio dentro de una lista, igual
+    /// que en la pantalla de la lista compartida (ADR-0028) — literalmente
+    /// la misma regla, en `SharedList.displayName(for:viewer:)`.
+    public func displayName(for participantID: ParticipantID, in sharedListID: SharedListID) -> String {
+        sharedLists
+            .first { $0.id == sharedListID }?
+            .displayName(for: participantID, viewer: viewerIdentities[sharedListID]) ?? "Alguien"
+    }
+
     /// Invalida una sesión de `startListening()` vieja cuando
     /// `clearTranscript()` arranca una nueva — ver ambos métodos.
     private var listeningGeneration = 0
@@ -62,17 +80,23 @@ public final class EntryModel {
     ///     resultante entra al mismo `parser`, nunca hay un camino aparte.
     ///   - vocabularyStore: dónde se registra una corrección de categoría
     ///     al confirmar (ADR-0012).
+    ///   - sharedListStore: de dónde se leen las listas compartidas reales y
+    ///     la identidad marcada en cada una, para resolver "lo pagué con
+    ///     Ana, mitad y mitad" contra una lista real sin pasar por el tab
+    ///     de Compartido (ADR-0025).
     public init(
         parser: any ExpenseParsing,
         store: any ExpenseStore,
         cardStore: any CardStore,
         speech: any SpeechTranscribing,
-        vocabularyStore: any CorrectionVocabularyStore) {
+        vocabularyStore: any CorrectionVocabularyStore,
+        sharedListStore: any SharedListStore) {
         self.parser = parser
         self.store = store
         self.cardStore = cardStore
         self.speech = speech
         self.vocabularyStore = vocabularyStore
+        self.sharedListStore = sharedListStore
     }
 
     /// Se llama cuando la pantalla aparece: revisa disponibilidad del
@@ -98,9 +122,26 @@ public final class EntryModel {
         speechAvailability = await speech.availability
         cards = await (try? cardStore.cards()) ?? []
         allSubcategories = await Self.loadSubcategories(from: store)
+        sharedLists = await (try? sharedListStore.lists()) ?? []
+        viewerIdentities = await Self.loadViewerIdentities(for: sharedLists, from: sharedListStore)
         if shouldStartListening {
             await startListening()
         }
+    }
+
+    /// Mismo patrón que `DashboardModel.loadViewerIdentities(for:from:)`
+    /// (DashboardFeature) — copia local a propósito, las features no se
+    /// importan entre sí (Docs/ARCHITECTURE.md).
+    private static func loadViewerIdentities(
+        for lists: [SharedList],
+        from sharedListStore: any SharedListStore) async -> [SharedListID: ParticipantID] {
+        var result: [SharedListID: ParticipantID] = [:]
+        for list in lists {
+            if let viewerID = try? await sharedListStore.viewerParticipantID(for: list.id) {
+                result[list.id] = viewerID
+            }
+        }
+        return result
     }
 
     /// Rango amplio (2 años), no acotado al mes vigente — se ofrecen todas
@@ -214,6 +255,7 @@ public final class EntryModel {
                     hint: result.paymentMethodHint,
                     cardAlias: result.cardAliasHint,
                     cards: cards)
+                applySharedMatch(from: result, to: &draft)
                 return draft
             }
             stage = .reviewing
@@ -221,6 +263,38 @@ public final class EntryModel {
             errorMessage = error.localizedDescription
             stage = .composing
         }
+    }
+
+    /// Solo si el texto dijo explícitamente que el gasto se comparte
+    /// (`result.isShared`, ya filtrado por el vocabulario determinista de
+    /// `ParsingPipeline`, ADR-0027) se intenta resolver contra una lista
+    /// real. Decir quién pagó no basta y nunca bastó — confiar en eso mandó
+    /// todos los gastos personales a la lista compartida (el bug que ADR-0027
+    /// corrige).
+    ///
+    /// Con un match único, el borrador queda con `sharedListID`/`payer`/
+    /// `split` y `needsReview` forzado a `true`, mismo criterio que Apple
+    /// Pay/OCR (Docs/CLAUDE.md: "todo lo capturado automáticamente entra con
+    /// needsReview"). Si se dijo que era compartido pero no hubo match único
+    /// (nombre ambiguo entre dos listas, o ninguna lista), el gasto se queda
+    /// personal con `needsReview` — nunca se adivina, y nunca se interrumpe
+    /// el dictado con una pregunta (ADR-0025).
+    private func applySharedMatch(from result: ParseResult, to draft: inout DraftTransaction) {
+        guard result.isShared else { return }
+        guard let payerHint = result.payerHint, !payerHint.isEmpty,
+              let match = SharedExpenseMatch.bestMatch(
+                  payerHint: payerHint,
+                  splitHint: result.splitHint,
+                  in: sharedLists,
+                  viewerIdentities: viewerIdentities)
+        else {
+            draft.needsReview = true
+            return
+        }
+        draft.sharedListID = match.sharedListID
+        draft.payer = match.payer
+        draft.split = match.split
+        draft.needsReview = true
     }
 
     /// El tipo de tarjeta ya no se adivina de la frase — se fija al dar de

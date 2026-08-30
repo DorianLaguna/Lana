@@ -24,14 +24,24 @@ public struct DashboardView: View {
     @State private var path: [DashboardDestination] = []
     @State private var addRecurringItemModel: AddRecurringItemModel?
     @State private var editExpenseModel: EditExpenseModel?
+    /// `SharedFeature` no puede llamarse desde aquí (las features no se
+    /// importan entre sí) — un gasto editado o borrado desde este Dashboard
+    /// puede ser compartido, y `ContentView` (que sí conoce ambas features)
+    /// usa este aviso para refrescar el detalle de lista compartida que
+    /// esté en pantalla. Sin este aviso, el saldo en "Compartido" se
+    /// quedaba con la cifra vieja hasta salir y volver a entrar a esa
+    /// lista — el bug real detrás de "ya no debería haber deuda".
+    private let onExpenseChanged: () -> Void
 
     public init(
         model: DashboardModel,
         recurringItemsModel: RecurringItemsModel,
-        upcomingCardPaymentsModel: UpcomingCardPaymentsModel) {
+        upcomingCardPaymentsModel: UpcomingCardPaymentsModel,
+        onExpenseChanged: @escaping () -> Void = {}) {
         self.model = model
         self.recurringItemsModel = recurringItemsModel
         self.upcomingCardPaymentsModel = upcomingCardPaymentsModel
+        self.onExpenseChanged = onExpenseChanged
     }
 
     public var body: some View {
@@ -92,9 +102,10 @@ public struct DashboardView: View {
                         }
                     }
 
-                    DaySectionListView(sections: model.daySections) { expense in
-                        editExpenseModel = model.makeEditExpenseModel(for: expense)
-                    }
+                    DaySectionListView(
+                        sections: model.daySections,
+                        onSelect: { expense in editExpenseModel = model.makeEditExpenseModel(for: expense) },
+                        viewerIdentities: model.viewerIdentities)
                 }
                 .padding(Space.md.rawValue)
                 .padding(.bottom, Space.xxl.rawValue)
@@ -125,7 +136,11 @@ public struct DashboardView: View {
             .sheet(item: $editExpenseModel) { editModel in
                 EditExpenseView(model: editModel, onDone: {
                     editExpenseModel = nil
+                    // `CategoryDetailModel`/`PaymentMethodDetailModel` (si
+                    // hay uno empujado) derivan sus gastos de `model` en
+                    // vivo — no hace falta refrescarlos aparte.
                     Task { await model.onAppear() }
+                    onExpenseChanged()
                 })
             }
         }
@@ -216,7 +231,8 @@ public struct DashboardView: View {
             model: DashboardModel(
                 store: InMemoryExpenseStore(),
                 vocabularyStore: InMemoryCorrectionVocabularyStore(),
-                cardStore: InMemoryCardStore()),
+                cardStore: InMemoryCardStore(),
+                sharedListStore: InMemorySharedListStore()),
             recurringItemsModel: RecurringItemsModel(
                 recurringItemStore: InMemoryRecurringItemStore(),
                 store: InMemoryExpenseStore(),

@@ -24,18 +24,34 @@ public struct CreateSharedListView: View {
 
                 Section {
                     ForEach(Array(model.participantNames.enumerated()), id: \.offset) { index, _ in
-                        HStack {
-                            LanaTextField("Participante", text: $model.participantNames[index])
-                            if model.participantNames.count > 2 {
-                                Button {
-                                    model.removeParticipant(at: index)
-                                } label: {
-                                    Image(systemName: "minus.circle")
-                                        .foregroundStyle(lana.critical)
+                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                            HStack {
+                                LanaTextField("Participante", text: $model.participantNames[index])
+                                if model.participantNames.count > 2 {
+                                    Button {
+                                        model.removeParticipant(at: index)
+                                    } label: {
+                                        Image(systemName: "minus.circle")
+                                            .foregroundStyle(lana.critical)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            HStack {
+                                Text("Ingreso mensual")
+                                    .lanaFont(.caption)
+                                    .foregroundStyle(lana.textSecondary)
+                                Spacer()
+                                TextField("Opcional", text: $model.participantIncomes[index])
+                                    .lanaFont(.body)
+                                    .monospacedDigit()
+                                    .multilineTextAlignment(.trailing)
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
                             }
                         }
+                        .padding(.vertical, Space.xs.rawValue)
                     }
                     Button {
                         model.addParticipant()
@@ -43,7 +59,24 @@ public struct CreateSharedListView: View {
                         Label("Agregar participante", systemImage: "plus")
                     }
                 } footer: {
-                    Text("Por ahora, solo el nombre — invitar de verdad llega cuando tengas otro iPhone a la mano.")
+                    Text("""
+                    Escribe los nombres tal cual quieres verlos — invitar de verdad a alguien más es \
+                    aparte, desde el botón de compartir dentro de la lista. Con el ingreso de todos, los \
+                    gastos se dividen proporcional por default: quien gana más pone más.
+                    """)
+                }
+
+                Section {
+                    Picker("¿Cuál de estos eres tú?", selection: $model.viewerIndex) {
+                        ForEach(Array(model.participantNames.enumerated()), id: \.offset) { index, name in
+                            Text(name.isEmpty ? "Participante \(index + 1)" : name).tag(index)
+                        }
+                    }
+                } footer: {
+                    Text("""
+                    Así Lana sabe qué parte de un gasto compartido es tuya de verdad, en vez de mostrar \
+                    el monto completo en tu Dashboard personal.
+                    """)
                 }
 
                 if let errorMessage = model.errorMessage {

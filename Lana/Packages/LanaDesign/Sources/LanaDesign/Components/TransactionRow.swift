@@ -12,22 +12,32 @@ public struct TransactionRow: View {
     private let categoryName: String
     private let categoryColor: Color
     private let amountText: String
+    /// Una segunda línea bajo el monto, más chica y en tono secundario.
+    /// `LanaDesign` no sabe qué significa: la usa el Dashboard para decir
+    /// de cuánto era el gasto completo cuando solo se muestra la parte de
+    /// quien mira (ADR-0029), pero es un slot genérico.
+    private let secondaryAmountText: String?
     private let isIncome: Bool
     private let needsReview: Bool
+    private let isShared: Bool
 
     public init(
         concept: String,
         categoryName: String,
         categoryColor: Color,
         amountText: String,
+        secondaryAmountText: String? = nil,
         isIncome: Bool = false,
-        needsReview: Bool = false) {
+        needsReview: Bool = false,
+        isShared: Bool = false) {
         self.concept = concept
         self.categoryName = categoryName
         self.categoryColor = categoryColor
         self.amountText = amountText
+        self.secondaryAmountText = secondaryAmountText
         self.isIncome = isIncome
         self.needsReview = needsReview
+        self.isShared = isShared
     }
 
     public var body: some View {
@@ -47,6 +57,16 @@ public struct TransactionRow: View {
 
             Spacer(minLength: Space.sm.rawValue)
 
+            if isShared {
+                // Nunca el único indicador de "esto es distinto" — el monto
+                // ya viene ajustado a la parte de quien mira (la vista que
+                // llama a esto decide eso, `LanaDesign` no conoce de splits);
+                // este ícono solo explica por qué.
+                Image(systemName: "person.2")
+                    .foregroundStyle(lana.textSecondary)
+                    .accessibilityLabel("Gasto compartido")
+            }
+
             if needsReview {
                 // El color nunca es el único portador de información — el
                 // ícono lleva el significado, no el tono de fondo.
@@ -55,10 +75,18 @@ public struct TransactionRow: View {
                     .accessibilityLabel("Necesita revisión")
             }
 
-            Text(amountText)
-                .lanaFont(.body)
-                .monospacedDigit()
-                .foregroundStyle(isIncome ? lana.positive : lana.textPrimary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(amountText)
+                    .lanaFont(.body)
+                    .monospacedDigit()
+                    .foregroundStyle(isIncome ? lana.positive : lana.textPrimary)
+                if let secondaryAmountText {
+                    Text(secondaryAmountText)
+                        .lanaFont(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(lana.textSecondary)
+                }
+            }
         }
         .padding(.vertical, Space.xs.rawValue)
     }
@@ -87,6 +115,13 @@ public struct TransactionRow: View {
                             categoryColor: LanaColors(theme: theme, colorScheme: .light).categoryRamp[2],
                             amountText: "$1,010.00",
                             needsReview: true)
+                        TransactionRow(
+                            concept: "Renta",
+                            categoryName: "Hogar",
+                            categoryColor: LanaColors(theme: theme, colorScheme: .light).categoryRamp[3],
+                            amountText: "$4,500.00",
+                            secondaryAmountText: "de $9,000.00",
+                            isShared: true)
                     }
                 }
                 .lanaTheme(theme)

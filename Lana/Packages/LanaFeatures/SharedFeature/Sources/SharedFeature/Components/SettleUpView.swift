@@ -110,7 +110,8 @@ public struct SettleUpView: View {
             model: SharedListDetailModel(
                 list: list,
                 sharedListStore: InMemorySharedListStore(seed: [list]),
-                expenseStore: InMemoryExpenseStore()),
+                expenseStore: InMemoryExpenseStore(),
+                parser: InMemoryExpenseParsing()),
             debt: Debt(from: bob.id, to: alice.id, amount: Money(amount: 250, currency: .mxn)),
             onDone: {})
             .lanaTheme(theme)

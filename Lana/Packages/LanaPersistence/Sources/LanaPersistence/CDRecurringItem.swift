@@ -11,6 +11,7 @@ public final class CDRecurringItem: NSManagedObject {
     @NSManaged public var currency: String?
     @NSManaged public var kind: String?
     @NSManaged public var category: String?
+    @NSManaged public var subcategory: String?
     @NSManaged public var dayOfMonth: Int16
     @NSManaged public var paymentMethodKind: String?
     @NSManaged public var paymentMethodCardID: UUID?

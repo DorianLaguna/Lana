@@ -13,8 +13,14 @@ import Observation
 @MainActor
 @Observable
 public final class CardDetailModel {
-    /// La tarjeta que se está viendo.
-    public let card: Card
+    /// La tarjeta que se está viendo. No `let`: `CardsModel.makeCardDetailModel`
+    /// reutiliza esta misma instancia mientras siga empujada en el stack
+    /// (para que un refresco explícito tras editar/borrar un gasto opere
+    /// sobre la que de verdad está en pantalla, no sobre una recreada a
+    /// medias por SwiftUI) y actualiza este campo aparte cuando la tarjeta
+    /// misma cambia — antes, `Card.id` para el destino ya evitaba quedarse
+    /// con datos viejos al editar la tarjeta; esto conserva eso.
+    public private(set) var card: Card
     /// Los cargos de crédito a esta tarjeta, en el ciclo de corte vigente
     /// — para el desglose por categoría y la lista de transacciones.
     public private(set) var expenses: [Expense] = []
@@ -52,6 +58,12 @@ public final class CardDetailModel {
     /// acumulando en el ciclo abierto.
     public var totalDebt: Money {
         (try? statementDue + currentCycleAccrued) ?? statementDue
+    }
+
+    /// Actualiza los datos de la tarjeta cuando `CardsModel` reutiliza esta
+    /// instancia — ver el comment de `card`.
+    func updateCard(_ card: Card) {
+        self.card = card
     }
 
     /// Carga los cargos y saldos vigentes. Se llama cuando la pantalla

@@ -17,17 +17,26 @@ struct SettingsModelTests {
 
     @Test("Sin nada guardado, el tema por default es Cobalto")
     func sinNadaGuardadoTemaPorDefault() {
-        let model = SettingsModel(vocabularyStore: InMemoryCorrectionVocabularyStore(), userDefaults: makeDefaults())
+        let model = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults())
         #expect(model.selectedTheme == .default)
     }
 
     @Test("Elegir un tema lo persiste — una instancia nueva lo lee de vuelta")
     func elegirUnTemaLoPersiste() {
         let defaults = makeDefaults()
-        let model = SettingsModel(vocabularyStore: InMemoryCorrectionVocabularyStore(), userDefaults: defaults)
+        let model = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: defaults)
         model.selectTheme(.nopal)
 
-        let reloaded = SettingsModel(vocabularyStore: InMemoryCorrectionVocabularyStore(), userDefaults: defaults)
+        let reloaded = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: defaults)
         #expect(reloaded.selectedTheme == .nopal)
     }
 
@@ -36,7 +45,10 @@ struct SettingsModelTests {
         let vocabularyStore = InMemoryCorrectionVocabularyStore()
         await vocabularyStore.record(term: "bocina", category: "ocio")
 
-        let model = SettingsModel(vocabularyStore: vocabularyStore, userDefaults: makeDefaults())
+        let model = SettingsModel(
+            vocabularyStore: vocabularyStore,
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults())
         await model.onAppear()
 
         #expect(model.vocabulary.count == 1)
@@ -49,7 +61,10 @@ struct SettingsModelTests {
         await vocabularyStore.record(term: "bocina", category: "ocio")
         await vocabularyStore.record(term: "chicles", category: "despensa")
 
-        let model = SettingsModel(vocabularyStore: vocabularyStore, userDefaults: makeDefaults())
+        let model = SettingsModel(
+            vocabularyStore: vocabularyStore,
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults())
         await model.onAppear()
         await model.delete(term: "bocina")
 
@@ -63,7 +78,10 @@ struct SettingsModelTests {
         await vocabularyStore.record(term: "bocina", category: "ocio")
         await vocabularyStore.record(term: "chicles", category: "despensa")
 
-        let model = SettingsModel(vocabularyStore: vocabularyStore, userDefaults: makeDefaults())
+        let model = SettingsModel(
+            vocabularyStore: vocabularyStore,
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults())
         await model.onAppear()
         await model.deleteAll()
 

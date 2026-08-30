@@ -8,10 +8,15 @@ public struct DaySectionListView: View {
 
     private let sections: [DaySection]
     private let onSelect: (Expense) -> Void
+    private let viewerIdentities: [SharedListID: ParticipantID]
 
-    public init(sections: [DaySection], onSelect: @escaping (Expense) -> Void = { _ in }) {
+    public init(
+        sections: [DaySection],
+        onSelect: @escaping (Expense) -> Void = { _ in },
+        viewerIdentities: [SharedListID: ParticipantID] = [:]) {
         self.sections = sections
         self.onSelect = onSelect
+        self.viewerIdentities = viewerIdentities
     }
 
     public var body: some View {
@@ -34,14 +39,7 @@ public struct DaySectionListView: View {
                                     Button {
                                         onSelect(expense)
                                     } label: {
-                                        TransactionRow(
-                                            concept: expense.concept,
-                                            categoryName: expense.category ?? "Ingreso",
-                                            categoryColor: lana
-                                                .categoryRamp[(expense.category ?? "ingreso").stableRampIndex],
-                                            amountText: expense.amount.formatted(),
-                                            isIncome: expense.kind == .income,
-                                            needsReview: expense.needsReview)
+                                        row(for: expense)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -51,6 +49,36 @@ public struct DaySectionListView: View {
                 }
             }
         }
+    }
+
+    /// Separada de `body` a propósito — con todos los argumentos de
+    /// `TransactionRow` inline, el type-checker tardaba más de lo
+    /// razonable dentro del `ForEach`/`Button` anidados (error real de
+    /// `swift build`, no de Xcode con whole-module-optimization).
+    private func row(for expense: Expense) -> some View {
+        let categoryName = expense.category ?? "Ingreso"
+        let categoryColor = lana.categoryRamp[(expense.category ?? "ingreso").stableRampIndex]
+        // La parte que le toca a quien mira, no el monto completo del
+        // evento — un gasto compartido no se ve como si lo hubiera
+        // absorbido todo (`Expense.personalAmount`, LanaCore).
+        let personalAmount = expense.personalAmount(viewerIdentities: viewerIdentities)
+        let amountText = personalAmount.formatted()
+        // Con solo la parte de quien mira, la fila se lee como si el gasto
+        // hubiera sido de ese monto (ADR-0029) — "de $800" dice de cuánto
+        // era en realidad. Solo cuando difieren: si te tocó el total (lo
+        // pagaste tú y nadie más debe), repetirlo sería ruido.
+        let totalText = expense.sharedListID != nil && personalAmount != expense.amount
+            ? "de \(expense.amount.formatted())"
+            : nil
+        return TransactionRow(
+            concept: expense.concept,
+            categoryName: categoryName,
+            categoryColor: categoryColor,
+            amountText: amountText,
+            secondaryAmountText: totalText,
+            isIncome: expense.kind == .income,
+            needsReview: expense.needsReview,
+            isShared: expense.sharedListID != nil)
     }
 }
 

@@ -66,6 +66,7 @@ public final class RecurringItemsModel {
             amount: item.amount,
             concept: item.name,
             category: item.category,
+            subcategory: item.subcategory,
             date: date,
             paymentMethod: item.paymentMethod))
         var updated = item
@@ -105,7 +106,7 @@ public final class RecurringItemsModel {
 
     /// El formulario de agregar (`editing: nil`) o editar un recurrente.
     public func makeAddModel(editing item: RecurringItem? = nil) -> AddRecurringItemModel {
-        AddRecurringItemModel(recurringItemStore: recurringItemStore, editing: item, cards: cards)
+        AddRecurringItemModel(recurringItemStore: recurringItemStore, store: store, editing: item, cards: cards)
     }
 
     private func load() async {

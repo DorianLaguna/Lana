@@ -439,26 +439,28 @@ importar en la app real. Nada hecho todavía.
 - [ ] **Todo entra con `needsReview`**
 
 ### Fase 8 — Compartir · 6-8 días ← la fase más riesgosa
-- [ ] Crear lista, generar `CKShare`, invitar por share sheet
-- [ ] Aceptar invitación, incluyendo con la app cerrada
+- [x] Crear lista, generar `CKShare`, invitar por share sheet — `ShareLink`
+      sobre `SharedListStore.shareURL(for:)`, ADR-0020
+- [x] Aceptar invitación, incluyendo con la app cerrada — `AppDelegate` +
+      cola de invitaciones pendientes, ADR-0020
 - [x] Registrar gasto con pagador y regla de división — `SharedExpenseCaptureView`
 - [x] Vista de saldos: quién debe a quién, **con tendencia** además del número
       — `ParticipantBalance.Trend`, `BalancesView`
 - [x] Registrar liquidación, con método de pago — `SettleUpView`
 - [ ] Recordatorio suave al cruzar umbral de monto o antigüedad (configurable)
 - [ ] Permisos: participantes corrigen lo propio, no lo ajeno
-- [ ] Prueba real en dos devices físicos con cuentas distintas
+- [ ] Prueba real en dos devices físicos con cuentas distintas — pendiente,
+      el usuario la hará con un segundo dispositivo (de su pareja),
+      probablemente vía TestFlight
 
-**Estado (auditoría 2026-08-27):** la mitad "producto" ya es real y
-probada — CRUD de listas (`CoreDataSharedListStore`), split, saldos con
-tendencia, liquidaciones. La mitad que da nombre a la fase y a su fama de
-riesgosa — CloudKit sharing real entre dos cuentas de iCloud — **no ha
-empezado**: no hay `CKShare`, ni invitación, ni aceptación en
-`LanaApp.swift`. `CreateSharedListModel` lo documenta explícito: los
-participantes son "locales por ahora, hasta que exista identidad real de
-CKShare". `AppDependencies.live()` sigue con `cloudKitContainerIdentifier:
-nil` — sin contenedor de iCloud provisionado, la app entera sigue en modo
-local sin sync entre devices.
+**Estado (2026-08-28, ADR-0020):** G3 (CloudKit sharing real) ya está
+implementado y compila contra el SDK real — contenedor de iCloud
+provisionado, `AppDependencies.live()` ya no fuerza modo local. Lo único
+genuinamente pendiente de esta fase es la prueba real de punta a punta
+entre dos cuentas de iCloud distintas (no verificable en simulador) y el
+recordatorio suave de saldo, que es un ítem aparte sin relación con CKShare.
+El roster de `Participant` sigue sin reconciliarse contra identidad real de
+`CKShare.Participant` — deliberado, ver ADR-0017/ADR-0020.
 
 ### Fase 9 — Consultas en lenguaje natural · 3-4 días
 - [ ] Tools deterministas: `totalPorCategoria`, `comparaMeses`, `mayoresGastos`,

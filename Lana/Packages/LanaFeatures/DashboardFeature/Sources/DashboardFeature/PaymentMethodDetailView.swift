@@ -81,7 +81,10 @@ public struct PaymentMethodDetailView: View {
                     }
                 }
 
-                DaySectionListView(sections: model.daySections, onSelect: onExpenseTap)
+                DaySectionListView(
+                    sections: model.daySections,
+                    onSelect: onExpenseTap,
+                    viewerIdentities: model.viewerIdentities)
             }
             .padding(Space.md.rawValue)
         }
@@ -96,22 +99,25 @@ public struct PaymentMethodDetailView: View {
 
 #Preview {
     if let card = try? Card(alias: "BBVA Oro", lastFourDigits: "4821", limit: nil, cutoffDay: nil, dueDay: nil) {
+        let cardStore = InMemoryCardStore(seed: [card])
+        let dashboard = DashboardModel(
+            store: InMemoryExpenseStore(seed: [
+                Expense(
+                    kind: .expense,
+                    amount: Money(amount: 620, currency: .mxn),
+                    concept: "Súper semanal",
+                    category: "despensa",
+                    date: Date(),
+                    paymentMethod: .credit(cardID: card.id))
+            ]),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: cardStore,
+            sharedListStore: InMemorySharedListStore())
         NavigationStack {
             PaymentMethodDetailView(
-                model: PaymentMethodDetailModel(
-                    label: "crédito",
-                    store: InMemoryExpenseStore(seed: [
-                        Expense(
-                            kind: .expense,
-                            amount: Money(amount: 620, currency: .mxn),
-                            concept: "Súper semanal",
-                            category: "despensa",
-                            date: Date(),
-                            paymentMethod: .credit(cardID: card.id))
-                    ]),
-                    cardStore: InMemoryCardStore(seed: [card]),
-                    month: Date()),
+                model: PaymentMethodDetailModel(label: "crédito", dashboard: dashboard, cardStore: cardStore),
                 onExpenseTap: { _ in })
         }
+        .task { await dashboard.onAppear() }
     }
 }

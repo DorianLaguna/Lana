@@ -13,7 +13,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         #expect(model.stage == .composing)
     }
@@ -30,7 +31,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         #expect(model.stage == .unavailable(availability))
     }
@@ -42,7 +44,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "   "
         await model.submit()
@@ -62,7 +65,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "dulces 131 pesos"
         await model.submit()
@@ -84,7 +88,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "dulces 131 y gasolina 1010"
         await model.submit()
@@ -105,7 +110,8 @@ struct EntryModelTests {
             store: store,
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "45 de estacionamiento"
         await model.submit()
@@ -126,7 +132,8 @@ struct EntryModelTests {
             store: store,
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "100 de algo"
         await model.submit()
@@ -148,7 +155,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "100 de algo"
         await model.submit()
@@ -168,7 +176,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(fixedTranscript: "gasté 300 en el súper"),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         await model.startListening()
 
@@ -186,7 +195,8 @@ struct EntryModelTests {
             speech: InMemorySpeechTranscribing(
                 availability: .permissionNotDetermined,
                 permissionResult: .permissionDenied),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         await model.startListening()
 
@@ -203,7 +213,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: vocabularyStore)
+            vocabularyStore: vocabularyStore,
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "bocina 90 pesos"
         await model.submit()
@@ -226,7 +237,8 @@ struct EntryModelTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: vocabularyStore)
+            vocabularyStore: vocabularyStore,
+            sharedListStore: InMemorySharedListStore())
         await model.onAppear()
         model.inputText = "café 90 pesos"
         await model.submit()
@@ -253,7 +265,8 @@ struct EntryModelTests {
             store: store,
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
 
         await model.onAppear()
 
@@ -273,7 +286,8 @@ struct EntryModelAutoStartListeningTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(fixedTranscript: "gasté 300 en el súper"),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
 
         await model.onAppear(startListening: true)
 
@@ -288,7 +302,8 @@ struct EntryModelAutoStartListeningTests {
             store: InMemoryExpenseStore(),
             cardStore: InMemoryCardStore(),
             speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore())
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
 
         await model.onAppear(startListening: true)
 

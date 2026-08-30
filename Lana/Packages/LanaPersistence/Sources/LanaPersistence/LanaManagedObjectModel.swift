@@ -23,7 +23,10 @@ enum LanaManagedObjectModel {
         // container que `CDEvent`/`CDSharedList` a propósito, para no repetir
         // el crash de containers concurrentes documentado en este archivo.
         let model = NSManagedObjectModel()
-        model.entities = [event, sharedList, cardEntity(), vocabularyEntryEntity(), recurringItemEntity()]
+        model.entities = [
+            event, sharedList, cardEntity(), vocabularyEntryEntity(), recurringItemEntity(),
+            sharedListViewerPreferenceEntity()
+        ]
         return model
     }
 
@@ -114,12 +117,27 @@ enum LanaManagedObjectModel {
             attribute("currency", type: .stringAttributeType),
             attribute("kind", type: .stringAttributeType),
             attribute("category", type: .stringAttributeType),
+            attribute("subcategory", type: .stringAttributeType),
             attribute("dayOfMonth", type: .integer16AttributeType),
             attribute("paymentMethodKind", type: .stringAttributeType),
             attribute("paymentMethodCardID", type: .UUIDAttributeType),
             attribute("lastRegisteredMonth", type: .dateAttributeType)
         ]
         return recurringItem
+    }
+
+    /// Sin relación con `CDSharedList` a propósito — ver el doc comment de
+    /// `CDSharedListViewerPreference`: tiene que quedarse en la zona privada,
+    /// nunca viajar con la lista a la zona compartida.
+    private static func sharedListViewerPreferenceEntity() -> NSEntityDescription {
+        let preference = NSEntityDescription()
+        preference.name = "CDSharedListViewerPreference"
+        preference.managedObjectClassName = NSStringFromClass(CDSharedListViewerPreference.self)
+        preference.properties = [
+            attribute("sharedListID", type: .UUIDAttributeType),
+            attribute("viewerParticipantID", type: .UUIDAttributeType)
+        ]
+        return preference
     }
 
     /// Todos los atributos son opcionales: es requisito de CloudKit que cada

@@ -22,6 +22,14 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
     /// específico cuando el texto lo menciona y se resuelve contra las
     /// tarjetas reales (`EntryModel.submit()`), no aquí.
     public var paymentMethod: PaymentMethod
+    /// `nil` = gasto personal, el default. Si el texto mencionó con quién se
+    /// dividió y eso se resolvió sin ambigüedad contra una lista compartida
+    /// real (`SharedExpenseMatch.bestMatch`, `EntryModel.submit()`), estos
+    /// tres campos quedan llenos — ADR-0025. Nunca se resuelven aquí en el
+    /// `init`, mismo criterio que `paymentMethod`.
+    public var sharedListID: SharedListID?
+    public var payer: ParticipantID?
+    public var split: SplitRule?
     public var needsReview: Bool
 
     public init(
@@ -34,6 +42,9 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         subcategory: String = "",
         date: Date = Date(),
         paymentMethod: PaymentMethod = .cash,
+        sharedListID: SharedListID? = nil,
+        payer: ParticipantID? = nil,
+        split: SplitRule? = nil,
         needsReview: Bool = false) {
         self.id = id
         self.kind = kind
@@ -45,6 +56,9 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         self.subcategory = subcategory
         self.date = date
         self.paymentMethod = paymentMethod
+        self.sharedListID = sharedListID
+        self.payer = payer
+        self.split = split
         self.needsReview = needsReview
     }
 
@@ -59,7 +73,17 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         subcategory = result.subcategory ?? ""
         date = result.date ?? fallbackDate
         paymentMethod = .cash
+        sharedListID = nil
+        payer = nil
+        split = nil
         needsReview = result.needsReview
+    }
+
+    /// El desglose de cuánto le toca a cada quien con lo que hay ahora mismo
+    /// en el formulario (ADR-0029) — se recalcula al editar el monto o el
+    /// pagador, así el preview siempre refleja lo que se va a guardar.
+    public var splitShares: [SplitShare] {
+        asExpense().splitShares() ?? []
     }
 
     public func asExpense() -> Expense {
@@ -76,6 +100,9 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
             subcategory: subcategory.isEmpty ? nil : subcategory,
             date: date,
             paymentMethod: paymentMethod,
-            needsReview: needsReview)
+            needsReview: needsReview,
+            sharedListID: sharedListID,
+            payer: payer,
+            split: split)
     }
 }

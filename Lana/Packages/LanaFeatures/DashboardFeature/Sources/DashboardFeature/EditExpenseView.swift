@@ -53,6 +53,10 @@ public struct EditExpenseView: View {
                     DatePicker("Fecha", selection: $model.date, displayedComponents: .date)
                 }
 
+                if model.kind == .expense, !model.sharedLists.isEmpty {
+                    sharedListSection
+                }
+
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
@@ -179,6 +183,72 @@ public struct EditExpenseView: View {
                 }
             })
     }
+
+    /// Mover el gasto entre personal y una lista compartida sin borrarlo ni
+    /// recapturarlo (ADR-0027), y elegir cómo se divide (ADR-0030). Solo se
+    /// ofrecen las reglas que la lista resuelve sola con lo que ya sabe;
+    /// `.percentage`/`.exactAmounts` piden un número por participante y se
+    /// capturan en el formulario completo de Compartido — este editor lo
+    /// comparte Tarjetas, que no tiene nada que hacer con eso.
+    private var sharedListSection: some View {
+        Section {
+            Picker("Lista", selection: $model.sharedListID) {
+                Text("Personal").tag(SharedListID?.none)
+                ForEach(model.sharedLists) { list in
+                    Text(list.name).tag(SharedListID?.some(list.id))
+                }
+            }
+            .onChange(of: model.sharedListID) { _, _ in
+                model.sharedListChanged()
+            }
+
+            if model.sharedListID != nil {
+                Picker("Pagó", selection: $model.payer) {
+                    ForEach(model.participantsOfSelectedList) { participant in
+                        Text(model.displayName(for: participant.id)).tag(ParticipantID?.some(participant.id))
+                    }
+                }
+                splitBreakdown
+            }
+        } header: {
+            Text("Compartido")
+        } footer: {
+            Text(model.sharedListID == nil
+                ? "Este gasto cuenta completo como tuyo. Muévelo a una lista para dividirlo con alguien más."
+                : "En tu Dashboard solo cuenta la parte que te toca. Ajusta cómo se divide desde la lista.")
+        }
+    }
+
+    /// Cómo queda repartido el gasto, con el monto y la regla vigentes del
+    /// formulario (ADR-0029). Sin esto, el editor decía a qué lista va y
+    /// quién pagó, pero no cuánto acaba tocándole a cada quien — que es
+    /// justo el número que el Dashboard suma y el que el usuario venía a
+    /// entender.
+    @ViewBuilder
+    private var splitBreakdown: some View {
+        if model.effectiveSplit != nil {
+            Picker("División", selection: $model.selectedSplitKind) {
+                ForEach(model.selectableSplitKinds) { kind in
+                    Text(kind.displayName).tag(SplitRuleKind?.some(kind))
+                }
+            }
+            ForEach(model.splitShares) { share in
+                LabeledContent {
+                    Text(share.amount.formatted())
+                        .monospacedDigit()
+                } label: {
+                    HStack(spacing: Space.xs.rawValue) {
+                        Text(model.displayName(for: share.participant))
+                        if share.isPayer {
+                            Text("pagó")
+                                .lanaFont(.caption)
+                                .foregroundStyle(lana.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #Preview {
@@ -192,7 +262,8 @@ public struct EditExpenseView: View {
                     category: "despensa",
                     date: .now),
                 store: InMemoryExpenseStore(),
-                vocabularyStore: InMemoryCorrectionVocabularyStore()),
+                vocabularyStore: InMemoryCorrectionVocabularyStore(),
+                sharedListStore: InMemorySharedListStore()),
             onDone: {})
             .lanaTheme(theme)
     }

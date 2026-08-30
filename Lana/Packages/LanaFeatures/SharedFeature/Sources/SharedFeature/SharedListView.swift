@@ -132,7 +132,8 @@ private struct SharedListRow: View {
                     participants: [Participant(displayName: "Tú"), Participant(displayName: "Sam")],
                     defaultSplit: .equally(among: []))
             ]),
-            expenseStore: InMemoryExpenseStore()))
+            expenseStore: InMemoryExpenseStore(),
+            parser: InMemoryExpenseParsing()))
             .lanaTheme(theme)
     }
 }

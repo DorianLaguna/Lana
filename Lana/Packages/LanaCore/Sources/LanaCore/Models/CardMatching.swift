@@ -34,7 +34,12 @@ public extension Card {
     }
 }
 
-private extension String {
+/// `internal`, no `private`: la comparten `Card.bestMatch` y
+/// `SharedExpenseMatch.bestMatch` — es la misma pregunta ("¿este texto libre
+/// nombra esto?") y tener una copia por archivo dejaba que una se arreglara
+/// sin la otra, con el matching de tarjetas y el de participantes tratando
+/// distinto los mismos acentos.
+extension String {
     var foldedForMatching: String {
         folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
     }

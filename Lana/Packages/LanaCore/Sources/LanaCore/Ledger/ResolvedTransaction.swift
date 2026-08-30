@@ -112,7 +112,15 @@ struct ResolvedTransaction: Sendable {
     }
 
     func applying(_ correction: ExpenseCorrected) -> ResolvedTransaction {
-        ResolvedTransaction(
+        // `clearsSharedContext` gana sobre todo lo demás del bloque
+        // compartido: es la única forma de expresar "vuélvelo personal",
+        // porque `nil` en estos campos significa "conserva lo anterior"
+        // (ADR-0027).
+        let resolvedSharedListID = correction.clearsSharedContext ? nil : correction.sharedListID ?? sharedListID
+        let resolvedPayer = correction.clearsSharedContext ? nil : correction.payer ?? payer
+        let resolvedSplit = correction.clearsSharedContext ? nil : correction.split ?? split
+
+        return ResolvedTransaction(
             id: id,
             kind: kind,
             amount: correction.amount ?? amount,
@@ -121,9 +129,9 @@ struct ResolvedTransaction: Sendable {
             subcategory: correction.subcategory ?? subcategory,
             date: correction.date ?? date,
             paymentMethod: correction.paymentMethod ?? paymentMethod,
-            sharedListID: sharedListID,
-            payer: payer,
-            split: split,
+            sharedListID: resolvedSharedListID,
+            payer: resolvedPayer,
+            split: resolvedSplit,
             cardID: cardID,
             needsReview: correction.needsReview ?? needsReview,
             isVoided: isVoided)

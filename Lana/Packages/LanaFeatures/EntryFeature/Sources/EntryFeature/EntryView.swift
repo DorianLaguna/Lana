@@ -71,8 +71,7 @@ public struct EntryView: View {
     private var composingView: some View {
         VStack(spacing: Space.lg.rawValue) {
             if model.stage == .parsing {
-                ProgressView()
-                    .frame(width: 68, height: 68)
+                ParsingIndicatorView()
             } else {
                 Button {
                     Task { await model.startListening() }
@@ -154,7 +153,12 @@ public struct EntryView: View {
             ScrollView {
                 VStack(spacing: Space.sm.rawValue) {
                     ForEach($model.drafts) { $draft in
-                        DraftCard(draft: $draft, cards: model.cards, allSubcategories: model.allSubcategories)
+                        DraftCard(
+                            draft: $draft,
+                            cards: model.cards,
+                            allSubcategories: model.allSubcategories,
+                            sharedLists: model.sharedLists,
+                            viewerName: { model.displayName(for: $0, in: $1) })
                     }
                 }
             }
@@ -187,7 +191,8 @@ public struct EntryView: View {
                 store: InMemoryExpenseStore(),
                 cardStore: InMemoryCardStore(),
                 speech: InMemorySpeechTranscribing(),
-                vocabularyStore: InMemoryCorrectionVocabularyStore()),
+                vocabularyStore: InMemoryCorrectionVocabularyStore(),
+                sharedListStore: InMemorySharedListStore()),
             onOpenSettings: {},
             onDone: {})
             .lanaTheme(theme)
