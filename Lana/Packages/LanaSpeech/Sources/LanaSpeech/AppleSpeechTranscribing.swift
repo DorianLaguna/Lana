@@ -111,17 +111,22 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             // Solo se mandan tipos `Sendable` al actor — `result` es un
             // `SFSpeechRecognitionResult` (no `Sendable`) que este closure ya
-            // no puede tocar una vez cruza a la `Task`.
+            // no puede tocar una vez cruza a la `Task`. `segmentAnchor` es el
+            // timestamp del primer segmento — la señal que `TranscriptAccumulator`
+            // usa para distinguir una autocorrección de un corte real de
+            // segmento, en vez de adivinar por el texto.
             let transcript = result?.bestTranscription.formattedString
+            let segmentAnchor = result?.bestTranscription.segments.first?.timestamp ?? 0
             let isFinal = result?.isFinal ?? false
             guard let self else { return }
-            Task { await self.handleResult(transcript, isFinal: isFinal, error: error) }
+            Task { await self.handleResult(transcript, segmentAnchor: segmentAnchor, isFinal: isFinal, error: error) }
         }
     }
 
-    private func handleResult(_ transcript: String?, isFinal: Bool, error: Error?) async {
+    private func handleResult(_ transcript: String?, segmentAnchor: Double, isFinal: Bool, error: Error?) async {
         if let transcript {
-            continuation?.yield(accumulator.combine(rawSnapshot: transcript, isFinal: isFinal))
+            let combined = accumulator.combine(rawSnapshot: transcript, segmentAnchor: segmentAnchor, isFinal: isFinal)
+            continuation?.yield(combined)
         }
         if let error {
             continuation?.finish(throwing: error)

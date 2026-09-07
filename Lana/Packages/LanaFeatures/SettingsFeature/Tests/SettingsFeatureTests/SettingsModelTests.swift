@@ -87,4 +87,37 @@ struct SettingsModelTests {
 
         #expect(model.vocabulary.isEmpty)
     }
+
+    // MARK: - Punto de entrada de la guía de Apple Pay (R1.4)
+
+    @Test("Con handler inyectado, la fila de Configurar Apple Pay se muestra")
+    func conHandlerSeMuestraLaFila() {
+        let model = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults(),
+            onConfigureApplePay: {})
+        #expect(model.showsConfigureApplePayRow)
+    }
+
+    @Test("Sin handler, la fila de Configurar Apple Pay no se muestra")
+    func sinHandlerNoSeMuestraLaFila() {
+        let model = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults())
+        #expect(!model.showsConfigureApplePayRow)
+    }
+
+    @Test("configureApplePay invoca el handler inyectado una sola vez")
+    func configureApplePayInvocaElHandler() {
+        var invocations = 0
+        let model = SettingsModel(
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            syncStatusReporting: InMemorySyncStatusReporting(),
+            userDefaults: makeDefaults(),
+            onConfigureApplePay: { invocations += 1 })
+        model.configureApplePay()
+        #expect(invocations == 1)
+    }
 }

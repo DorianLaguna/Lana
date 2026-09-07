@@ -37,6 +37,18 @@ public struct AddCardView: View {
                 }
 
                 Section {
+                    LanaTextField("Nombre en Wallet (opcional)", text: $model.walletMatchHint)
+                    #if os(iOS)
+                        .textInputAutocapitalization(.words)
+                    #endif
+                } footer: {
+                    Text("""
+                    Solo para reconocer esta tarjeta en automatizaciones de Apple Pay, si Wallet le \
+                    dice distinto que el alias. Déjalo vacío si son iguales.
+                    """)
+                }
+
+                Section {
                     colorPicker
                 }
 

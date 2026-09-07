@@ -52,3 +52,48 @@ struct AmountValidatorTests {
         #expect(!result.needsReview)
     }
 }
+
+/// El monto de una captura automática que llega como número o como texto
+/// (ADR-0033) — el atajo de Apple Pay entrega 0 en el campo numérico
+/// cuando Shortcuts pierde el tipo de una cantidad con moneda.
+@Suite("AmountValidator.resolveAmount")
+struct AmountValidatorResolveTests {
+    private let validator = AmountValidator()
+
+    @Test("El campo numérico gana cuando trae un monto")
+    func elNumericoGanaCuandoTraeMonto() {
+        #expect(validator.resolveAmount(numeric: 149.99, text: nil) == Decimal(string: "149.99"))
+    }
+
+    @Test("Un numérico en cero cae al texto — el fallo reportado")
+    func unNumericoEnCeroCaeAlTexto() {
+        #expect(validator.resolveAmount(numeric: 0, text: "$149.99") == Decimal(string: "149.99"))
+    }
+
+    @Test("Lee el monto con símbolo de moneda y separador de miles", arguments: [
+        "$1,250.50", "MX$1,250.50", "1,250.50", "1250.50"
+    ])
+    func leeMontoConMonedaYSeparador(text: String) {
+        #expect(validator.resolveAmount(numeric: 0, text: text) == Decimal(string: "1250.50"))
+    }
+
+    @Test("El texto se ignora si el numérico ya trae monto")
+    func elTextoSeIgnoraSiElNumericoTraeMonto() {
+        #expect(validator.resolveAmount(numeric: 50, text: "$999.00") == 50)
+    }
+
+    @Test("Sin monto usable en ninguno: nil, para no guardar un gasto de $0")
+    func sinMontoUsableDevuelveNil() {
+        #expect(validator.resolveAmount(numeric: 0, text: nil) == nil)
+        #expect(validator.resolveAmount(numeric: 0, text: "") == nil)
+        #expect(validator.resolveAmount(numeric: 0, text: "sin números") == nil)
+        #expect(validator.resolveAmount(numeric: 0, text: "$0.00") == nil)
+    }
+
+    @Test("El numérico no arrastra el error binario de Double")
+    func elNumericoNoArrastraElErrorBinarioDeDouble() throws {
+        // `Decimal(149.99 as Double)` da 149.98999999999998.
+        let resolved = try #require(validator.resolveAmount(numeric: 149.99, text: nil))
+        #expect("\(resolved)" == "149.99")
+    }
+}

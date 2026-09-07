@@ -82,6 +82,7 @@ enum LanaManagedObjectModel {
         card.properties = [
             attribute("id", type: .UUIDAttributeType),
             attribute("alias", type: .stringAttributeType),
+            attribute("walletMatchHint", type: .stringAttributeType),
             attribute("lastFourDigits", type: .stringAttributeType),
             attribute("limitAmount", type: .decimalAttributeType),
             attribute("limitCurrency", type: .stringAttributeType),

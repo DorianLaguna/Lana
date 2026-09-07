@@ -127,6 +127,10 @@ public struct CardDetailView: View {
                 }
             }
             .task { await model.onAppear() }
+            // `CardsView` (la lista) ya lo tenía y el detalle no, así que
+            // jalar hacia abajo aquí no hacía absolutamente nada — parecía
+            // que el gasto recién capturado no existía (ADR-0032).
+            .refreshable { await model.onAppear() }
             .sheet(isPresented: $isPaying) {
                 AddCardPaymentView(model: model, onDone: { isPaying = false })
             }

@@ -17,6 +17,9 @@ public struct DraftCard: View {
     /// Cómo mostrar el nombre de un participante — `EntryModel` es quien
     /// sabe cuál es "yo" en cada lista, este componente no.
     private let viewerName: (ParticipantID, SharedListID) -> String
+    /// `nil` cuando es el único borrador en revisión — no tiene sentido
+    /// ofrecer borrarlo, ya lo cubre cancelar la captura entera.
+    private let onDelete: (() -> Void)?
     @State private var isEnteringCustomSubcategory = false
 
     public init(
@@ -24,12 +27,14 @@ public struct DraftCard: View {
         cards: [Card],
         allSubcategories: [String: [String]] = [:],
         sharedLists: [SharedList] = [],
-        viewerName: @escaping (ParticipantID, SharedListID) -> String = { _, _ in "Alguien" }) {
+        viewerName: @escaping (ParticipantID, SharedListID) -> String = { _, _ in "Alguien" },
+        onDelete: (() -> Void)? = nil) {
         _draft = draft
         self.cards = cards
         self.allSubcategories = allSubcategories
         self.sharedLists = sharedLists
         self.viewerName = viewerName
+        self.onDelete = onDelete
     }
 
     public var body: some View {
@@ -49,6 +54,15 @@ public struct DraftCard: View {
                         Label("Revisar", systemImage: "exclamationmark.circle")
                             .lanaFont(.caption)
                             .foregroundStyle(lana.warning)
+                    }
+
+                    if let onDelete {
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .foregroundStyle(lana.critical)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Borrar este borrador")
                     }
                 }
 

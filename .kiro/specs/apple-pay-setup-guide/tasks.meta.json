@@ -1,0 +1,470 @@
+{
+  "pbtResults": {
+    "1.5 Escribir prueba por propiedad para la biyección del mapeo de parámetros": {
+      "status": "passed",
+      "lastRunTimestamp": 1788364065847
+    },
+    "1.4 Escribir prueba por propiedad para la numeración de los pasos de Atajos": {
+      "status": "passed",
+      "lastRunTimestamp": 1788364067731
+    },
+    "4.4 Escribir prueba por propiedad para los invariantes de la máquina de estados": {
+      "status": "not_run",
+      "lastRunTimestamp": 1788542271004
+    },
+    "4.6 Escribir prueba por propiedad para la correspondencia 1:1 del resumen de cierre": {
+      "status": "passed",
+      "lastRunTimestamp": 1788542288543
+    }
+  },
+  "executionHistory": {
+    "1.1 Definir el protocolo de entorno de Apple Pay": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773615
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290786404
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293379024
+      }
+    ],
+    "1.2 Crear los tipos de datos anidados del contenido": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773717
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290787430
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293379794
+      }
+    ],
+    "1.3 Definir el struct `GuiaApplePayContent` y su instancia `.standard`": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773798
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293383974
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293475178
+      }
+    ],
+    "1.4 Escribir prueba por propiedad para la numeración de los pasos de Atajos": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773831
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293482619
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364133797
+      }
+    ],
+    "1.5 Escribir prueba por propiedad para la biyección del mapeo de parámetros": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773865
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293483159
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364135063
+      }
+    ],
+    "1.6 Escribir prueba por propiedad para el orden de prioridad de señales de emparejamiento": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773899
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293484110
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364136008
+      }
+    ],
+    "1.7 Escribir prueba por propiedad para la cobertura de limitaciones conocidas": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773931
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293485333
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364137426
+      }
+    ],
+    "1.8 Escribir tests de ejemplo para la presencia de contenido clave": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290773976
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788293486204
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364138450
+      }
+    ],
+    "3. Checkpoint — Contenido y protocolo de LanaCore": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774011
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364764255
+      }
+    ],
+    "4.1 Configurar el paquete `OnboardingFeature`": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774037
+      },
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364765281
+      }
+    ],
+    "4.2 Implementar el esqueleto de estado de `GuiaApplePayModel`": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774098
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788540567901
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541072643
+      }
+    ],
+    "4.3 Implementar la navegación de la máquina de estados": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774149
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541076400
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541158620
+      }
+    ],
+    "4.4 Escribir prueba por propiedad para los invariantes de la máquina de estados": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774195
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541856345
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550678284
+      }
+    ],
+    "4.5 Implementar el resumen de cierre y la finalización": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774234
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541077606
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541852036
+      }
+    ],
+    "4.6 Escribir prueba por propiedad para la correspondencia 1:1 del resumen de cierre": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774264
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541857766
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550679752
+      }
+    ],
+    "4.7 Escribir tests de edge cases de error del modelo": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774305
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541858591
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550680672
+      }
+    ],
+    "4.8 Escribir tests de ejemplo de entrada, omitir y handlers": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774348
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788541859678
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550681794
+      }
+    ],
+    "5. Checkpoint — Modelo de la guía": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774382
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550691209
+      }
+    ],
+    "6.1 Implementar `GuiaApplePayView` y las subvistas de contenido": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774405
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788550696576
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788551967247
+      }
+    ],
+    "6.2 Implementar los estados de error de las vistas": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774430
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788551971306
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788552326470
+      }
+    ],
+    "6.3 Implementar el contenedor `OnboardingModel` / `OnboardingView`": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774453
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788552331194
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788560174378
+      }
+    ],
+    "6.4 Escribir tests de presencia de puntos de entrada": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774494
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788560182893
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788792550380
+      }
+    ],
+    "7.1 Implementar `ApplePayEnvironmentProbe` real en el target de la app": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774517
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788552331851
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788560175604
+      }
+    ],
+    "7.2 Cablear el enrutamiento de onboarding y los handlers en `ContentView`": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774540
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788792556306
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788793083653
+      }
+    ],
+    "7.3 Agregar la fila de reingreso \"Configurar Apple Pay\" en Ajustes": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774563
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788560184053
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788792551454
+      }
+    ],
+    "8. Checkpoint final — Integración completa": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788290774586
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788793090714
+      },
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788793125180
+      }
+    ],
+    "1. Definir contenido estático y protocolo de entorno en LanaCore": [
+      {
+        "executionId": "5222dc3a-87c4-43e3-9667-6343cf4212ed",
+        "chatSessionId": "sess_aee158a3-fb87-4413-bd55-23a82493b4fc",
+        "timestamp": 1788364138483
+      }
+    ],
+    "6. Implementar las vistas de la guía": [
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788792550420
+      }
+    ],
+    "7. Ensamblar en App / ContentView": [
+      {
+        "executionId": "3b6dc025-08f5-4493-8901-bd440b3bbb42",
+        "chatSessionId": "sess_7490afa8-33fd-421c-8aa5-5f560b55ae91",
+        "timestamp": 1788793083686
+      }
+    ]
+  }
+}

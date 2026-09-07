@@ -9,6 +9,7 @@ import Foundation
 public final class CDCard: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var alias: String?
+    @NSManaged public var walletMatchHint: String?
     @NSManaged public var lastFourDigits: String?
     @NSManaged public var limitAmount: NSDecimalNumber?
     @NSManaged public var limitCurrency: String?

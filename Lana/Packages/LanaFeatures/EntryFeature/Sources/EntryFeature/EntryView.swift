@@ -158,7 +158,8 @@ public struct EntryView: View {
                             cards: model.cards,
                             allSubcategories: model.allSubcategories,
                             sharedLists: model.sharedLists,
-                            viewerName: { model.displayName(for: $0, in: $1) })
+                            viewerName: { model.displayName(for: $0, in: $1) },
+                            onDelete: model.drafts.count > 1 ? { model.removeDraft(id: draft.id) } : nil)
                     }
                 }
             }

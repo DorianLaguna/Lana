@@ -56,4 +56,19 @@ struct CardMatchingTests {
     func listaVaciaDevuelveNil() {
         #expect(Card.bestMatch(for: "cualquier cosa", in: []) == nil)
     }
+
+    @Test("Con walletMatchHint, el match usa el hint en vez del alias")
+    func matchUsaWalletMatchHintSobreAlias() throws {
+        let bancomer = try Card(
+            alias: "Bancomer",
+            walletMatchHint: "TDC Azul",
+            lastFourDigits: "1111",
+            limit: .zero(.mxn),
+            cutoffDay: 20,
+            dueDay: 5)
+        let match = Card.bestMatch(for: "TDC Azul Crédito", in: [bancomer])
+        #expect(match?.id == bancomer.id)
+        // El alias, sin el hint, ya no calza con el texto de Wallet.
+        #expect(Card.bestMatch(for: "Bancomer Crédito", in: [bancomer]) == nil)
+    }
 }

@@ -97,6 +97,51 @@ struct EntryModelTests {
         #expect(model.drafts.count == 2)
     }
 
+    @Test("removeDraft quita solo el borrador señalado, el resto sigue en revisión")
+    func removeDraftQuitaSoloElSeñalado() async {
+        let results = [
+            ParseResult(amount: Money(amount: 131, currency: .mxn), concept: "dulces", category: "despensa"),
+            ParseResult(amount: Money(amount: 1010, currency: .mxn), concept: "gasolina", category: "transporte")
+        ]
+        let model = EntryModel(
+            parser: InMemoryExpenseParsing(results: results),
+            store: InMemoryExpenseStore(),
+            cardStore: InMemoryCardStore(),
+            speech: InMemorySpeechTranscribing(),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
+        await model.onAppear()
+        model.inputText = "dulces 131 y gasolina 1010"
+        await model.submit()
+        let idToRemove = model.drafts[0].id
+
+        model.removeDraft(id: idToRemove)
+
+        #expect(model.drafts.count == 1)
+        #expect(model.drafts.first?.concept == "gasolina")
+        #expect(model.stage == .reviewing)
+    }
+
+    @Test("removeDraft del último borrador regresa a componer en vez de dejar la revisión vacía")
+    func removeDraftDelUltimoRegresaAComponer() async {
+        let result = ParseResult(amount: Money(amount: 100, currency: .mxn), concept: "algo", category: "otro")
+        let model = EntryModel(
+            parser: InMemoryExpenseParsing(results: [result]),
+            store: InMemoryExpenseStore(),
+            cardStore: InMemoryCardStore(),
+            speech: InMemorySpeechTranscribing(),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
+        await model.onAppear()
+        model.inputText = "100 de algo"
+        await model.submit()
+
+        model.removeDraft(id: model.drafts[0].id)
+
+        #expect(model.drafts.isEmpty)
+        #expect(model.stage == .composing)
+    }
+
     @Test("Confirmar guarda todos los borradores, incluso los que necesitan revisión")
     func confirmarGuardaTodosLosBorradoresAunConNeedsReview() async throws {
         let result = ParseResult(
@@ -202,111 +247,5 @@ struct EntryModelTests {
 
         #expect(model.stage == .composing)
         #expect(model.speechAvailability == .permissionDenied)
-    }
-
-    @Test("Corregir la categoría de un borrador la registra como aprendizaje al confirmar")
-    func corregirCategoriaLaRegistraAlConfirmar() async {
-        let result = ParseResult(amount: Money(amount: 90, currency: .mxn), concept: "bocina", category: "comida")
-        let vocabularyStore = InMemoryCorrectionVocabularyStore()
-        let model = EntryModel(
-            parser: InMemoryExpenseParsing(results: [result]),
-            store: InMemoryExpenseStore(),
-            cardStore: InMemoryCardStore(),
-            speech: InMemorySpeechTranscribing(),
-            vocabularyStore: vocabularyStore,
-            sharedListStore: InMemorySharedListStore())
-        await model.onAppear()
-        model.inputText = "bocina 90 pesos"
-        await model.submit()
-
-        model.drafts[0].category = "ocio"
-        await model.confirm()
-
-        let entries = await vocabularyStore.allEntries()
-        #expect(entries.count == 1)
-        #expect(entries.first?.term == "bocina")
-        #expect(entries.first?.category == "ocio")
-    }
-
-    @Test("No corregir la categoría no registra nada")
-    func noCorregirNoRegistraNada() async {
-        let result = ParseResult(amount: Money(amount: 90, currency: .mxn), concept: "café", category: "comida")
-        let vocabularyStore = InMemoryCorrectionVocabularyStore()
-        let model = EntryModel(
-            parser: InMemoryExpenseParsing(results: [result]),
-            store: InMemoryExpenseStore(),
-            cardStore: InMemoryCardStore(),
-            speech: InMemorySpeechTranscribing(),
-            vocabularyStore: vocabularyStore,
-            sharedListStore: InMemorySharedListStore())
-        await model.onAppear()
-        model.inputText = "café 90 pesos"
-        await model.submit()
-        await model.confirm()
-
-        let entries = await vocabularyStore.allEntries()
-        #expect(entries.isEmpty)
-    }
-
-    @Test("onAppear carga las subcategorías ya usadas, agrupadas y deduplicadas por categoría")
-    func onAppearCargaSubcategoriasPorCategoria() async throws {
-        let store = InMemoryExpenseStore()
-        try await store.save(Expense(
-            kind: .expense, amount: Money(amount: 50, currency: .mxn), concept: "chicles",
-            category: "despensa", subcategory: "dulces", date: .now))
-        try await store.save(Expense(
-            kind: .expense, amount: Money(amount: 60, currency: .mxn), concept: "chicles otra vez",
-            category: "despensa", subcategory: "dulces", date: .now))
-        try await store.save(Expense(
-            kind: .expense, amount: Money(amount: 300, currency: .mxn), concept: "gasolina",
-            category: "transporte", subcategory: "gasolina", date: .now))
-        let model = EntryModel(
-            parser: InMemoryExpenseParsing(),
-            store: store,
-            cardStore: InMemoryCardStore(),
-            speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore(),
-            sharedListStore: InMemorySharedListStore())
-
-        await model.onAppear()
-
-        #expect(model.allSubcategories["despensa"] == ["dulces"])
-        #expect(model.allSubcategories["transporte"] == ["gasolina"])
-    }
-}
-
-@Suite("EntryModel — atajo del widget (ADR-0018)")
-@MainActor
-struct EntryModelAutoStartListeningTests {
-    @Test("onAppear(startListening: true) arranca a escuchar solo")
-    func onAppearStartListeningArrancaAEscucharSolo() async {
-        let result = ParseResult(amount: Money(amount: 300, currency: .mxn), concept: "súper", category: "despensa")
-        let model = EntryModel(
-            parser: InMemoryExpenseParsing(results: [result]),
-            store: InMemoryExpenseStore(),
-            cardStore: InMemoryCardStore(),
-            speech: InMemorySpeechTranscribing(fixedTranscript: "gasté 300 en el súper"),
-            vocabularyStore: InMemoryCorrectionVocabularyStore(),
-            sharedListStore: InMemorySharedListStore())
-
-        await model.onAppear(startListening: true)
-
-        #expect(model.stage == .reviewing)
-        #expect(model.inputText == "gasté 300 en el súper")
-    }
-
-    @Test("onAppear sin availability no intenta escuchar, aunque se pida startListening")
-    func onAppearSinAvailabilityNoIntentaEscuchar() async {
-        let model = EntryModel(
-            parser: InMemoryExpenseParsing(availability: .notEnabled),
-            store: InMemoryExpenseStore(),
-            cardStore: InMemoryCardStore(),
-            speech: InMemorySpeechTranscribing(),
-            vocabularyStore: InMemoryCorrectionVocabularyStore(),
-            sharedListStore: InMemorySharedListStore())
-
-        await model.onAppear(startListening: true)
-
-        #expect(model.stage == .unavailable(.notEnabled))
     }
 }

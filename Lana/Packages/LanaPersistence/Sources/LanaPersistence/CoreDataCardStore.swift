@@ -11,6 +11,7 @@ extension CoreDataExpenseStore: CardStore {
             let row = try Self.existingCardRow(for: card.id, in: context) ?? CDCard(context: context)
             row.id = card.id.rawValue
             row.alias = card.alias
+            row.walletMatchHint = card.walletMatchHint
             row.lastFourDigits = card.lastFourDigits
             row.limitAmount = card.limit.map { $0.amount as NSDecimalNumber }
             row.limitCurrency = card.limit?.currency.rawValue
@@ -57,6 +58,7 @@ extension CoreDataExpenseStore: CardStore {
         return try? Card(
             id: CardID(rawValue: id),
             alias: alias,
+            walletMatchHint: row.walletMatchHint,
             lastFourDigits: row.lastFourDigits ?? "",
             limit: limit,
             cutoffDay: row.cutoffDay?.intValue,

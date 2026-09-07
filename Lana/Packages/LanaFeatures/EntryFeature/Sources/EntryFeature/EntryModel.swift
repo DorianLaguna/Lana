@@ -326,6 +326,17 @@ public final class EntryModel {
         }
     }
 
+    /// El usuario no quiere guardar este borrador — un dictado ambiguo puede
+    /// parsear de más (pedido explícito: "quería borrar 2 para solo guardar
+    /// uno"). Si era el último, no hay nada que revisar, así que regresa a
+    /// "escuchar/escribir" en vez de dejar la pantalla de revisión vacía.
+    public func removeDraft(id: ExpenseID) {
+        drafts.removeAll { $0.id == id }
+        if drafts.isEmpty {
+            stage = .composing
+        }
+    }
+
     /// El paso "confirmar". Guarda todos los borradores tal como quedaron
     /// editados — lo ambiguo entra con `needsReview`, nunca bloquea esto.
     /// Si el usuario cambió la categoría que propuso el parser, esa

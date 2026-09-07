@@ -15,6 +15,13 @@ public enum CardKind: String, Sendable, Hashable, Codable, CaseIterable {
 public struct Card: Sendable, Hashable, Identifiable, Codable {
     public let id: CardID
     public var alias: String
+    /// Cómo le dice Wallet a esta tarjeta, si es distinto del alias — solo
+    /// se usa para `Card.bestMatch` (ADR-0009/ADR-0019), nunca se muestra
+    /// en la UI. `nil` cuando el alias ya calza con el texto de Wallet, que
+    /// es el caso común; solo hace falta llenarlo cuando el usuario quiere
+    /// un alias corto o distinto para el día a día ("Bancomer") mientras
+    /// Wallet nombra la tarjeta distinto ("TDC Azul").
+    public var walletMatchHint: String?
     /// `nil` si el usuario no los capturó — no son obligatorios para dar de
     /// alta una tarjeta. Cuando sí vienen, tienen que ser exactamente 4
     /// dígitos.
@@ -36,6 +43,7 @@ public struct Card: Sendable, Hashable, Identifiable, Codable {
     public init(
         id: CardID = CardID(),
         alias: String,
+        walletMatchHint: String? = nil,
         lastFourDigits: String,
         limit: Money?,
         cutoffDay: Int?,
@@ -52,6 +60,8 @@ public struct Card: Sendable, Hashable, Identifiable, Codable {
         }
         self.id = id
         self.alias = alias
+        let trimmedWalletMatchHint = walletMatchHint?.trimmingCharacters(in: .whitespaces)
+        self.walletMatchHint = (trimmedWalletMatchHint?.isEmpty ?? true) ? nil : trimmedWalletMatchHint
         self.kind = kind
         self.colorHex = colorHex
         // El débito no tiene línea de crédito, corte ni fecha límite de

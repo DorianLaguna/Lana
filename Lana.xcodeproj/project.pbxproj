@@ -20,6 +20,7 @@
 		11A74ABA303F8C36007CE1D5 /* CardsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB9303F8C36007CE1D5 /* CardsFeature */; };
 		11A74ABD303F8C45007CE1D5 /* InsightsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74ABC303F8C45007CE1D5 /* InsightsFeature */; };
 		11A74AC0303F8C53007CE1D5 /* SettingsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74ABF303F8C53007CE1D5 /* SettingsFeature */; };
+		11B0DE01303F8C60007CE1D5 /* OnboardingFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11B0DE02303F8C60007CE1D5 /* OnboardingFeature */; };
 		11A74AD330406A6C007CE1D5 /* LanaSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AD230406A6C007CE1D5 /* LanaSpeech */; };
 		1CA267AC607E16AE2CB6283F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 536C513585411B665D846716 /* Foundation.framework */; };
 		AB428C86CCAB78F63D8C74F0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDF94FB960772C3FD5248821 /* WidgetKit.framework */; };
@@ -139,6 +140,7 @@
 				11A74AD330406A6C007CE1D5 /* LanaSpeech in Frameworks */,
 				11A74AA8303F8B6A007CE1D5 /* LanaPersistence in Frameworks */,
 				11A74AC0303F8C53007CE1D5 /* SettingsFeature in Frameworks */,
+				11B0DE01303F8C60007CE1D5 /* OnboardingFeature in Frameworks */,
 				11A74ABA303F8C36007CE1D5 /* CardsFeature in Frameworks */,
 				11A74AB1303F8BF2007CE1D5 /* DashboardFeature in Frameworks */,
 				11A74AB7303F8C23007CE1D5 /* SharedFeature in Frameworks */,
@@ -257,6 +259,7 @@
 				11A74AB9303F8C36007CE1D5 /* CardsFeature */,
 				11A74ABC303F8C45007CE1D5 /* InsightsFeature */,
 				11A74ABF303F8C53007CE1D5 /* SettingsFeature */,
+				11B0DE02303F8C60007CE1D5 /* OnboardingFeature */,
 				11A74AD230406A6C007CE1D5 /* LanaSpeech */,
 			);
 			productName = Lana;
@@ -330,6 +333,7 @@
 				11A74AB8303F8C36007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/CardsFeature" */,
 				11A74ABB303F8C45007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/InsightsFeature" */,
 				11A74ABE303F8C53007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SettingsFeature" */,
+				11B0DE03303F8C60007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/OnboardingFeature" */,
 				11A74AD030406A1D007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaSpeech" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -777,6 +781,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Lana/Packages/LanaFeatures/SettingsFeature;
 		};
+		11B0DE03303F8C60007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/OnboardingFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Lana/Packages/LanaFeatures/OnboardingFeature;
+		};
 		11A74AD030406A1D007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaSpeech" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Lana/Packages/LanaSpeech;
@@ -831,6 +839,11 @@
 		11A74ABF303F8C53007CE1D5 /* SettingsFeature */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SettingsFeature;
+		};
+		11B0DE02303F8C60007CE1D5 /* OnboardingFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11B0DE03303F8C60007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/OnboardingFeature" */;
+			productName = OnboardingFeature;
 		};
 		11A74AD230406A6C007CE1D5 /* LanaSpeech */ = {
 			isa = XCSwiftPackageProductDependency;

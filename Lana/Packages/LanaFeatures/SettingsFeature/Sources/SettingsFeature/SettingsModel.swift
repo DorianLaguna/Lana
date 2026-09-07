@@ -23,19 +23,38 @@ public final class SettingsModel {
     private let vocabularyStore: any CorrectionVocabularyStore
     private let syncStatusReporting: any SyncStatusReporting
     private let userDefaults: UserDefaults
+    /// Reabre la guía de configuración de Apple Pay como hoja, en
+    /// `Mode.standalone` (R1.4). Lo inyecta `ContentView`, el único que
+    /// conoce `OnboardingFeature` — las features nunca se importan entre sí
+    /// (Docs/ARCHITECTURE.md), así que la fila no puede construir
+    /// `GuiaApplePayView`; solo dispara este handler. `nil` cuando no hay a
+    /// dónde llevar (previews, tests que no lo necesitan): sin él, la fila
+    /// no se muestra.
+    private let onConfigureApplePay: (() -> Void)?
     private static let themeDefaultsKey = "lana.selectedTheme"
+
+    /// `true` cuando hay un punto de entrada para reabrir la guía de Apple
+    /// Pay — la vista solo muestra la fila si esto lo es (R1.4). El modelo
+    /// decide, la vista refleja (Docs/ARCHITECTURE.md).
+    public var showsConfigureApplePayRow: Bool {
+        onConfigureApplePay != nil
+    }
 
     /// - Parameters:
     ///   - vocabularyStore: dónde vive lo aprendido.
     ///   - syncStatusReporting: de dónde sale el estado real de sync.
     ///   - userDefaults: dónde se persiste el tema elegido.
+    ///   - onConfigureApplePay: reabre la guía de Apple Pay como hoja
+    ///     (`Mode.standalone`, R1.4); lo cablea `ContentView`.
     public init(
         vocabularyStore: any CorrectionVocabularyStore,
         syncStatusReporting: any SyncStatusReporting,
-        userDefaults: UserDefaults = .standard) {
+        userDefaults: UserDefaults = .standard,
+        onConfigureApplePay: (() -> Void)? = nil) {
         self.vocabularyStore = vocabularyStore
         self.syncStatusReporting = syncStatusReporting
         self.userDefaults = userDefaults
+        self.onConfigureApplePay = onConfigureApplePay
         if let rawValue = userDefaults.string(forKey: Self.themeDefaultsKey),
            let theme = LanaTheme(rawValue: rawValue) {
             selectedTheme = theme
@@ -60,6 +79,13 @@ public final class SettingsModel {
     public func selectTheme(_ theme: LanaTheme) {
         selectedTheme = theme
         userDefaults.set(theme.rawValue, forKey: Self.themeDefaultsKey)
+    }
+
+    /// Reabre la guía de configuración de Apple Pay (R1.4). Delega en el
+    /// handler inyectado por `ContentView`, que la presenta como hoja en
+    /// `Mode.standalone`; no-op si no hay handler.
+    public func configureApplePay() {
+        onConfigureApplePay?()
     }
 
     /// Olvida una palabra específica.

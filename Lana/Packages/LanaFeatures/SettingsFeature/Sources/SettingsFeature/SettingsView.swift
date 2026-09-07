@@ -27,6 +27,10 @@ public struct SettingsView: View {
                         themeGrid
                     }
 
+                    if model.showsConfigureApplePayRow {
+                        configureApplePayRow
+                    }
+
                     VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                         HStack {
                             Text("Vocabulario aprendido")
@@ -113,6 +117,32 @@ public struct SettingsView: View {
             dispositivo. Revisa tu conexión o el espacio disponible en iCloud.
             """
         }
+    }
+
+    /// Punto de entrada persistente para reabrir la guía de Apple Pay
+    /// después del onboarding (R1.4). Fila etiquetada y seleccionable — el
+    /// toque solo delega en el modelo, que dispara el handler inyectado por
+    /// `ContentView` (las features no se importan entre sí, así que la guía
+    /// vive en otra feature y se presenta desde el target de la app).
+    private var configureApplePayRow: some View {
+        Button {
+            model.configureApplePay()
+        } label: {
+            LanaCard {
+                HStack(spacing: Space.sm.rawValue) {
+                    Image(systemName: "creditcard.and.123")
+                        .foregroundStyle(lana.accent)
+                    Text("Configurar Apple Pay")
+                        .lanaFont(.body)
+                        .foregroundStyle(lana.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .lanaFont(.caption)
+                        .foregroundStyle(lana.textSecondary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var themeGrid: some View {

@@ -9,11 +9,12 @@ public extension Card {
     ///
     /// Prioridad: si el texto contiene los últimos 4 dígitos de alguna
     /// tarjeta, esa gana siempre — son los más específicos y casi nunca
-    /// coinciden por accidente. Si no, cae a la tarjeta cuyo alias aparece
-    /// como substring del texto (normalizando acentos/mayúsculas), y solo si
-    /// es la única que calza — un texto que calza con dos alias a la vez no
-    /// se resuelve solo, se reporta como ambiguo para que el usuario revise
-    /// el nombre en Shortcuts o en Lana.
+    /// coinciden por accidente. Si no, cae a la tarjeta cuyo
+    /// `walletMatchHint` (o el alias, si no hay hint) aparece como substring
+    /// del texto (normalizando acentos/mayúsculas), y solo si es la única
+    /// que calza — un texto que calza con dos a la vez no se resuelve solo,
+    /// se reporta como ambiguo para que el usuario revise el nombre en
+    /// Shortcuts o en Lana.
     static func bestMatch(for walletText: String, in cards: [Card]) -> Card? {
         let normalizedText = walletText.foldedForMatching
 
@@ -25,7 +26,9 @@ public extension Card {
             return byLastFour[0]
         }
 
-        let byAlias = cards.filter { normalizedText.contains($0.alias.foldedForMatching) }
+        let byAlias = cards.filter { card in
+            normalizedText.contains((card.walletMatchHint ?? card.alias).foldedForMatching)
+        }
         if byAlias.count == 1 {
             return byAlias[0]
         }

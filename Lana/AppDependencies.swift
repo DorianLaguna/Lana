@@ -1,3 +1,4 @@
+import CardsFeature
 import Foundation
 import LanaCore
 import LanaParsing
@@ -87,6 +88,15 @@ final class AppDependencies {
             purchases: InMemoryPurchaseGating(isUnlocked: true),
             syncStatus: CloudSyncMonitor(containerIdentifier: "iCloud.com.dorianlaguna.Lana"),
             concreteExpenseStore: store)
+    }
+
+    /// Un `CardsModel` armado con estos stores. Lo usa `ContentView` para
+    /// presentar la superficie de Tarjetas como hoja cuando la guía de Apple Pay
+    /// pide "Ajustes → Tarjetas" durante el onboarding (R3.4) — antes de que
+    /// exista la pestaña de Tarjetas de `MainTabView`. `MainTabView` arma el suyo
+    /// aparte porque además lo conserva como `@State` para refrescos.
+    func makeCardsModel() -> CardsModel {
+        CardsModel(cardStore: cardStore, store: store, cardPaymentStore: cardPaymentStore)
     }
 
     /// Implementaciones falsas, para `#Preview`.

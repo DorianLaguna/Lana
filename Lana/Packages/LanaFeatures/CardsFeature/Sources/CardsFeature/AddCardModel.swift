@@ -14,6 +14,10 @@ public final class AddCardModel: Identifiable {
     public let id = UUID()
     /// El nombre corto para identificar la tarjeta.
     public var alias: String
+    /// Cómo le dice Wallet a esta tarjeta, si es distinto del alias — solo
+    /// se usa para reconocerla en automatizaciones de Apple Pay, nunca se
+    /// muestra en el resto de la app.
+    public var walletMatchHint: String
     /// Los últimos 4 dígitos — nunca el número completo.
     public var lastFourDigits: String
     /// El límite de crédito.
@@ -43,6 +47,7 @@ public final class AddCardModel: Identifiable {
         self.currency = currency
         editingCardID = card?.id
         alias = card?.alias ?? ""
+        walletMatchHint = card?.walletMatchHint ?? ""
         lastFourDigits = card?.lastFourDigits ?? ""
         limitAmount = card?.limit?.amount ?? 0
         cutoffDay = card?.cutoffDay ?? 1
@@ -66,6 +71,7 @@ public final class AddCardModel: Identifiable {
             let card = try Card(
                 id: editingCardID ?? CardID(),
                 alias: alias,
+                walletMatchHint: walletMatchHint,
                 lastFourDigits: lastFourDigits,
                 limit: kind == .credit ? Money(amount: limitAmount, currency: currency) : nil,
                 cutoffDay: kind == .credit ? cutoffDay : nil,

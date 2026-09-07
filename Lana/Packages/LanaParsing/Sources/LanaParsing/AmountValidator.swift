@@ -64,3 +64,32 @@ public struct AmountValidator: Sendable {
         return AmountValidation(amount: closest ?? modelAmount, source: .regex)
     }
 }
+
+public extension AmountValidator {
+    /// El monto de una captura automática que puede llegar como número o
+    /// como texto (ADR-0033). El numérico gana; el de texto es el respaldo
+    /// para cuando quien invoca pierde el tipo por el camino — Shortcuts
+    /// entrega 0 al meter una cantidad con moneda ("$149.99") en un campo
+    /// `Double`, aun con el atajo bien armado.
+    ///
+    /// `nil` si ninguno trae un monto usable: quien llama lo reporta como
+    /// error de configuración en vez de guardar un gasto de $0 — un gasto
+    /// de monto ≤ 0 no existe, mismo criterio que `ParsingPipeline`.
+    ///
+    /// Del texto toma el PRIMER monto, no el mayor ni el más cercano a
+    /// nada: el campo está documentado para recibir la variable de monto,
+    /// no una frase. Nunca pasa por el modelo — el regex gana sobre el
+    /// modelo en el monto (Docs/CLAUDE.md).
+    func resolveAmount(numeric: Double, text: String?) -> Decimal? {
+        if numeric > 0 {
+            // `Decimal(a Double)` es la conversión binaria exacta del
+            // `Double`, no del decimal que se esperaría — la misma trampa
+            // que `Money.swift` documenta para literales. Redondear a
+            // centavos vía texto evita que 149.99 llegue como
+            // 149.98999999999998.
+            return Decimal(string: String(format: "%.2f", numeric)) ?? Decimal(numeric)
+        }
+        guard let text, let first = amounts(in: text).first, first > 0 else { return nil }
+        return first
+    }
+}
