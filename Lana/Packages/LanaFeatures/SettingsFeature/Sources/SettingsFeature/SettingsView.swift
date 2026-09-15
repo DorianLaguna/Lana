@@ -39,24 +39,26 @@ public struct SettingsView: View {
         self.onOpenSystemSettings = onOpenSystemSettings
     }
 
+    /// Sin `NavigationStack` propio: Ajustes se empuja desde el avatar de Hoy
+    /// y navega dentro de ese stack. Sin barra de pestañas (rediseño, sección 12).
     public var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-                    lanaSection
-                    appearanceSection
-                    dataSection
-                    aboutSection
-                }
-                .padding(Space.md.rawValue)
-                // El micrófono flotante de `MainTabView` se monta sobre esta
-                // pantalla y tapaba la fila de Versión.
-                .tabBarClearance()
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg.rawValue) {
+                lanaSection
+                appearanceSection
+                dataSection
+                aboutSection
             }
-            .background(lana.bg)
-            .navigationTitle("Ajustes")
-            .task { await model.onAppear() }
-            .navigationDestination(for: SettingsDestination.self) { destination in
+            .padding(Space.md.rawValue)
+            .tabBarClearance(.noTabBar)
+        }
+        .background(lana.bg)
+        .navigationTitle("Ajustes")
+        .lanaInlineNavigationTitle()
+        .hidesLanaTabBar()
+        .task { await model.onAppear() }
+        .navigationDestination(for: SettingsDestination.self) { destination in
+            Group {
                 switch destination {
                 case .lanaInfo: LanaInfoView(onOpenCards: onOpenCards)
                 case .lanaLearning: LanaLearningView(model: model)
@@ -66,6 +68,7 @@ public struct SettingsView: View {
                 case .aboutLana: AboutLanaView()
                 }
             }
+            .hidesLanaTabBar()
         }
     }
 

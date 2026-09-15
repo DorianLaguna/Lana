@@ -34,6 +34,12 @@ public final class DashboardModel: ExpenseProviding {
     /// vez que se suma un gasto (`Expense.personalAmount`, ADR-0022). Se lee
     /// también desde `DashboardView` para pasarlo a `DaySectionListView`.
     public private(set) var viewerIdentities: [SharedListID: ParticipantID] = [:]
+    /// Las tarjetas guardadas, para nombrar con qué se pagó cada movimiento
+    /// ("Crédito Nu") y detectar las que ya se borraron.
+    public private(set) var cards: [Card] = []
+    /// `false` si las tarjetas no se pudieron leer: sin esto, un fallo de
+    /// lectura haría que todo movimiento con tarjeta dijera "Tarjeta eliminada".
+    private(set) var hasLoadedCards = false
 
     /// - Parameters:
     ///   - store: de dónde se leen las transacciones.
@@ -169,6 +175,10 @@ public final class DashboardModel: ExpenseProviding {
             viewerIdentities = [:]
         }
         statistics = PeriodStatistics(expenses: expenses, viewerIdentities: viewerIdentities)
+        if let loadedCards = try? await cardStore.cards() {
+            cards = loadedCards
+            hasLoadedCards = true
+        }
         isLoading = false
     }
 

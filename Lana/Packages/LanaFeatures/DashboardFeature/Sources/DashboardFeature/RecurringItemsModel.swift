@@ -125,6 +125,12 @@ public final class RecurringItemsModel {
         }
     }
 
+    /// Cuántos recurrentes ya vencieron este mes y siguen sin registrarse —
+    /// el "3 pendientes" de la fila de Recurrentes en Mes.
+    public func pendingCount(asOf date: Date = Date(), calendar: Calendar = .current) -> Int {
+        items.filter { $0.isDue(asOf: date, calendar: calendar) && registrations[$0.id] == nil }.count
+    }
+
     /// El formulario de agregar (`editing: nil`) o editar un recurrente.
     public func makeAddModel(editing item: RecurringItem? = nil) -> AddRecurringItemModel {
         AddRecurringItemModel(recurringItemStore: recurringItemStore, store: store, editing: item, cards: cards)
