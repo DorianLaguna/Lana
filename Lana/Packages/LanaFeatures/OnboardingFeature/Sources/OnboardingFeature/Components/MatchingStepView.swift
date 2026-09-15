@@ -22,50 +22,125 @@ struct MatchingStepView: View {
                 .lanaFont(.title)
                 .foregroundStyle(lana.textPrimary)
 
-            LanaCard {
-                VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                    Text("Lana empareja en este orden de prioridad:")
-                        .lanaFont(.headline)
-                        .foregroundStyle(lana.textPrimary)
+            // Lo que el usuario tiene que hacer, separado de lo que solo
+            // necesita entender: antes las cuatro tarjetas se veían iguales y
+            // no se distinguía la acción de las dudas.
+            section(header: "Qué tienes que hacer", systemImage: "checklist") {
+                findNameCard
 
-                    ForEach(matching.prioritySignals) { signal in
-                        HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                            // El número de prioridad (1-based sobre el id
-                            // 0-based) se ve — no depende solo del orden.
-                            ZStack {
-                                Circle()
-                                    .fill(lana.accentMuted)
-                                    .frame(width: 28, height: 28)
-                                Text("\(signal.id + 1)")
-                                    .lanaFont(.caption)
-                                    .foregroundStyle(lana.accent)
-                            }
-                            VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                                Text(signal.name)
-                                    .lanaFont(.body)
-                                    .foregroundStyle(lana.textPrimary)
-                                Text(signal.explanation)
-                                    .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                Text("Luego regístralo en tu tarjeta dentro de Lana:")
+                    .lanaFont(.caption)
+                    .foregroundStyle(lana.textSecondary)
+                    .padding(.leading, Space.xs.rawValue)
+
+                Button(action: onOpenCardSettings) {
+                    Label("Ir a Tarjetas", systemImage: "creditcard")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .lanaFont(.body)
+                .foregroundStyle(lana.accent)
+                .padding(.leading, Space.xs.rawValue)
             }
 
-            guidanceCard(systemImage: "pencil.and.list.clipboard", message: matching.mismatchGuidance)
-            guidanceCard(systemImage: "questionmark.circle", message: matching.noMatchGuidance)
-
-            Button(action: onOpenCardSettings) {
-                Label("Abrir Ajustes → Tarjetas", systemImage: "creditcard")
+            // Referencia: cómo decide Lana. Útil para entender, no algo que
+            // el usuario tenga que ejecutar.
+            section(header: "Cómo empareja Lana", systemImage: "info.circle") {
+                prioritySignalsCard
             }
-            .lanaFont(.body)
-            .foregroundStyle(lana.accent)
+
+            // Solución de problemas: los casos de "si algo sale distinto".
+            section(header: "Si algo no empareja", systemImage: "questionmark.circle") {
+                guidanceCard(systemImage: "pencil.and.list.clipboard", message: matching.mismatchGuidance)
+                guidanceCard(systemImage: "magnifyingglass", message: matching.noMatchGuidance)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Agrupa contenido bajo un encabezado que comunica el ROL del bloque
+    /// (acción / referencia / dudas), para que las tarjetas dejen de verse
+    /// como una lista plana e indistinta.
+    private func section(
+        header: String,
+        systemImage: String,
+        @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+            Label(header, systemImage: systemImage)
+                .lanaFont(.caption)
+                .foregroundStyle(lana.textSecondary)
+                .textCase(.uppercase)
+            content()
+        }
+    }
+
+    /// El orden de prioridad de señales (R3.1) — informativo.
+    private var prioritySignalsCard: some View {
+        LanaCard {
+            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+                ForEach(matching.prioritySignals) { signal in
+                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
+                        // El número de prioridad (1-based sobre el id
+                        // 0-based) se ve — no depende solo del orden.
+                        ZStack {
+                            Circle()
+                                .fill(lana.accentMuted)
+                                .frame(width: 28, height: 28)
+                            Text("\(signal.id + 1)")
+                                .lanaFont(.caption)
+                                .foregroundStyle(lana.accent)
+                        }
+                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                            Text(signal.name)
+                                .lanaFont(.body)
+                                .foregroundStyle(lana.textPrimary)
+                            Text(signal.explanation)
+                                .lanaFont(.caption)
+                                .foregroundStyle(lana.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// El paso que a la gente le cuesta: dónde ver el nombre que Wallet le da
+    /// a la tarjeta. Va en pasos numerados —no un párrafo— porque el nombre
+    /// no está a la vista: vive tras «Detalles de la tarjeta».
+    private var findNameCard: some View {
+        LanaCard {
+            VStack(alignment: .leading, spacing: Space.md.rawValue) {
+                Text("Encuentra el nombre de tu tarjeta en Wallet")
+                    .lanaFont(.headline)
+                    .foregroundStyle(lana.textPrimary)
+
+                ForEach(matching.findNameSteps) { step in
+                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
+                        // El número del paso se ve — no depende solo del orden.
+                        ZStack {
+                            Circle()
+                                .fill(lana.accentMuted)
+                                .frame(width: 28, height: 28)
+                            Text("\(step.id)")
+                                .lanaFont(.caption)
+                                .foregroundStyle(lana.accent)
+                        }
+                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                            Text(step.title)
+                                .lanaFont(.body)
+                                .foregroundStyle(lana.textPrimary)
+                            Text(step.detail)
+                                .lanaFont(.caption)
+                                .foregroundStyle(lana.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func guidanceCard(systemImage: String, message: String) -> some View {

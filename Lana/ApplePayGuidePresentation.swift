@@ -31,9 +31,9 @@ struct IdentifiedModel<Value: AnyObject>: Identifiable {
     }
 }
 
-/// Puente entre el handler `onConfigureApplePay` que `SettingsModel` recibe en
-/// `init` (cuando el `@State` de `MainTabView` aún no puede mutarse desde una
-/// closure) y la presentación de la hoja de la guía en `Mode.standalone`
+/// Puente entre el handler `onConfigureApplePay` que dispara la fila de
+/// "Configurar Apple Pay" en Tarjetas (`CardsView`) y la presentación de la
+/// hoja de la guía en `Mode.standalone`
 /// (R1.4). La closure fija `model` en este objeto de referencia; la vista lo
 /// observa y presenta/cierra la hoja según ese valor.
 @MainActor

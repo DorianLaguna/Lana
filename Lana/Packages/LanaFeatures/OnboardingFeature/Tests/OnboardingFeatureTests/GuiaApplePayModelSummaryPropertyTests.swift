@@ -100,6 +100,7 @@ private func makeContent(shortcutSteps: [GuiaStep]) -> GuiaApplePayContent {
                 MatchSignal(id: 0, name: "Últimos 4", explanation: "…"),
                 MatchSignal(id: 1, name: "Alias", explanation: "…")
             ],
+            findNameSteps: [],
             mismatchGuidance: "…",
             noMatchGuidance: "…"),
         limitations: [

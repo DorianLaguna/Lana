@@ -57,7 +57,7 @@ struct PaymentMethodDetailModelTests {
         await dashboardModel.onAppear()
         let model = PaymentMethodDetailModel(
             label: "crédito",
-            dashboard: dashboardModel,
+            source: dashboardModel,
             cardStore: InMemoryCardStore())
 
         #expect(model.expenses.count == 1)
@@ -73,7 +73,7 @@ struct PaymentMethodDetailModelTests {
         await dashboardModel.onAppear()
         let model = PaymentMethodDetailModel(
             label: "efectivo",
-            dashboard: dashboardModel,
+            source: dashboardModel,
             cardStore: InMemoryCardStore())
 
         #expect(model.expenses.count == 1)
@@ -90,7 +90,7 @@ struct PaymentMethodDetailModelTests {
         await dashboardModel.onAppear()
         let model = PaymentMethodDetailModel(
             label: "efectivo",
-            dashboard: dashboardModel,
+            source: dashboardModel,
             cardStore: InMemoryCardStore())
 
         let totals = model.categoryTotals
@@ -108,7 +108,7 @@ struct PaymentMethodDetailModelTests {
         await dashboardModel.onAppear()
         let model = PaymentMethodDetailModel(
             label: "efectivo",
-            dashboard: dashboardModel,
+            source: dashboardModel,
             cardStore: InMemoryCardStore())
         #expect(model.expenses.count == 1)
 

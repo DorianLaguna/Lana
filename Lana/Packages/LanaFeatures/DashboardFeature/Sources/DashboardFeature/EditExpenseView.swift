@@ -2,8 +2,10 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// El formulario de editar un gasto/ingreso ya guardado. Sin lógica propia
-/// — refleja `EditExpenseModel`.
+/// El formulario de un gasto/ingreso: el mismo para editar uno ya guardado y
+/// para registrar uno nuevo a mano (ADR-0035) — lo que cambia entre los dos
+/// lo dice `EditExpenseModel.mode`. Sin lógica propia — refleja
+/// `EditExpenseModel`.
 public struct EditExpenseView: View {
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss
@@ -32,10 +34,10 @@ public struct EditExpenseView: View {
 
                 Section {
                     LanaTextField("Concepto", text: $model.concept)
-                    if model.kind == .expense {
-                        categoryPicker
-                        subcategoryPicker
-                    }
+                    // Los ingresos también se categorizan (ADR-0040) — con su
+                    // propio catálogo, no con el de gastos.
+                    categoryPicker
+                    subcategoryPicker
                 }
 
                 Section {
@@ -51,6 +53,9 @@ public struct EditExpenseView: View {
                         #endif
                     }
                     DatePicker("Fecha", selection: $model.date, displayedComponents: .date)
+                    if model.kind == .expense {
+                        paymentMethodPicker
+                    }
                 }
 
                 if model.kind == .expense, !model.sharedLists.isEmpty {
@@ -63,31 +68,35 @@ public struct EditExpenseView: View {
                         .foregroundStyle(lana.critical)
                 }
 
-                Section {
-                    Button("Borrar", role: .destructive) {
-                        isConfirmingDelete = true
-                    }
-                    .disabled(model.isSaving)
-                    // En el botón que lo dispara, no en el Form/NavigationStack
-                    // — colgarlo más arriba en el árbol de vistas lo desanclaba
-                    // del botón real y lo dejaba apareciendo hasta arriba de la
-                    // pantalla en vez de junto a "Borrar".
-                    .confirmationDialog(
-                        "¿Borrar este gasto?",
-                        isPresented: $isConfirmingDelete,
-                        titleVisibility: .visible) {
-                            Button("Borrar", role: .destructive) {
-                                Task {
-                                    if await model.delete() {
-                                        onDone()
+                // Nada que borrar en un registro que todavía no existe —
+                // cancelar la hoja ya cubre "mejor no".
+                if model.mode == .editing {
+                    Section {
+                        Button("Borrar", role: .destructive) {
+                            isConfirmingDelete = true
+                        }
+                        .disabled(model.isSaving)
+                        // En el botón que lo dispara, no en el Form/NavigationStack
+                        // — colgarlo más arriba en el árbol de vistas lo desanclaba
+                        // del botón real y lo dejaba apareciendo hasta arriba de la
+                        // pantalla en vez de junto a "Borrar".
+                        .confirmationDialog(
+                            "¿Borrar este gasto?",
+                            isPresented: $isConfirmingDelete,
+                            titleVisibility: .visible) {
+                                Button("Borrar", role: .destructive) {
+                                    Task {
+                                        if await model.delete() {
+                                            onDone()
+                                        }
                                     }
                                 }
-                            }
+                        }
                     }
                 }
             }
             .task { await model.onAppear() }
-            .navigationTitle("Editar")
+            .navigationTitle(model.mode == .creating ? "Nuevo" : "Editar")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -109,19 +118,37 @@ public struct EditExpenseView: View {
                                 Text("Guardar")
                             }
                         }
-                        .disabled(model.isSaving)
+                        .disabled(model.isSaving || !model.canSave)
                     }
                 }
         }
         .presentationDragIndicator(.visible)
     }
 
-    private var categoryPicker: some View {
-        Picker("Categoría", selection: $model.category) {
-            ForEach(SuggestedCategory.allCases) { category in
-                Text(category.displayName).tag(category.rawValue)
+    /// Una opción por tarjeta, no dos — el tipo (crédito/débito) ya es fijo
+    /// en `Card.kind`, no algo que se elige por transacción (mismo criterio
+    /// que `DraftCard.paymentMethodPicker` en `EntryFeature`). Sin opción de
+    /// "sin especificar": no habría forma honesta de guardarla — ver
+    /// `EditExpenseModel.paymentMethod`.
+    private var paymentMethodPicker: some View {
+        Picker("Método de pago", selection: $model.paymentMethod) {
+            Text("Efectivo").tag(PaymentMethod.cash)
+            Text("Transferencia").tag(PaymentMethod.transfer)
+            ForEach(model.cards) { card in
+                Text(card.alias)
+                    .tag(card.kind == .credit ? PaymentMethod.credit(cardID: card.id) : .debit(cardID: card.id))
+            }
+            // La tarjeta con la que se pagó ya no existe. Se puede ver y
+            // conservar; si el usuario elige otra cosa, se pierde — que es
+            // justo lo que quiere quien viene a corregirla.
+            if let orphaned = model.orphanedCardPaymentMethod {
+                Text("Tarjeta eliminada").tag(orphaned)
             }
         }
+    }
+
+    private var categoryPicker: some View {
+        CategoryPicker(kind: model.kind, category: $model.category)
     }
 
     /// Sin opción "Automático" — mismo patrón que `DraftCard.subcategoryPicker`
@@ -263,6 +290,7 @@ public struct EditExpenseView: View {
                     date: .now),
                 store: InMemoryExpenseStore(),
                 vocabularyStore: InMemoryCorrectionVocabularyStore(),
+                cardStore: InMemoryCardStore(),
                 sharedListStore: InMemorySharedListStore()),
             onDone: {})
             .lanaTheme(theme)

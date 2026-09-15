@@ -21,6 +21,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
         model.category = "comida"
         _ = await model.save()
@@ -45,6 +46,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: InMemoryExpenseStore(),
             vocabularyStore: vocabularyStore,
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
         model.category = "comida"
         _ = await model.save()
@@ -69,6 +71,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
         let deleted = await model.delete()
 
@@ -91,6 +94,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: InMemoryExpenseStore(),
             vocabularyStore: vocabularyStore,
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
         _ = await model.save()
 
@@ -114,6 +118,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
 
         await model.onAppear()
@@ -134,6 +139,7 @@ struct EditExpenseModelTests {
             expense: original,
             store: InMemoryExpenseStore(),
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore())
 
         #expect(model.subcategory == "dulces")
@@ -174,6 +180,7 @@ struct EditExpenseSharedTests {
             expense: expense,
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: sharedListStore)
         await model.onAppear()
         model.sharedListID = depa.id
@@ -216,6 +223,7 @@ struct EditExpenseSharedTests {
             expense: expense,
             store: store,
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
             sharedListStore: InMemorySharedListStore(seed: [depa]))
         await model.onAppear()
         model.sharedListID = nil

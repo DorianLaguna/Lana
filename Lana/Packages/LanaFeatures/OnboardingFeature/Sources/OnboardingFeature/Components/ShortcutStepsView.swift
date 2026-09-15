@@ -29,8 +29,6 @@ struct ShortcutStepsView: View {
                 }
             }
 
-            parameterMappingCard
-
             if let onOpenShortcutsApp {
                 Button(action: onOpenShortcutsApp) {
                     Label("Abrir la app Atajos", systemImage: "square.stack.3d.up")
@@ -68,39 +66,60 @@ struct ShortcutStepsView: View {
                         .lanaFont(.body)
                         .foregroundStyle(lana.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // El mapeo de parámetros pertenece a ESTE paso —el de
+                    // agregar la acción de Lana—, no a una tarjeta suelta al
+                    // final: es donde el usuario realmente conecta cada dato.
+                    // Va como desplegable para no alargar el paso de golpe.
+                    if step.attachesParameterMapping {
+                        parameterMappingDisclosure
+                            .padding(.top, Space.xs.rawValue)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var parameterMappingCard: some View {
-        LanaCard {
+    private var parameterMappingDisclosure: some View {
+        DisclosureGroup {
             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                Text("Conecta los parámetros")
-                    .lanaFont(.headline)
-                    .foregroundStyle(lana.textPrimary)
-                Text("En la acción de Lana, conecta cada dato que entrega Wallet a su parámetro:")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
-
                 ForEach(parameterMappings) { mapping in
-                    HStack(spacing: Space.sm.rawValue) {
-                        Text(mapping.walletLabel)
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.textPrimary)
-                        Image(systemName: "arrow.right")
-                            .foregroundStyle(lana.textSecondary)
-                        Text(mapping.intentLabel)
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    mappingRow(mapping)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, Space.xs.rawValue)
+        } label: {
+            Text("Ver cómo conectar los parámetros")
+                .lanaFont(.caption)
+                .foregroundStyle(lana.accent)
         }
+        .tint(lana.accent)
+    }
+
+    /// Un renglón del mapeo, en dos líneas. Antes era «origen → destino» en un
+    /// `HStack`: con texto grande los dos nombres se truncaban justo donde
+    /// importa, y son nombres que el usuario tiene que encontrar palabra por
+    /// palabra dentro de la app Atajos. Por lo mismo el texto es seleccionable
+    /// — así se pueden copiar sin que la feature toque UIKit.
+    private func mappingRow(_ mapping: ParameterMapping) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("En Wallet: \(mapping.walletLabel)")
+                .lanaFont(.caption)
+                .foregroundStyle(lana.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: Space.xs.rawValue) {
+                Image(systemName: "arrow.turn.down.right")
+                    .lanaFont(.caption)
+                    .foregroundStyle(lana.accent)
+                Text("En Lana: \(mapping.intentLabel)")
+                    .lanaFont(.caption)
+                    .foregroundStyle(lana.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

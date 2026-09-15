@@ -35,28 +35,30 @@ public struct SubcategoryTotal: Identifiable, Sendable {
 public final class CategoryDetailModel {
     /// La categoría que se está viendo.
     public let category: String
-    private let dashboard: DashboardModel
+    private let source: any ExpenseProviding
 
     /// - Parameters:
     ///   - category: la categoría a filtrar.
-    ///   - dashboard: de dónde salen los gastos del mes vigente — el mismo
-    ///     modelo que ya está en pantalla, nunca una copia propia.
-    public init(category: String, dashboard: DashboardModel) {
+    ///   - source: de dónde salen los gastos del periodo vigente — el mismo
+    ///     modelo que ya está en pantalla, nunca una copia propia. Es el
+    ///     Dashboard cuando se entra desde el mes y la vista anual cuando se
+    ///     entra desde el año; el drill-down es el mismo.
+    init(category: String, source: any ExpenseProviding) {
         self.category = category
-        self.dashboard = dashboard
+        self.source = source
     }
 
-    /// Los gastos de esta categoría, dentro del mes.
+    /// Los gastos de esta categoría, dentro del periodo.
     public var expenses: [Expense] {
-        dashboard.expenses.filter { $0.kind == .expense && ($0.category ?? "otro") == category }
+        source.expenses.filter { $0.kind == .expense && ($0.category ?? "otro") == category }
     }
 
-    /// Ver el mismo campo en `DashboardModel` — nunca su propia copia.
+    /// Ver el mismo campo en el modelo del que deriva — nunca su propia copia.
     public var viewerIdentities: [SharedListID: ParticipantID] {
-        dashboard.viewerIdentities
+        source.viewerIdentities
     }
 
-    /// Cuánto se gastó en total, en esta categoría, este mes — la parte
+    /// Cuánto se gastó en total, en esta categoría, en el periodo — la parte
     /// real de quien mira, no el total de un gasto compartido
     /// (`Expense.personalAmount`).
     public var total: Decimal {
@@ -82,6 +84,6 @@ public final class CategoryDetailModel {
 
     /// Los gastos de esta categoría, agrupados por día.
     public var daySections: [DaySection] {
-        expenses.groupedByDay(calendar: dashboard.calendar)
+        expenses.groupedByDay(calendar: source.calendar)
     }
 }

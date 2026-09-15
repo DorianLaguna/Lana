@@ -70,7 +70,7 @@ struct ContentView: View {
         }
         .task {
             do {
-                let dependencies = try await AppDependencies.live()
+                let dependencies = try await AppDependencies.shared()
                 self.dependencies = dependencies
                 // Conecta el store real para que `AppDelegate` pueda
                 // aceptar invitaciones de `CKShare` (ADR-0020) — incluye
@@ -103,6 +103,14 @@ struct ContentView: View {
     private func finishOnboarding() async -> Bool {
         let defaults = UserDefaults.standard
         defaults.set(true, forKey: Self.onboardingDefaultsKey)
+        // Llegar aquí es haber confirmado el cierre de la guía de Apple Pay:
+        // hoy es el único paso del onboarding, y este handler solo lo invoca
+        // `confirmCompletion()` (omitirla avanza por otro camino, sin pasar
+        // por aquí). Sin esta línea, quien acaba de configurarla aterriza en
+        // Tarjetas con la invitación en degradado gritándole que configure lo
+        // que ya configuró. `CardsModel` se construye después, así que la lee
+        // en su `init`.
+        defaults.set(true, forKey: CardsModel.applePayGuideSeenDefaultsKey)
         // Verifica que la escritura sí se reflejó antes de transicionar — si no,
         // reporta el fallo al modelo en vez de dejar al usuario en un estado a
         // medias (R6.4).

@@ -31,6 +31,12 @@ Cada decisión de diseño se mide contra eso.
 | Tickets | OCR con Vision, no modelo multimodal | 0010 |
 | Tarjetas (persistencia) | Entidad Core Data plana, no evento; mismo contenedor | 0014 |
 | Voz | Speech framework on-device, parada manual, alimenta el mismo parser | 0015 |
+| Registro manual | Formulario sin parser, secundario al micrófono | 0035 |
+| Estadísticas | Agregación en `LanaCore`, vista anual dentro del Dashboard | 0036 |
+| Regla de presupuesto | La elige el usuario; el modelo etiqueta sin ver montos | 0037 |
+| Consultas | Seis tools deterministas; el modelo elige y narra, no calcula | 0038 |
+| Disponible | Periodo anclado al sueldo; saldo derivado de lo registrado | 0039 |
+| Categorías de ingreso | Catálogo propio de ocho, asignadas a mano, no por el parser | 0040 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
 
@@ -42,9 +48,14 @@ Cada decisión de diseño se mide contra eso.
 - Captura por texto en lenguaje natural
 - **Captura por voz on-device** (decisión 2026-08-26, ADR-0015) — otra
   forma de producir texto, alimenta el mismo parser
+- **Registro manual** (decisión 2026-09-07, ADR-0035) — el `+` del Dashboard
+  abre el mismo formulario de editar, en blanco. No pasa por el parser; es la
+  salida cuando dictar no es opción o Apple Intelligence no está disponible.
+  Secundario a propósito: el micrófono sigue siendo el camino principal
 - Parseo a `{monto, concepto, categoría, fecha}`
 - Corrección manual de cualquier campo, con aprendizaje por ejemplos
-- **Ingresos** además de gastos
+- **Ingresos** además de gastos, **con categoría propia** (decisión 2026-09-08,
+  ADR-0040) — ocho categorías aparte de las de gasto, elegidas a mano
 - **Multi-moneda** con tasa histórica por transacción
 - **Método de pago** por transacción (efectivo, débito, crédito, transferencia)
 - **Tarjetas** con límite, día de corte y fecha límite; deuda por tarjeta
@@ -462,12 +473,44 @@ recordatorio suave de saldo, que es un ítem aparte sin relación con CKShare.
 El roster de `Participant` sigue sin reconciliarse contra identidad real de
 `CKShare.Participant` — deliberado, ver ADR-0017/ADR-0020.
 
+### Fase 8.5 — Vista anual y análisis · 5-7 días
+
+Dos superficies separadas, a las que se entra por sendos botones en el toolbar
+del Dashboard: el año (estadísticas puras) y el análisis (narrado con IA).
+
+- [x] `LanaCore/Statistics/`: `PeriodStatistics`, `AnnualStatistics`,
+      `PeriodComparison`, `PeriodTotal` y `groupedByMonth`. El Dashboard y el
+      detalle de tarjeta pasan a delegar ahí (ADR-0036).
+- [x] Vista anual: serie de doce meses tocable, promedio, mes más caro y más
+      barato, tasa de ahorro, desgloses por categoría/subcategoría/forma de
+      pago, gastos hormiga, días con movimiento y las dos comparaciones (contra
+      el mes anterior y contra el mismo mes del año pasado).
+- [x] Regla de presupuesto: catálogo de cuatro (50/30/20, 70/20/10, 60/20/20 y
+      "págate primero"), elegible desde la propia pantalla de Análisis y
+      guardada en `UserDefaults`. **Cuál seguir es decisión del usuario, no una
+      constante del código** — Lana recomienda, no impone.
+- [x] `SpendingClassifying`: la IA etiqueta pares categoría/subcategoría como
+      Necesidad/Deseo/Ahorro. **Nunca ve montos**; el código suma (`BudgetMix`).
+      Las etiquetas no se persisten.
+- [x] Sin ingreso registrado: solo la mezcla como % del gasto, sin metas y sin
+      tramo de ahorro. Nunca se inventa un denominador.
+- [x] `InsightNarrating`: resumen del mes y del año, patrones y sugerencias, a
+      partir de cifras **ya calculadas**. Y la sugerencia de regla, validada
+      contra el catálogo cerrado.
+- [x] `InsightsFeature`: la pantalla, con su compuerta de `availability`. Sin
+      Apple Intelligence no aparece; la vista anual sí, completa.
+
 ### Fase 9 — Consultas en lenguaje natural · 3-4 días
-- [ ] Tools deterministas: `totalPorCategoria`, `comparaMeses`, `mayoresGastos`,
-      `saldoDeLista`, `disponibleProyectado`, `deudaPorTarjeta`
-- [ ] Sesión con tool calling
-- [ ] **El modelo no calcula, solo narra.** Nunca le pases el historial crudo.
-- [ ] Preguntas sugeridas para el estado vacío
+- [x] Tools deterministas: `totalPorCategoria`, `comparaMeses`, `mayoresGastos`,
+      `saldoDeLista`, `deudaPorTarjeta` y `disponibleProyectado` — todas en
+      `LanaCore.LedgerToolbox`, devolviendo texto ya formateado
+- [x] `disponibleProyectado` sin saldo bancario: el periodo se ancla al sueldo
+      (un `RecurringItem` de ingreso) y el saldo sale de lo registrado desde el
+      último sueldo. La cifra **siempre** viaja con la línea que dice de qué
+      está hecha. Ver ADR-0039
+- [x] Sesión con tool calling (`FoundationModelsInsightQuerying`)
+- [x] **El modelo no calcula, solo narra.** Nunca le pases el historial crudo.
+- [x] Preguntas sugeridas para el estado vacío
 
 ### Fase 10 — Monetización · 2 días
 - [ ] No consumible en App Store Connect + archivo `.storekit`

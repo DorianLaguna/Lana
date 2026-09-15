@@ -30,15 +30,15 @@ struct RecurringItemTests {
         }
     }
 
-    @Test("Un ingreso nunca lleva categoría, aunque se pase una")
-    func ingresoNuncaLlevaCategoria() throws {
+    @Test("Un ingreso sí lleva categoría — un sueldo puede decir que es sueldo (ADR-0040)")
+    func ingresoLlevaCategoria() throws {
         let item = try RecurringItem(
             name: "Sueldo",
             amount: Money(amount: 15000, currency: .mxn),
             kind: .income,
-            category: "otro",
+            category: IncomeCategory.sueldo.rawValue,
             dayOfMonth: 15)
-        #expect(item.category == nil)
+        #expect(item.category == "sueldo")
     }
 
     @Test("Un gasto puede llevar subcategoría")
@@ -53,15 +53,118 @@ struct RecurringItemTests {
         #expect(item.subcategory == "suscripciones")
     }
 
-    @Test("Un ingreso nunca lleva subcategoría, aunque se pase una")
-    func ingresoNuncaLlevaSubcategoria() throws {
+    @Test("Un ingreso sí lleva subcategoría")
+    func ingresoLlevaSubcategoria() throws {
         let item = try RecurringItem(
             name: "Sueldo",
             amount: Money(amount: 15000, currency: .mxn),
             kind: .income,
-            subcategory: "otro",
+            subcategory: "quincena",
             dayOfMonth: 15)
-        #expect(item.subcategory == nil)
+        #expect(item.subcategory == "quincena")
+    }
+
+    @Test("Un ingreso sigue sin método de pago — no se paga con nada")
+    func ingresoSigueSinMetodoDePago() throws {
+        let item = try RecurringItem(
+            name: "Sueldo",
+            amount: Money(amount: 15000, currency: .mxn),
+            kind: .income,
+            dayOfMonth: 15,
+            paymentMethod: .cash)
+        #expect(item.paymentMethod == nil)
+    }
+}
+
+@Suite("RecurringItem — registro en el mes (ADR-0042)")
+struct RecurringItemRegistrationTests {
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        // swiftlint:disable:next force_unwrapping
+        calendar.timeZone = TimeZone(identifier: "America/Mexico_City")!
+        return calendar
+    }()
+
+    private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        // swiftlint:disable:next force_unwrapping
+        calendar.date(from: DateComponents(year: year, month: month, day: day))!
+    }
+
+    private func salary(day: Int = 15) throws -> RecurringItem {
+        try RecurringItem(name: "Sueldo", amount: Money(amount: 15000, currency: .mxn), kind: .income, dayOfMonth: day)
+    }
+
+    @Test("Un movimiento ligado en el mes lo marca como registrado")
+    func movimientoLigadoLoMarca() throws {
+        let item = try salary()
+        let expense = Expense(
+            kind: .income,
+            amount: item.amount,
+            concept: "Sueldo",
+            date: date(2026, 9, 10),
+            recurringItemID: item.id)
+
+        #expect(item.registration(in: [expense], forMonthOf: date(2026, 9, 15), calendar: calendar) == .linked(expense))
+    }
+
+    @Test("Sin movimiento, o con uno de otro mes u otro recurrente, sigue pendiente")
+    func sinMovimientoSiguePendiente() throws {
+        let item = try salary()
+        let otherMonth = Expense(
+            kind: .income,
+            amount: item.amount,
+            concept: "Sueldo",
+            date: date(2026, 8, 15),
+            recurringItemID: item.id)
+        let otherItem = Expense(
+            kind: .income,
+            amount: item.amount,
+            concept: "Sueldo",
+            date: date(2026, 9, 15),
+            recurringItemID: RecurringItemID())
+        let unlinked = Expense(kind: .income, amount: item.amount, concept: "Sueldo", date: date(2026, 9, 15))
+
+        let registration = item.registration(
+            in: [otherMonth, otherItem, unlinked],
+            forMonthOf: date(2026, 9, 15),
+            calendar: calendar)
+        #expect(registration == nil)
+    }
+
+    @Test("La marca heredada sigue contando como registrado en su mes")
+    func marcaHeredadaCuenta() throws {
+        var item = try salary()
+        item.lastRegisteredMonth = date(2026, 9, 1)
+
+        #expect(item.registration(in: [], forMonthOf: date(2026, 9, 20), calendar: calendar) == .legacy)
+        #expect(item.registration(in: [], forMonthOf: date(2026, 10, 20), calendar: calendar) == nil)
+    }
+
+    @Test("Un recurrente del 31 vence el 30 en septiembre")
+    func elTreintaYUnoVenceElTreintaEnSeptiembre() throws {
+        let item = try salary(day: 31)
+
+        #expect(!item.isDue(asOf: date(2026, 9, 29), calendar: calendar))
+        #expect(item.isDue(asOf: date(2026, 9, 30), calendar: calendar))
+    }
+
+    @Test("El movimiento conserva su recurrente tras corregirse, y al anularse deja de contar")
+    func elVinculoSobreviveCorreccionYAnulacion() throws {
+        let item = try salary()
+        let added = IncomeAdded(
+            amount: item.amount,
+            concept: "Sueldo",
+            date: date(2026, 9, 15),
+            recurringItemID: item.id)
+        let corrected = ExpenseCorrected(correctsEventID: added.id, amount: Money(amount: 15500, currency: .mxn))
+
+        let afterCorrection = ExpenseProjection.expenses(from: [.incomeAdded(added), .expenseCorrected(corrected)])
+        #expect(afterCorrection.first?.recurringItemID == item.id)
+
+        let voided = ExpenseVoided(voidsEventID: added.id)
+        let afterVoid = ExpenseProjection.expenses(
+            from: [.incomeAdded(added), .expenseCorrected(corrected), .expenseVoided(voided)])
+        #expect(item.registration(in: afterVoid, forMonthOf: date(2026, 9, 15), calendar: calendar) == nil)
     }
 }
 

@@ -271,6 +271,34 @@ struct DashboardModelTests {
 
         #expect(detail.expenses.isEmpty)
     }
+
+    @Test("Un registro manual arranca con la fecha de hoy si se está viendo el mes vigente")
+    func registroManualArrancaHoyEnElMesVigente() {
+        let hoy = Date()
+        let model = DashboardModel(
+            store: InMemoryExpenseStore(),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
+            referenceDate: hoy,
+            calendar: calendar)
+
+        #expect(calendar.isDate(model.makeNewExpenseModel().date, inSameDayAs: hoy))
+    }
+
+    @Test("Viendo un mes pasado, un registro manual cae en ese mes — no en el de hoy")
+    func registroManualCaeEnElMesQueSeEstaViendo() async {
+        let model = DashboardModel(
+            store: InMemoryExpenseStore(),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            cardStore: InMemoryCardStore(),
+            sharedListStore: InMemorySharedListStore(),
+            referenceDate: date(2026, 8, 10),
+            calendar: calendar)
+        await model.goToPreviousMonth()
+
+        #expect(model.makeNewExpenseModel().date == date(2026, 7, 1))
+    }
 }
 
 @Suite("CategoryDetailModel")
@@ -320,7 +348,7 @@ struct CategoryDetailModelTests {
 
         let dashboardModel = dashboard(store: store, referenceDate: date(2026, 8, 10))
         await dashboardModel.onAppear()
-        let model = CategoryDetailModel(category: "despensa", dashboard: dashboardModel)
+        let model = CategoryDetailModel(category: "despensa", source: dashboardModel)
 
         #expect(model.expenses.count == 1)
         #expect(model.total == 100)
@@ -343,7 +371,7 @@ struct CategoryDetailModelTests {
 
         let dashboardModel = dashboard(store: store, referenceDate: date(2026, 8, 10))
         await dashboardModel.onAppear()
-        let model = CategoryDetailModel(category: "despensa", dashboard: dashboardModel)
+        let model = CategoryDetailModel(category: "despensa", source: dashboardModel)
 
         let totals = model.subcategoryTotals
         let abarrotes = try #require(totals.first { $0.subcategory == "abarrotes" })

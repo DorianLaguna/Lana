@@ -18,6 +18,6 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]),
         .testTarget(
             name: "InsightsFeatureTests",
-            dependencies: ["InsightsFeature"],
+            dependencies: ["InsightsFeature", "LanaCore"],
             swiftSettings: [.swiftLanguageMode(.v6)])
     ])

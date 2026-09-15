@@ -35,16 +35,56 @@ public struct GuiaApplePayView: View {
         self.onOpenShortcutsApp = onOpenShortcutsApp
     }
 
+    /// Ancla al inicio del contenido para regresar el scroll arriba al cambiar
+    /// de pantalla — sin esto, avanzar desde el fondo de una pantalla larga (los
+    /// 6 pasos de Atajos) dejaba la siguiente empezando a media página, no en
+    /// su título.
+    private enum ScrollAnchor { case top }
+
     public var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                currentScreen
-                    .padding(Space.md.rawValue)
+            header
+            ScrollViewReader { proxy in
+                ScrollView {
+                    currentScreen
+                        .padding(Space.md.rawValue)
+                        .id(ScrollAnchor.top)
+                }
+                .onChange(of: model.currentScreen) { _, _ in
+                    // Al inicio de la nueva pantalla, no donde quedó la anterior.
+                    proxy.scrollTo(ScrollAnchor.top, anchor: .top)
+                }
             }
             navigationBar
         }
         .background(lana.surface)
         .onAppear { model.presentFirstScreen() }
+    }
+
+    // MARK: - Encabezado
+
+    /// Título y progreso. Son cinco pantallas, una de ellas larga, y la barra
+    /// de abajo solo decía "Siguiente": no había forma de saber si faltaba un
+    /// paso o cuatro. Como hoja (`Mode.standalone`) es además el único título
+    /// que tiene la pantalla. El progreso va en texto, no en puntitos: la
+    /// forma y el color nunca son el único portador (Docs/CONVENTIONS.md).
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+            Text("Configurar Apple Pay")
+                .lanaFont(.headline)
+                .foregroundStyle(lana.textPrimary)
+            Text(progressText)
+                .lanaFont(.caption)
+                .foregroundStyle(lana.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Space.md.rawValue)
+        .background(lana.surfaceRaised)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var progressText: String {
+        "Paso \(model.currentScreen.rawValue + 1) de \(GuiaApplePayModel.Screen.allCases.count)"
     }
 
     @ViewBuilder
@@ -117,7 +157,8 @@ public struct GuiaApplePayView: View {
         VStack(spacing: Space.md.rawValue) {
             ClosingStepView(
                 summary: model.completionSummary,
-                summaryUnavailable: model.summaryUnavailable)
+                summaryUnavailable: model.summaryUnavailable,
+                mode: model.mode)
 
             if let advanceError = model.advanceError {
                 EmptyStateView(
@@ -142,12 +183,12 @@ public struct GuiaApplePayView: View {
             Spacer()
 
             if model.currentScreen != .closing {
-                Button("Omitir") { model.skip() }
+                Button(skipTitle) { model.skip() }
                     .foregroundStyle(lana.textSecondary)
             }
 
             if model.currentScreen == .closing {
-                Button("Confirmar") {
+                Button(confirmTitle) {
                     Task { await model.confirmCompletion() }
                 }
                 .buttonStyle(.borderedProminent)
@@ -161,6 +202,25 @@ public struct GuiaApplePayView: View {
         .lanaFont(.body)
         .padding(Space.md.rawValue)
         .background(lana.surfaceRaised)
+    }
+
+    /// Salirse de la guía. En onboarding es "Omitir" —hay un flujo del que te
+    /// estás saltando un paso—; reabierta desde Tarjetas no se omite nada, se
+    /// cierra la hoja, y llamarlo "Omitir" describe algo que no pasa.
+    private var skipTitle: String {
+        switch model.mode {
+        case .onboarding: "Omitir"
+        case .standalone: "Cerrar"
+        }
+    }
+
+    /// Lo mismo en el cierre: en `standalone` `confirmCompletion()` solo cierra
+    /// la hoja, no confirma nada ante nadie.
+    private var confirmTitle: String {
+        switch model.mode {
+        case .onboarding: "Confirmar"
+        case .standalone: "Listo"
+        }
     }
 }
 

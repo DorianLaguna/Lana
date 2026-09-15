@@ -34,6 +34,7 @@ extension CoreDataExpenseStore: RecurringItemStore {
                 row.paymentMethodCardID = nil
             }
             row.lastRegisteredMonth = item.lastRegisteredMonth
+            row.lastAutoRegisteredMonth = item.lastAutoRegisteredMonth
             try Self.saveIfNeeded(context)
         }
     }
@@ -81,6 +82,7 @@ extension CoreDataExpenseStore: RecurringItemStore {
             subcategory: row.subcategory,
             dayOfMonth: Int(row.dayOfMonth),
             paymentMethod: paymentMethod,
-            lastRegisteredMonth: row.lastRegisteredMonth)
+            lastRegisteredMonth: row.lastRegisteredMonth,
+            lastAutoRegisteredMonth: row.lastAutoRegisteredMonth)
     }
 }

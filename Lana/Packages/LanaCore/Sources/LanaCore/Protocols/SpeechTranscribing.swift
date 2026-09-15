@@ -18,6 +18,25 @@ public enum SpeechAvailability: Sendable, Equatable {
     case available
 }
 
+/// Una foto del transcript mientras el usuario habla (ADR-0043).
+///
+/// `text` es todo lo que se ha oído, incluida la hipótesis que el
+/// reconocedor todavía puede reescribir. `finalizedText` es solo el prefijo
+/// que ya no va a cambiar — el reconocedor lo cierra tras una pausa. Esa
+/// diferencia es lo que permite parsear mientras se sigue dictando sin
+/// parsear cada palabra a medias.
+public struct TranscriptSnapshot: Sendable, Equatable {
+    /// Todo lo dicho hasta ahora; es lo que se muestra en pantalla.
+    public let text: String
+    /// El prefijo de `text` que el reconocedor ya no va a reescribir.
+    public let finalizedText: String
+
+    public init(text: String, finalizedText: String) {
+        self.text = text
+        self.finalizedText = finalizedText
+    }
+}
+
 /// Convierte voz en texto, on-device, para alimentar el mismo
 /// `ExpenseParsing.parse(_:)` que ya existe — la voz es otra forma de
 /// producir texto, no un parser aparte (ADR-0015).
@@ -32,8 +51,9 @@ public protocol SpeechTranscribing: Sendable {
     func requestPermission() async -> SpeechAvailability
     /// Snapshots crecientes del transcript mientras el usuario habla.
     /// Termina cuando se llama `stopTranscribing()` — no hay detección de
-    /// silencio (Docs/adr/0015).
-    func transcribe() -> AsyncThrowingStream<String, Error>
+    /// silencio (Docs/adr/0015). El último snapshot antes de terminar trae
+    /// todo el texto finalizado.
+    func transcribe() -> AsyncThrowingStream<TranscriptSnapshot, Error>
     func stopTranscribing() async
 }
 
@@ -58,9 +78,9 @@ public actor InMemorySpeechTranscribing: SpeechTranscribing {
         permissionResult
     }
 
-    public nonisolated func transcribe() -> AsyncThrowingStream<String, Error> {
+    public nonisolated func transcribe() -> AsyncThrowingStream<TranscriptSnapshot, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(fixedTranscript)
+            continuation.yield(TranscriptSnapshot(text: fixedTranscript, finalizedText: fixedTranscript))
             continuation.finish()
         }
     }

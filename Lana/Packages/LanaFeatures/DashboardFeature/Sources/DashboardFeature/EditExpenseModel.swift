@@ -2,7 +2,12 @@ import Foundation
 import LanaCore
 import Observation
 
-/// Editar un gasto/ingreso ya guardado. Guardar aquí emite una corrección
+/// El formulario de un gasto/ingreso, en sus dos modos (`Mode`): editar uno
+/// ya guardado, o registrar uno nuevo a mano (ADR-0035). Es el mismo modelo
+/// porque son los mismos campos — duplicarlo habría dejado dos formularios
+/// que se desincronizan cada vez que se agrega uno.
+///
+/// Editando, guardar aquí emite una corrección
 /// (Docs/CLAUDE.md — "editar emite una corrección; nada se muta en su
 /// lugar"), no una transacción nueva: se llama `store.save(_:)` con el
 /// mismo `id`. Si la categoría cambió respecto a la original, se registra
@@ -13,20 +18,60 @@ import Observation
 @MainActor
 @Observable
 public final class EditExpenseModel: Identifiable {
+    /// Si este formulario está creando una transacción desde cero o
+    /// corrigiendo una ya guardada (ADR-0035). El modelo es el mismo porque
+    /// los campos son los mismos; lo único que cambia es el título, que no
+    /// haya "Borrar" y que no se pueda guardar un registro en blanco.
+    public enum Mode: Equatable, Sendable {
+        case creating
+        case editing
+    }
+
     /// Identidad de la instancia — para presentar con `.sheet(item:)`, no
     /// tiene relación con `Expense.ID`.
     public let id = UUID()
-    public var kind: Expense.Kind
+    /// Desde dónde se abrió este formulario — ver `Mode`.
+    public let mode: Mode
+    /// Al voltear entre gasto e ingreso, la categoría salta al catálogo que
+    /// corresponde: son listas distintas (ADR-0040) y dejar "comida" pegada a
+    /// un ingreso guardaría una categoría que su propio picker no puede
+    /// mostrar.
+    public var kind: Expense.Kind {
+        didSet {
+            guard kind != oldValue else { return }
+            category = Self.defaultCategory(for: kind)
+            // La subcategoría es vocabulario de su categoría; con el catálogo
+            // cambiado ya no significa lo mismo.
+            subcategory = ""
+        }
+    }
+
     public var amount: Decimal
     public var concept: String
     public var category: String
     public var subcategory: String
     public var date: Date
+    /// Con qué se pagó. No opcional aunque `Expense.paymentMethod` sí lo
+    /// sea: `ExpenseAdded.paymentMethod` no admite `nil`, así que todo gasto
+    /// guardado ya trae uno — el `nil` solo existe para los ingresos, y ahí
+    /// el picker ni se muestra. Ofrecer un "sin especificar" habría sido
+    /// mentira en los dos modos: al crear se guarda como efectivo
+    /// (`CoreDataExpenseStore.makeEvent`), y al editar `nil` significa "no
+    /// cambies esto" en `ExpenseCorrected`, así que elegirlo no haría nada.
+    public var paymentMethod: PaymentMethod
     public private(set) var errorMessage: String?
     public private(set) var isSaving = false
     /// Las subcategorías ya usadas alguna vez, por categoría — para el
     /// dropdown de `EditExpenseView` (mismo patrón que `EntryModel`).
     public private(set) var allSubcategories: [String: [String]] = [:]
+    /// Las tarjetas reales del usuario, para el picker de método de pago —
+    /// sin esto no había forma de decir con qué tarjeta se pagó un gasto que
+    /// se registra a mano, ni de corregir la que Apple Pay resolvió mal.
+    public private(set) var cards: [Card] = []
+    /// `cards` vacío no distingue "el usuario no tiene tarjetas" de
+    /// "`onAppear()` todavía no corre" — sin esto, `orphanedCardPaymentMethod`
+    /// daba por eliminada toda tarjeta en el instante previo a la carga.
+    private var didLoadCards = false
 
     /// A qué lista compartida pertenece el gasto. `nil` = personal. Cambiarlo
     /// mueve el gasto de un lado a otro sin borrarlo ni recapturarlo
@@ -43,6 +88,7 @@ public final class EditExpenseModel: Identifiable {
     private let originalCategory: String
     private let store: any ExpenseStore
     private let vocabularyStore: any CorrectionVocabularyStore
+    private let cardStore: any CardStore
     private let sharedListStore: any SharedListStore
     private var viewerIdentities: [SharedListID: ParticipantID] = [:]
     /// `nil` hasta que el usuario toca el picker de división — así el gasto
@@ -53,26 +99,118 @@ public final class EditExpenseModel: Identifiable {
     ///   - expense: el gasto/ingreso a editar.
     ///   - store: dónde se guarda la corrección.
     ///   - vocabularyStore: dónde se registra un cambio de categoría.
+    ///   - cardStore: de dónde se leen las tarjetas reales, para el picker
+    ///     de método de pago.
     ///   - sharedListStore: de dónde salen las listas compartidas, para
     ///     poder mover el gasto a una (o sacarlo de ella) sin recapturarlo.
-    public init(
+    public convenience init(
         expense: Expense,
         store: any ExpenseStore,
         vocabularyStore: any CorrectionVocabularyStore,
+        cardStore: any CardStore,
+        sharedListStore: any SharedListStore) {
+        self.init(
+            expense: expense,
+            mode: .editing,
+            store: store,
+            vocabularyStore: vocabularyStore,
+            cardStore: cardStore,
+            sharedListStore: sharedListStore)
+    }
+
+    /// El formulario en blanco para registrar algo a mano (ADR-0035) — la
+    /// salida cuando dictar no es opción o el parser on-device no está
+    /// disponible. No pasa por el parser, así que nada aquí es una
+    /// suposición: entra sin `needsReview`.
+    ///
+    /// `save()` no distingue crear de corregir — `ExpenseStore` decide una u
+    /// otra según si ya existe un evento raíz con ese `id`, y este `Expense`
+    /// nace con uno nuevo, así que se guarda como alta.
+    ///
+    /// - Parameters:
+    ///   - date: con qué fecha arranca el formulario. Quien lo abre decide:
+    ///     el Dashboard siembra un día del mes que se está viendo, para que
+    ///     lo recién creado no caiga fuera de la pantalla donde se creó.
+    ///   - currency: la moneda del monto. `.mxn` por default, igual que
+    ///     `DraftTransaction`.
+    public convenience init(
+        newExpenseOn date: Date,
+        currency: Currency = .mxn,
+        store: any ExpenseStore,
+        vocabularyStore: any CorrectionVocabularyStore,
+        cardStore: any CardStore,
+        sharedListStore: any SharedListStore) {
+        self.init(
+            expense: Expense(
+                kind: .expense,
+                amount: Money(amount: 0, currency: currency),
+                concept: "",
+                date: date,
+                paymentMethod: .cash),
+            mode: .creating,
+            store: store,
+            vocabularyStore: vocabularyStore,
+            cardStore: cardStore,
+            sharedListStore: sharedListStore)
+    }
+
+    private init(
+        expense: Expense,
+        mode: Mode,
+        store: any ExpenseStore,
+        vocabularyStore: any CorrectionVocabularyStore,
+        cardStore: any CardStore,
         sharedListStore: any SharedListStore) {
         self.expense = expense
+        self.mode = mode
         self.store = store
         self.vocabularyStore = vocabularyStore
+        self.cardStore = cardStore
         self.sharedListStore = sharedListStore
         sharedListID = expense.sharedListID
         payer = expense.payer
         kind = expense.kind
         amount = expense.amount.amount
         concept = expense.concept
-        category = expense.category ?? SuggestedCategory.otro.rawValue
-        originalCategory = expense.category ?? SuggestedCategory.otro.rawValue
+        category = expense.category ?? Self.defaultCategory(for: expense.kind)
+        originalCategory = expense.category ?? Self.defaultCategory(for: expense.kind)
         subcategory = expense.subcategory ?? ""
         date = expense.date
+        paymentMethod = expense.paymentMethod ?? .cash
+    }
+
+    /// Con qué categoría abre un formulario según su tipo: "otro" del catálogo
+    /// que le toca (ADR-0040).
+    static func defaultCategory(for kind: Expense.Kind) -> String {
+        switch kind {
+        case .expense: SuggestedCategory.otro.rawValue
+        case .income: IncomeCategory.otro.rawValue
+        }
+    }
+
+    /// `false` mientras el formulario nuevo siga en blanco — guardar un
+    /// registro de $0 sin concepto no rescata nada, solo mete ruido en el
+    /// mes y una entrada vacía en el vocabulario (ver `save()`). No es el
+    /// caso que cubre "guardar nunca se bloquea" (Docs/CLAUDE.md), que es
+    /// sobre un parseo ambiguo que sí trae información que vale la pena.
+    public var canSave: Bool {
+        mode == .editing || (amount > 0 && !concept.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    /// El método de pago vigente, cuando apunta a una tarjeta que ya no
+    /// existe — se dio de baja después de capturar el gasto. Sin esto el
+    /// picker se queda con una selección que no calza con ningún tag y no
+    /// marca nada, así que la forma de pago del gasto se vuelve invisible;
+    /// mismo problema y misma salida que `selectableSplitKinds` con una
+    /// regla de split que la lista ya no resuelve.
+    public var orphanedCardPaymentMethod: PaymentMethod? {
+        guard didLoadCards else { return nil }
+        let cardID: CardID? = switch paymentMethod {
+        case let .debit(cardID), let .credit(cardID): cardID
+        case .cash, .transfer: nil
+        }
+        guard let cardID, !cards.contains(where: { $0.id == cardID }) else { return nil }
+        return paymentMethod
     }
 
     /// Carga las subcategorías ya usadas, para el dropdown — rango amplio
@@ -90,6 +228,8 @@ public final class EditExpenseModel: Identifiable {
         }
         allSubcategories = bySubcategory.mapValues { $0.sorted() }
 
+        cards = await (try? cardStore.cards()) ?? []
+        didLoadCards = true
         sharedLists = await (try? sharedListStore.lists()) ?? []
         viewerIdentities = await DashboardModel.loadViewerIdentities(
             for: sharedLists.map(\.id),
@@ -197,16 +337,27 @@ public final class EditExpenseModel: Identifiable {
         errorMessage = nil
         isSaving = true
         defer { isSaving = false }
-        if kind == .expense, category != originalCategory {
-            await vocabularyStore.record(term: concept, category: category)
+        // Sin concepto no hay nada que aprender: `record(term:)` no filtra
+        // vacíos, así que un formulario sin concepto dejaba una entrada en
+        // blanco en Ajustes y la inyectaba al prompt del parser (ADR-0012).
+        let term = concept.trimmingCharacters(in: .whitespacesAndNewlines)
+        if kind == .expense, category != originalCategory, !term.isEmpty {
+            await vocabularyStore.record(term: term, category: category)
         }
         var updated = expense
         updated.kind = kind
         updated.amount = Money(amount: amount, currency: expense.amount.currency)
         updated.concept = concept
-        updated.category = kind == .expense ? category : nil
+        // Los ingresos también se categorizan (ADR-0040), con su propio
+        // catálogo — lo que cambia entre gasto e ingreso es cuál lista se usa,
+        // no si hay categoría.
+        updated.category = category
         updated.subcategory = subcategory.isEmpty ? nil : subcategory
         updated.date = date
+        // Mismo criterio que la categoría de arriba: solo los gastos lo
+        // llevan. En un ingreso, `nil` en la corrección significa "no
+        // cambies esto" (`ExpenseCorrected`), así que no le inventa uno.
+        updated.paymentMethod = kind == .expense ? paymentMethod : nil
         // Mover el gasto entre personal y una lista compartida (ADR-0027).
         // El split se toma de la lista (`preferredSplit`: proporcional si
         // tiene los ingresos capturados, si no partes iguales) — ajustar la

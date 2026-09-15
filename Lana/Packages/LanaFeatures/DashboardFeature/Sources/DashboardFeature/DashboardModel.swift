@@ -2,28 +2,19 @@ import Foundation
 import LanaCore
 import Observation
 
-/// El total del mes, separado por moneda — nunca se suman montos de
-/// monedas distintas (Docs/CONVENTIONS.md → Multi-moneda).
-public struct MonthTotal: Identifiable, Sendable {
-    public var id: Currency {
-        currency
-    }
-
-    public let currency: Currency
-    public let expenses: Decimal
-    public let income: Decimal
-}
-
 /// Toda la lógica y el estado del dashboard mensual. La vista no decide
 /// nada — solo refleja estas propiedades derivadas y llama a
 /// `goToPreviousMonth`/`goToNextMonth` (Docs/ARCHITECTURE.md).
 @MainActor
 @Observable
-public final class DashboardModel {
+public final class DashboardModel: ExpenseProviding {
     /// El primer día del mes que se muestra.
     public private(set) var month: Date
     /// Todo lo cargado del mes vigente — gastos e ingresos juntos.
     public private(set) var expenses: [Expense] = []
+    /// Las sumas del mes vigente. Se calculan una vez por carga, no en cada
+    /// lectura: `DashboardView` consulta los totales varias veces por refresco.
+    public private(set) var statistics = PeriodStatistics(expenses: [])
     /// `true` mientras se está cargando el mes.
     public private(set) var isLoading = false
     /// El último error, si algo falló al cargar.
@@ -84,7 +75,7 @@ public final class DashboardModel {
     /// derivar en vivo de `expenses`, no hay una segunda copia que se pueda
     /// desincronizar.
     public func makeCategoryDetailModel(for category: String) -> CategoryDetailModel {
-        CategoryDetailModel(category: category, dashboard: self)
+        CategoryDetailModel(category: category, source: self)
     }
 
     /// El drill-down de una forma de pago (Fase 6.5) — antes tocar una
@@ -94,7 +85,7 @@ public final class DashboardModel {
     /// aquí, `cardStore` es lo único que sigue siendo suyo (la lista de
     /// tarjetas no vive en `DashboardModel`).
     public func makePaymentMethodDetailModel(for label: String) -> PaymentMethodDetailModel {
-        PaymentMethodDetailModel(label: label, dashboard: self, cardStore: cardStore)
+        PaymentMethodDetailModel(label: label, source: self, cardStore: cardStore)
     }
 
     /// Editar un gasto/ingreso ya guardado — hasta ahora no había forma de
@@ -106,7 +97,31 @@ public final class DashboardModel {
             expense: expense,
             store: store,
             vocabularyStore: vocabularyStore,
+            cardStore: cardStore,
             sharedListStore: sharedListStore)
+    }
+
+    /// El formulario en blanco para registrar algo a mano (ADR-0035) — la
+    /// salida secundaria, para cuando dictar no es opción o Apple
+    /// Intelligence no está disponible. El micrófono sigue siendo el camino
+    /// principal.
+    ///
+    /// La fecha arranca en hoy, salvo que se esté viendo otro mes: ahí cae en
+    /// el primer día del mes que se está viendo. Si no, agregar algo estando
+    /// en agosto lo guardaría en septiembre y desaparecería de la pantalla
+    /// donde se acababa de crear.
+    public func makeNewExpenseModel() -> EditExpenseModel {
+        EditExpenseModel(
+            newExpenseOn: seedDateForNewExpense(),
+            store: store,
+            vocabularyStore: vocabularyStore,
+            cardStore: cardStore,
+            sharedListStore: sharedListStore)
+    }
+
+    private func seedDateForNewExpense(now: Date = Date()) -> Date {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: month) else { return now }
+        return monthInterval.contains(now) ? now : month
     }
 
     /// "Navegación entre meses" (Docs/PLAN.md → Fase 6).
@@ -120,6 +135,19 @@ public final class DashboardModel {
     public func goToNextMonth() async {
         guard let next = calendar.date(byAdding: .month, value: 1, to: month) else { return }
         month = next
+        await load()
+    }
+
+    /// Salta directo a un mes cualquiera. Lo usa la vista anual: tocar una
+    /// barra de la gráfica de doce meses regresa al Dashboard ya posado en ese
+    /// mes, en un solo toque y sin pantalla intermedia.
+    ///
+    /// Recibe cualquier fecha de ese mes y se queda con el primer día, igual
+    /// que hace el inicializador.
+    public func goToMonth(_ date: Date) async {
+        guard let start = calendar.dateInterval(of: .month, for: date)?.start else { return }
+        guard start != month else { return }
+        month = start
         await load()
     }
 
@@ -138,19 +166,22 @@ public final class DashboardModel {
         } catch {
             errorMessage = error.localizedDescription
             expenses = []
+            viewerIdentities = [:]
         }
+        statistics = PeriodStatistics(expenses: expenses, viewerIdentities: viewerIdentities)
         isLoading = false
     }
 
-    /// `internal`, no `private` — `CategoryDetailModel`/`PaymentMethodDetailModel`
-    /// (mismo target) hacen exactamente esta misma resolución sobre su
-    /// propio subconjunto de gastos.
+    /// `internal`, no `private` — otros modelos del mismo target hacen esta
+    /// misma resolución sobre su propio subconjunto de gastos.
+    ///
+    /// La implementación se mudó a `LanaCore` (`SharedListStore.viewerIdentities(for:)`)
+    /// cuando el análisis con IA la necesitó también y no podía importar esta
+    /// feature. Esto queda como el nombre que ya usaban los call sites.
     static func loadViewerIdentities(
         for expenses: [Expense],
         from sharedListStore: any SharedListStore) async -> [SharedListID: ParticipantID] {
-        await loadViewerIdentities(
-            for: Array(Set(expenses.compactMap(\.sharedListID))),
-            from: sharedListStore)
+        await sharedListStore.viewerIdentities(for: expenses)
     }
 
     /// Igual que la de arriba, pero partiendo de los ids directamente —
@@ -159,13 +190,7 @@ public final class DashboardModel {
     static func loadViewerIdentities(
         for sharedListIDs: [SharedListID],
         from sharedListStore: any SharedListStore) async -> [SharedListID: ParticipantID] {
-        var identities: [SharedListID: ParticipantID] = [:]
-        for sharedListID in Set(sharedListIDs) {
-            if let viewerID = try? await sharedListStore.viewerParticipantID(for: sharedListID) {
-                identities[sharedListID] = viewerID
-            }
-        }
-        return identities
+        await sharedListStore.viewerIdentities(for: sharedListIDs)
     }
 
     /// Agrupadas por día, el día más reciente primero.
@@ -174,44 +199,13 @@ public final class DashboardModel {
     }
 
     /// El total del mes, por moneda.
-    public var monthTotals: [MonthTotal] {
-        var expensesByCurrency: [Currency: Decimal] = [:]
-        var incomeByCurrency: [Currency: Decimal] = [:]
-        for expense in expenses {
-            switch expense.kind {
-            case .expense:
-                let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
-                expensesByCurrency[personal.currency, default: 0] += personal.amount
-            case .income:
-                incomeByCurrency[expense.amount.currency, default: 0] += expense.amount.amount
-            }
-        }
-        let currencies = Set(expensesByCurrency.keys).union(incomeByCurrency.keys)
-        return currencies
-            .map { currency in
-                MonthTotal(
-                    currency: currency,
-                    expenses: expensesByCurrency[currency] ?? 0,
-                    income: incomeByCurrency[currency] ?? 0)
-            }
-            .sorted { $0.currency.rawValue < $1.currency.rawValue }
+    public var monthTotals: [PeriodTotal] {
+        statistics.totals
     }
 
     /// El desglose por categoría, por moneda — para la gráfica.
     public var categoryTotals: [CategoryTotal] {
-        var totals: [Currency: [String: Decimal]] = [:]
-        for expense in expenses where expense.kind == .expense {
-            let category = expense.category ?? "otro"
-            let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
-            totals[personal.currency, default: [:]][category, default: 0] += personal.amount
-        }
-        return totals
-            .flatMap { currency, byCategory in
-                byCategory.map { category, amount in
-                    CategoryTotal(category: category, amount: amount, currency: currency)
-                }
-            }
-            .sorted { $0.amount > $1.amount }
+        statistics.categoryTotals
     }
 
     /// El desglose por categoría de una sola moneda — para la dona de
@@ -219,7 +213,7 @@ public final class DashboardModel {
     /// de una sola moneda a la vez para que sus proporciones tengan
     /// sentido contra el ingreso de esa misma moneda.
     public func categoryTotals(in currency: Currency) -> [CategoryTotal] {
-        categoryTotals.filter { $0.currency == currency }
+        statistics.categoryTotals(in: currency)
     }
 
     /// Lo que quedó ambiguo y necesita que el usuario lo revise.
@@ -232,27 +226,13 @@ public final class DashboardModel {
     /// no se "paga" con nada. No distingue tarjeta por tarjeta, solo el
     /// tipo — cruzar eso con `CardStore` es más de lo que se pidió aquí.
     public var paymentMethodTotals: [CategoryTotal] {
-        var totals: [Currency: [String: Decimal]] = [:]
-        for expense in expenses where expense.kind == .expense {
-            let label = Self.paymentMethodLabel(expense.paymentMethod)
-            let personal = expense.personalAmount(viewerIdentities: viewerIdentities)
-            totals[personal.currency, default: [:]][label, default: 0] += personal.amount
-        }
-        return totals
-            .flatMap { currency, byLabel in
-                byLabel.map { label, amount in CategoryTotal(category: label, amount: amount, currency: currency) }
-            }
-            .sorted { $0.amount > $1.amount }
+        statistics.paymentMethodTotals
     }
 
     /// `internal`, no `private` — `PaymentMethodDetailModel` (mismo target)
-    /// necesita filtrar con exactamente esta misma regla de agrupación.
+    /// necesita filtrar con exactamente esta misma regla de agrupación. La
+    /// regla vive en `LanaCore` porque la vista anual agrupa igual.
     static func paymentMethodLabel(_ method: PaymentMethod?) -> String {
-        switch method {
-        case .cash, nil: "efectivo"
-        case .debit: "débito"
-        case .credit: "crédito"
-        case .transfer: "transferencia"
-        }
+        PeriodStatistics.paymentMethodLabel(method)
     }
 }

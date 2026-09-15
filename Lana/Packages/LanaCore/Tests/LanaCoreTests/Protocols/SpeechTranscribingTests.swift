@@ -13,10 +13,10 @@ struct SpeechTranscribingTests {
     @Test("Emite el transcript fijo y termina")
     func emiteTranscriptFijo() async throws {
         let speech = InMemorySpeechTranscribing(fixedTranscript: "gasté 100 en café")
-        var received: [String] = []
+        var received: [TranscriptSnapshot] = []
         for try await snapshot in speech.transcribe() {
             received.append(snapshot)
         }
-        #expect(received == ["gasté 100 en café"])
+        #expect(received == [TranscriptSnapshot(text: "gasté 100 en café", finalizedText: "gasté 100 en café")])
     }
 }

@@ -14,10 +14,16 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
     public var kind: Kind
     public var amount: Money
     public var concept: String
-    /// `nil` para ingresos — solo los gastos se categorizan (v1.0).
+    /// En qué se fue, o de dónde vino. Un gasto usa las once de
+    /// `SuggestedCategory`; un ingreso, las ocho de `IncomeCategory`
+    /// (ADR-0040) — son catálogos distintos y nunca se mezclan.
+    ///
+    /// `nil` mientras nadie la haya puesto: el parser no clasifica ingresos,
+    /// así que uno capturado por voz llega sin categoría hasta que se edite.
     public var category: String?
     /// Propiedad del usuario, resuelta por fuzzy match (ADR-0011). `nil` si
-    /// no aplica o el modelo no propuso nada específico.
+    /// no aplica o el modelo no propuso nada específico. Aplica igual a
+    /// gastos e ingresos.
     public var subcategory: String?
     public var date: Date
     public var paymentMethod: PaymentMethod?
@@ -25,6 +31,11 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
     public var sharedListID: SharedListID?
     public var payer: ParticipantID?
     public var split: SplitRule?
+    /// El recurrente del que salió este movimiento, o `nil` si se capturó a
+    /// mano. Es lo que dice que un recurrente ya se registró en el mes
+    /// (`RecurringItem.registration(in:forMonthOf:calendar:)`, ADR-0042): al
+    /// borrar el movimiento, el recurrente vuelve a quedar pendiente solo.
+    public var recurringItemID: RecurringItemID?
 
     public init(
         id: ExpenseID = ExpenseID(),
@@ -38,7 +49,8 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         needsReview: Bool = false,
         sharedListID: SharedListID? = nil,
         payer: ParticipantID? = nil,
-        split: SplitRule? = nil) {
+        split: SplitRule? = nil,
+        recurringItemID: RecurringItemID? = nil) {
         self.id = id
         self.kind = kind
         self.amount = amount
@@ -51,5 +63,6 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         self.sharedListID = sharedListID
         self.payer = payer
         self.split = split
+        self.recurringItemID = recurringItemID
     }
 }

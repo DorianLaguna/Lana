@@ -16,6 +16,7 @@ public final class CDRecurringItem: NSManagedObject {
     @NSManaged public var paymentMethodKind: String?
     @NSManaged public var paymentMethodCardID: UUID?
     @NSManaged public var lastRegisteredMonth: Date?
+    @NSManaged public var lastAutoRegisteredMonth: Date?
 }
 
 public extension CDRecurringItem {

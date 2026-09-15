@@ -13,11 +13,21 @@ public final class AddRecurringItemModel: Identifiable {
     public let id = UUID()
     public var name: String
     public var amount: Decimal
-    public var kind: Expense.Kind
+    /// Al voltear entre gasto e ingreso, la categoría salta al catálogo que
+    /// corresponde — mismo criterio que `EditExpenseModel` (ADR-0040).
+    public var kind: Expense.Kind {
+        didSet {
+            guard kind != oldValue else { return }
+            category = EditExpenseModel.defaultCategory(for: kind)
+            subcategory = ""
+        }
+    }
+
     public var category: String
     public var subcategory: String
     public var dayOfMonth: Int
-    /// Con qué se paga — solo aplica a gastos, igual que `category`.
+    /// Con qué se paga — solo aplica a gastos. Un ingreso no se paga con nada
+    /// (Docs/CLAUDE.md), a diferencia de la categoría, que ahora sí lleva.
     public var paymentMethod: PaymentMethod
     public private(set) var errorMessage: String?
     public private(set) var isSaving = false
@@ -31,6 +41,7 @@ public final class AddRecurringItemModel: Identifiable {
     /// `nil` mientras se está creando un ítem nuevo.
     private let editingItemID: RecurringItemID?
     private let lastRegisteredMonth: Date?
+    private let lastAutoRegisteredMonth: Date?
     private let recurringItemStore: any RecurringItemStore
     private let store: any ExpenseStore
     private let currency: Currency
@@ -51,10 +62,11 @@ public final class AddRecurringItemModel: Identifiable {
         self.cards = cards
         editingItemID = item?.id
         lastRegisteredMonth = item?.lastRegisteredMonth
+        lastAutoRegisteredMonth = item?.lastAutoRegisteredMonth
         name = item?.name ?? ""
         amount = item?.amount.amount ?? 0
         kind = item?.kind ?? .expense
-        category = item?.category ?? SuggestedCategory.otro.rawValue
+        category = item?.category ?? EditExpenseModel.defaultCategory(for: item?.kind ?? .expense)
         subcategory = item?.subcategory ?? ""
         dayOfMonth = item?.dayOfMonth ?? 1
         paymentMethod = item?.paymentMethod ?? .cash
@@ -91,7 +103,8 @@ public final class AddRecurringItemModel: Identifiable {
                 subcategory: subcategory.isEmpty ? nil : subcategory,
                 dayOfMonth: dayOfMonth,
                 paymentMethod: kind == .expense ? paymentMethod : nil,
-                lastRegisteredMonth: lastRegisteredMonth)
+                lastRegisteredMonth: lastRegisteredMonth,
+                lastAutoRegisteredMonth: lastAutoRegisteredMonth)
             try await recurringItemStore.save(item)
             return true
         } catch {

@@ -54,17 +54,19 @@ public final class PaymentMethodDetailModel {
     /// Las tarjetas guardadas — para resolver alias en `cardTotals`.
     public private(set) var cards: [Card] = []
 
-    private let dashboard: DashboardModel
+    private let source: any ExpenseProviding
     private let cardStore: any CardStore
 
     /// - Parameters:
     ///   - label: la forma de pago a filtrar (ya como etiqueta, no `PaymentMethod`).
-    ///   - dashboard: de dónde salen los gastos del mes vigente — el mismo
-    ///     modelo que ya está en pantalla, nunca una copia propia.
+    ///   - source: de dónde salen los gastos del periodo vigente — el mismo
+    ///     modelo que ya está en pantalla, nunca una copia propia. Es el
+    ///     Dashboard cuando se entra desde el mes y la vista anual cuando se
+    ///     entra desde el año.
     ///   - cardStore: de dónde se leen las tarjetas, para mostrar con cuál se pagó cada cosa.
-    public init(label: String, dashboard: DashboardModel, cardStore: any CardStore) {
+    init(label: String, source: any ExpenseProviding, cardStore: any CardStore) {
         self.label = label
-        self.dashboard = dashboard
+        self.source = source
         self.cardStore = cardStore
     }
 
@@ -81,18 +83,18 @@ public final class PaymentMethodDetailModel {
         isLoading = false
     }
 
-    /// Los gastos pagados con esta forma de pago, dentro del mes.
+    /// Los gastos pagados con esta forma de pago, dentro del periodo.
     public var expenses: [Expense] {
-        dashboard.expenses
+        source.expenses
             .filter { $0.kind == .expense && DashboardModel.paymentMethodLabel($0.paymentMethod) == label }
     }
 
-    /// Ver el mismo campo en `DashboardModel` — nunca su propia copia.
+    /// Ver el mismo campo en el modelo del que deriva — nunca su propia copia.
     public var viewerIdentities: [SharedListID: ParticipantID] {
-        dashboard.viewerIdentities
+        source.viewerIdentities
     }
 
-    /// Cuánto se gastó en total, con esta forma de pago, este mes — la
+    /// Cuánto se gastó en total, con esta forma de pago, en el periodo — la
     /// parte real de quien mira, no el total de un gasto compartido
     /// (`Expense.personalAmount`).
     public var total: Decimal {
@@ -118,7 +120,7 @@ public final class PaymentMethodDetailModel {
 
     /// Los gastos de esta forma de pago, agrupados por día.
     public var daySections: [DaySection] {
-        expenses.groupedByDay(calendar: dashboard.calendar)
+        expenses.groupedByDay(calendar: source.calendar)
     }
 
     /// El desglose por tarjeta, de mayor a menor — vacío para "efectivo" y

@@ -26,6 +26,9 @@ struct ResolvedTransaction: Sendable {
     let split: SplitRule?
     /// Solo para `kind == .cardPayment`: a qué tarjeta se le pagó.
     let cardID: CardID?
+    /// El recurrente del que salió (ADR-0042). Ninguna corrección lo toca:
+    /// editar el monto o la fecha sigue siendo "el sueldo de este mes".
+    let recurringItemID: RecurringItemID?
     let needsReview: Bool
     let isVoided: Bool
 
@@ -42,6 +45,7 @@ struct ResolvedTransaction: Sendable {
         payer = added.payer
         split = added.split
         cardID = nil
+        recurringItemID = added.recurringItemID
         needsReview = added.needsReview
         isVoided = false
     }
@@ -51,14 +55,15 @@ struct ResolvedTransaction: Sendable {
         kind = .income
         amount = added.amount
         concept = added.concept
-        category = nil
-        subcategory = nil
+        category = added.category
+        subcategory = added.subcategory
         date = added.date
         paymentMethod = nil
         sharedListID = nil
         payer = nil
         split = nil
         cardID = nil
+        recurringItemID = added.recurringItemID
         needsReview = added.needsReview
         isVoided = false
     }
@@ -76,6 +81,7 @@ struct ResolvedTransaction: Sendable {
         payer = nil
         split = nil
         cardID = payment.cardID
+        recurringItemID = nil
         needsReview = false
         isVoided = false
     }
@@ -93,6 +99,7 @@ struct ResolvedTransaction: Sendable {
         payer: ParticipantID?,
         split: SplitRule?,
         cardID: CardID?,
+        recurringItemID: RecurringItemID?,
         needsReview: Bool,
         isVoided: Bool) {
         self.id = id
@@ -107,6 +114,7 @@ struct ResolvedTransaction: Sendable {
         self.payer = payer
         self.split = split
         self.cardID = cardID
+        self.recurringItemID = recurringItemID
         self.needsReview = needsReview
         self.isVoided = isVoided
     }
@@ -133,6 +141,7 @@ struct ResolvedTransaction: Sendable {
             payer: resolvedPayer,
             split: resolvedSplit,
             cardID: cardID,
+            recurringItemID: recurringItemID,
             needsReview: correction.needsReview ?? needsReview,
             isVoided: isVoided)
     }
@@ -151,6 +160,7 @@ struct ResolvedTransaction: Sendable {
             payer: payer,
             split: split,
             cardID: cardID,
+            recurringItemID: recurringItemID,
             needsReview: needsReview,
             isVoided: true)
     }

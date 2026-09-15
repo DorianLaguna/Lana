@@ -122,7 +122,8 @@ enum LanaManagedObjectModel {
             attribute("dayOfMonth", type: .integer16AttributeType),
             attribute("paymentMethodKind", type: .stringAttributeType),
             attribute("paymentMethodCardID", type: .UUIDAttributeType),
-            attribute("lastRegisteredMonth", type: .dateAttributeType)
+            attribute("lastRegisteredMonth", type: .dateAttributeType),
+            attribute("lastAutoRegisteredMonth", type: .dateAttributeType)
         ]
         return recurringItem
     }

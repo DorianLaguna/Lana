@@ -86,7 +86,7 @@ public struct CategoryDetailView: View {
         sharedListStore: InMemorySharedListStore())
     return NavigationStack {
         CategoryDetailView(
-            model: CategoryDetailModel(category: "despensa", dashboard: dashboard),
+            model: CategoryDetailModel(category: "despensa", source: dashboard),
             onExpenseTap: { _ in })
     }
     .task { await dashboard.onAppear() }

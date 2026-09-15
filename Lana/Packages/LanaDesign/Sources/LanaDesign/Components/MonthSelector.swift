@@ -1,7 +1,11 @@
-import LanaDesign
 import SwiftUI
 
-/// "Navegación entre meses" (Docs/PLAN.md → Fase 6).
+/// Navegación entre meses: ‹ mes ›.
+///
+/// Vive en `LanaDesign` —y no en la feature donde nació, el Dashboard— porque
+/// el Análisis también deja elegir qué mes ver, y las features no pueden
+/// importarse entre sí (Docs/ARCHITECTURE.md). Solo recibe primitivos, igual
+/// que `TransactionRow`: no conoce el dominio.
 public struct MonthSelector: View {
     @Environment(\.lana) private var lana
 

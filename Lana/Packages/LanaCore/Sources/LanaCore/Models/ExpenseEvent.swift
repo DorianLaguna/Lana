@@ -15,6 +15,10 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
     public let sharedListID: SharedListID?
     public let payer: ParticipantID?
     public let split: SplitRule?
+    /// El recurrente del que salió, si salió de uno (ADR-0042). Opcional
+    /// por compatibilidad: los eventos ya guardados no lo traen y
+    /// decodifican como `nil` (mismo razonamiento que `IncomeAdded.category`).
+    public let recurringItemID: RecurringItemID?
     /// Lo capturado automáticamente (Apple Pay, OCR de tickets) entra con
     /// `true` — nunca como dato confirmado (Docs/CLAUDE.md).
     public let needsReview: Bool
@@ -32,6 +36,7 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
         sharedListID: SharedListID? = nil,
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
+        recurringItemID: RecurringItemID? = nil,
         needsReview: Bool = false,
         recordedAt: Date = Date()) {
         self.id = id
@@ -45,6 +50,7 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
         self.sharedListID = sharedListID
         self.payer = payer
         self.split = split
+        self.recurringItemID = recurringItemID
         self.needsReview = needsReview
         self.recordedAt = recordedAt
     }
@@ -56,7 +62,24 @@ public struct IncomeAdded: Sendable, Hashable, Codable, Identifiable {
     public let amount: Money
     public let exchangeRate: ExchangeRate?
     public let concept: String
+    /// De dónde vino el dinero (`IncomeCategory`), o `nil` si nadie lo dijo
+    /// todavía — lo capturado por voz entra sin categoría, porque el parser no
+    /// clasifica ingresos (ADR-0040).
+    ///
+    /// **Opcional a propósito, y no solo por eso.** Los eventos son inmutables
+    /// y el payload se guarda como JSON (`CDEvent.payload`): un campo nuevo que
+    /// no sea opcional haría fallar la decodificación de todos los ingresos ya
+    /// guardados, que no lo traen. Siendo opcional, los viejos decodifican como
+    /// `nil` y no hace falta migrar nada.
+    public let category: String?
+    /// La subcategoría abierta, igual que en un gasto (ADR-0011). Mismo
+    /// razonamiento de compatibilidad que `category`.
+    public let subcategory: String?
     public let date: Date
+    /// El recurrente del que salió, si salió de uno — un sueldo registrado
+    /// desde "Recurrentes" (ADR-0042). Mismo razonamiento de compatibilidad
+    /// que `category`.
+    public let recurringItemID: RecurringItemID?
     public let needsReview: Bool
     public let recordedAt: Date
 
@@ -65,14 +88,20 @@ public struct IncomeAdded: Sendable, Hashable, Codable, Identifiable {
         amount: Money,
         exchangeRate: ExchangeRate? = nil,
         concept: String,
+        category: String? = nil,
+        subcategory: String? = nil,
         date: Date,
+        recurringItemID: RecurringItemID? = nil,
         needsReview: Bool = false,
         recordedAt: Date = Date()) {
         self.id = id
         self.amount = amount
         self.exchangeRate = exchangeRate
         self.concept = concept
+        self.category = category
+        self.subcategory = subcategory
         self.date = date
+        self.recurringItemID = recurringItemID
         self.needsReview = needsReview
         self.recordedAt = recordedAt
     }

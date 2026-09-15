@@ -130,14 +130,16 @@ public final class CardDetailModel {
     }
 
     /// El desglose por categoría de los cargos del ciclo vigente.
+    ///
+    /// - Important: aquí cuenta el **monto completo** del cargo, no la parte
+    ///   de quien mira — y por eso se construye sin `viewerIdentities`, que es
+    ///   justo lo que hace a `personalAmount` regresar el total. Un gasto
+    ///   compartido pagado con esta tarjeta se le debe completo al banco, sin
+    ///   importar cómo se reparta después entre personas: son dos ledgers
+    ///   separados y no se mezclan (Docs/CLAUDE.md). Contar aquí la mitad
+    ///   diría que se debe menos de lo que va a llegar en el estado de cuenta.
     public var categoryTotals: [CategoryTotal] {
-        var totals: [String: Decimal] = [:]
-        for expense in expenses {
-            totals[expense.category ?? "otro", default: 0] += expense.amount.amount
-        }
-        return totals
-            .map { CategoryTotal(category: $0.key, amount: $0.value, currency: card.limit?.currency ?? .mxn) }
-            .sorted { $0.amount > $1.amount }
+        PeriodStatistics(expenses: expenses).categoryTotals
     }
 
     /// Los cargos a esta tarjeta, agrupados por día.

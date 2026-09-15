@@ -35,16 +35,22 @@ Esto no es ceremonia. Tiene tres consecuencias concretas:
                    └─────▲─────┘
                          │ implementan sus protocolos
      ┌───────────────────┼──────────────────┐
-     ▼                   ▼                  ▼
-┌──────────┐    ┌────────────────┐   ┌──────────────┐
-│LanaParsing│   │LanaPersistence │   │LanaPurchases │
-└──────────┘    └────────────────┘   └──────────────┘
+     ▼             ▼            ▼            ▼           ▼
+┌──────────┐ ┌───────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────┐
+│LanaParsing│ │LanaInsights│ │LanaPersistence│ │LanaSpeech│ │LanaPur- │
+│          │ │           │ │              │ │          │ │chases   │
+└──────────┘ └───────────┘ └──────────────┘ └──────────┘ └─────────┘
 ```
 
 **Reglas:**
 - `LanaCore` importa únicamente `Foundation`.
-- Las implementaciones (`Parsing`, `Persistence`, `Purchases`) importan `LanaCore`
-  y su framework de Apple. Nada más.
+- Las implementaciones (`Parsing`, `Insights`, `Persistence`, `Speech`,
+  `Purchases`) importan `LanaCore` y su framework de Apple. Nada más.
+- `LanaParsing` y `LanaInsights` usan las dos `FoundationModels`, pero son
+  paquetes separados a propósito (ADR-0036): uno extrae datos de texto libre, el
+  otro narra cifras ya calculadas. Cada uno traduce por su lado la
+  disponibilidad del modelo a `LanaCore.ParsingAvailability`, para que ninguna
+  feature tenga que importar `FoundationModels`.
 - Las features importan `LanaCore` y `LanaDesign`. **Nunca** una implementación
   concreta, y **nunca** otra feature.
 - Solo `App` conoce las implementaciones concretas, y solo para inyectarlas.
@@ -118,6 +124,10 @@ en el mismo paquete, marcada para uso en tests y previews.
 `App/AppDependencies.swift` es el único lugar donde se decide qué implementación
 se usa. Se inyecta por el environment de SwiftUI.
 
+En producción se obtiene **siempre** con `shared()`, una sola instancia por proceso. La app
+y `AddTransactionIntent` corren en el mismo proceso, y dos instancias abrirían dos
+contenedores sobre el mismo store (ADR-0041).
+
 ```swift
 @Observable
 final class AppDependencies {
@@ -125,7 +135,8 @@ final class AppDependencies {
     let store: any ExpenseStore
     let purchases: any PurchaseGating
 
-    static func live() -> AppDependencies { /* implementaciones reales */ }
+    static func shared() async throws -> AppDependencies { /* carga live() una vez */ }
+    static func live() async throws -> AppDependencies { /* implementaciones reales */ }
     static func preview() -> AppDependencies { /* implementaciones falsas */ }
 }
 ```

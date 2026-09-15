@@ -1,6 +1,6 @@
 # ADR-0015: Captura por voz on-device, con parada manual
 
-- **Estado:** Aceptada
+- **Estado:** Superseded por ADR-0043
 - **Fecha:** 2026-08-26
 
 ## Contexto

@@ -100,6 +100,44 @@ extension CoreDataExpenseStoreTests {
         #expect(results.first?.lastRegisteredMonth == monthStart)
     }
 
+    @Test("El mes del registro automático hace round-trip")
+    func mesDelRegistroAutomaticoHaceRoundTrip() async throws {
+        let store = try await makeStore()
+        let monthStart = Date(timeIntervalSince1970: 1_754_006_400) // 2025-08-01
+        let item = try RecurringItem(
+            name: "Sueldo",
+            amount: Money(amount: 15000, currency: .mxn),
+            kind: .income,
+            dayOfMonth: 15,
+            lastAutoRegisteredMonth: monthStart)
+
+        try await store.save(item)
+        let results = try await store.items()
+
+        #expect(results.first?.lastAutoRegisteredMonth == monthStart)
+    }
+
+    @Test("Un movimiento guarda de qué recurrente salió, también después de corregirlo")
+    func movimientoGuardaSuRecurrente() async throws {
+        let store = try await makeStore()
+        let itemID = RecurringItemID()
+        var expense = Expense(
+            kind: .income,
+            amount: Money(amount: 15000, currency: .mxn),
+            concept: "Sueldo",
+            date: Date(timeIntervalSince1970: 1_755_216_000),
+            recurringItemID: itemID)
+        try await store.save(expense)
+
+        expense.amount = Money(amount: 15500, currency: .mxn)
+        try await store.save(expense)
+
+        let results = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(results.count == 1)
+        #expect(results.first?.recurringItemID == itemID)
+        #expect(results.first?.amount.amount == 15500)
+    }
+
     @Test("Borrar quita el recurrente del store")
     func recurrenteBorrarLoQuita() async throws {
         let store = try await makeStore()

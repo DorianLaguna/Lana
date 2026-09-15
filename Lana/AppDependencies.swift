@@ -1,6 +1,7 @@
 import CardsFeature
 import Foundation
 import LanaCore
+import LanaInsights
 import LanaParsing
 import LanaPersistence
 import LanaSpeech
@@ -22,6 +23,15 @@ final class AppDependencies {
     let speech: any SpeechTranscribing
     let purchases: any PurchaseGating
     let syncStatus: any SyncStatusReporting
+    /// Etiqueta tipos de gasto como Necesidad/Deseo/Ahorro para el análisis.
+    /// Nunca ve montos: el código suma (`BudgetMix`, ADR-0037).
+    let classifier: any SpendingClassifying
+    /// Redacta el análisis a partir de cifras ya calculadas, y propone una
+    /// regla de presupuesto del catálogo cerrado.
+    let narrator: any InsightNarrating
+    /// Contesta preguntas en lenguaje natural llamando a cálculos
+    /// deterministas (`LedgerToolbox`). El modelo nunca ve el historial crudo.
+    let querying: any InsightQuerying
     /// Mismo objeto que `store`/`cardStore`/`sharedListStore` en `.live()`,
     /// `nil` en `.preview()` — lo único que lo necesita es
     /// `AppDelegate.attach(store:)`, para aceptar invitaciones de `CKShare`
@@ -39,6 +49,9 @@ final class AppDependencies {
         speech: any SpeechTranscribing,
         purchases: any PurchaseGating,
         syncStatus: any SyncStatusReporting,
+        classifier: any SpendingClassifying,
+        narrator: any InsightNarrating,
+        querying: any InsightQuerying,
         concreteExpenseStore: CoreDataExpenseStore?) {
         self.parser = parser
         self.store = store
@@ -50,10 +63,43 @@ final class AppDependencies {
         self.speech = speech
         self.purchases = purchases
         self.syncStatus = syncStatus
+        self.classifier = classifier
+        self.narrator = narrator
+        self.querying = querying
         self.concreteExpenseStore = concreteExpenseStore
     }
 
-    /// Las implementaciones reales. `Lana.entitlements` ya tiene un
+    /// La carga en curso o terminada de `live()`, compartida por todo el
+    /// proceso. Se guarda la `Task` y no la instancia para que dos llamadas
+    /// que lleguen mientras la primera aún carga esperen a la misma.
+    private static var sharedLoad: Task<AppDependencies, Error>?
+
+    /// Las dependencias reales, creadas una sola vez por proceso. Es lo que
+    /// usan la app y `AddTransactionIntent`, que corren en el mismo proceso:
+    /// si cada uno llamara `live()`, el intent abriría un segundo
+    /// `NSPersistentCloudKitContainer` sobre el mismo `.sqlite` mientras la app
+    /// sigue viva en segundo plano, y el guardado fallaba solo en ese caso
+    /// (ADR-0041). Si la carga falla, no se cachea: la siguiente llamada
+    /// reintenta.
+    static func shared() async throws -> AppDependencies {
+        if let sharedLoad {
+            return try await sharedLoad.value
+        }
+        let load = Task { try await live() }
+        sharedLoad = load
+        do {
+            return try await load.value
+        } catch {
+            if sharedLoad == load {
+                sharedLoad = nil
+            }
+            throw error
+        }
+    }
+
+    /// Las implementaciones reales. Fuera de `shared()`, no se llama: una
+    /// segunda instancia en el mismo proceso abre un segundo contenedor sobre
+    /// el mismo store (ADR-0041). `Lana.entitlements` ya tiene un
     /// contenedor de iCloud provisionado (ADR-0020) — con una cuenta de
     /// iCloud activa en el dispositivo, `CoreDataExpenseStore.live` sincroniza
     /// de verdad; sin ella, cae a local sin romper nada
@@ -87,6 +133,14 @@ final class AppDependencies {
             speech: AppleSpeechTranscribing(),
             purchases: InMemoryPurchaseGating(isUnlocked: true),
             syncStatus: CloudSyncMonitor(containerIdentifier: "iCloud.com.dorianlaguna.Lana"),
+            classifier: FoundationModelsSpendingClassifying(),
+            narrator: FoundationModelsInsightNarrating(),
+            querying: FoundationModelsInsightQuerying(
+                store: store,
+                sharedListStore: store,
+                cardStore: store,
+                cardPaymentStore: store,
+                recurringItemStore: store),
             concreteExpenseStore: store)
     }
 
@@ -112,6 +166,9 @@ final class AppDependencies {
             speech: InMemorySpeechTranscribing(),
             purchases: InMemoryPurchaseGating(isUnlocked: true),
             syncStatus: InMemorySyncStatusReporting(.synced(lastSuccess: .now)),
+            classifier: InMemorySpendingClassifying(),
+            narrator: InMemoryInsightNarrating(),
+            querying: InMemoryInsightQuerying(),
             concreteExpenseStore: nil)
     }
 }

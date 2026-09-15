@@ -30,6 +30,18 @@ struct GuiaApplePayContentPresenceTests {
         #expect(textoDePasos.contains(tituloExacto))
     }
 
+    /// El mapeo de parámetros (R2.3) cuelga de exactamente un paso: el que
+    /// agrega la acción de Lana, que es donde se conectan los datos. Antes la
+    /// vista lo deducía buscando una frase dentro del `detail`, así que
+    /// reescribir el copy lo borraba de la guía sin romper nada; ahora es un
+    /// dato, y esta prueba es la que se cae si alguien lo pierde o lo duplica.
+    @Test("Exactamente un paso lleva el mapeo de parámetros, y es el de la acción de Lana")
+    func unSoloPasoLlevaElMapeoDeParametros() {
+        let conMapeo = content.shortcutSteps.filter(\.attachesParameterMapping)
+        #expect(conMapeo.count == 1)
+        #expect(conMapeo.first?.detail.contains("Agregar transacción de Apple Pay") == true)
+    }
+
     // R2.4: crear una automatización independiente por cada tarjeta.
     @Test("R2.4 · Los pasos indican una automatización por cada tarjeta")
     func indicaUnaAutomatizacionPorTarjeta() {
@@ -57,14 +69,30 @@ struct GuiaApplePayContentPresenceTests {
         #expect(content.matching.mismatchGuidance.contains("Nombre en Wallet"))
     }
 
-    // R3.3: si nada empareja, revisar alias, Nombre en Wallet y últimos 4
-    // dígitos.
-    @Test("R3.3 · La guía de no-match referencia alias, Nombre en Wallet y últimos 4 dígitos")
-    func noMatchReferenciaAliasNombreYUltimos4() {
+    // R3.3: si nada se registró, revisar los datos de emparejamiento de la
+    // tarjeta — Nombre en Wallet y últimos 4 dígitos.
+    @Test("R3.3 · La guía de no-match referencia Nombre en Wallet y últimos 4 dígitos")
+    func noMatchReferenciaNombreYUltimos4() {
         let guia = content.matching.noMatchGuidance
-        #expect(guia.contains("alias"))
         #expect(guia.contains("Nombre en Wallet"))
         #expect(guia.contains("últimos 4"))
+    }
+
+    /// Dónde encontrar el nombre de la tarjeta en Wallet — el dato de entrada
+    /// para «Nombre en Wallet». Son pasos numerados (no está a la vista, vive
+    /// tras «Detalles de la tarjeta»): deben tener ids 1-based consecutivos,
+    /// pasar por Detalles de la tarjeta y terminar nombrando el campo destino.
+    @Test("Los pasos de «cómo se llama en Wallet» están numerados y cubren el camino")
+    func findNameStepsNumeradosYCubrenElCamino() {
+        let steps = content.matching.findNameSteps
+        #expect(steps.count >= 2)
+        // Ids 1-based consecutivos, como los pasos de Atajos.
+        #expect(steps.map(\.id) == Array(1 ... steps.count))
+
+        let texto = steps.map { "\($0.title) \($0.detail)" }.joined(separator: " ")
+        #expect(texto.contains("Cartera") || texto.contains("Wallet"))
+        #expect(texto.contains("Detalles de la tarjeta"))
+        #expect(texto.contains("Nombre en Wallet"))
     }
 
     /// R5.1 / R5.2: los mensajes de dispositivo físico y simulador no están

@@ -133,7 +133,11 @@ struct AddTransactionIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let dependencies: AppDependencies
         do {
-            dependencies = try await AppDependencies.live()
+            // `shared()`, nunca `live()`: si la app sigue viva en segundo
+            // plano, ya tiene el store abierto, y un segundo contenedor sobre
+            // el mismo archivo es lo que hacía fallar la captura "a veces"
+            // (ADR-0041).
+            dependencies = try await AppDependencies.shared()
         } catch {
             throw AddTransactionIntentError.setupFailed(error.localizedDescription)
         }

@@ -38,11 +38,7 @@ public struct AddRecurringItemView: View {
     /// texto libre, a propósito, para no frenar una captura rápida), aquí
     /// vale la pena un dropdown cerrado: se llena una sola vez.
     private var categoryPicker: some View {
-        Picker("Categoría", selection: $model.category) {
-            ForEach(SuggestedCategory.allCases) { category in
-                Text(category.displayName).tag(category.rawValue)
-            }
-        }
+        CategoryPicker(kind: model.kind, category: $model.category)
     }
 
     /// Mismo patrón que `EditExpenseView.subcategoryPicker` — sin opción
@@ -136,10 +132,10 @@ public struct AddRecurringItemView: View {
                         quickNameOptions
                     }
                     LanaTextField("Nombre", text: $model.name)
-                    if model.kind == .expense {
-                        categoryPicker
-                        subcategoryPicker
-                    }
+                    // Un sueldo recurrente puede decir que es sueldo
+                    // (ADR-0040), y cada ocurrencia que se registre lo hereda.
+                    categoryPicker
+                    subcategoryPicker
                 }
 
                 Section {

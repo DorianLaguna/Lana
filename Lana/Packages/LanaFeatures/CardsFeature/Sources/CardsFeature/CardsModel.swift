@@ -35,26 +35,52 @@ public final class CardsModel {
     /// después de guardar podía terminar operando sobre una instancia ya
     /// reemplazada por una en blanco.
     public private(set) var currentCardDetailModel: CardDetailModel?
+    /// `true` cuando el usuario ya recorrió la guía de Apple Pay hasta
+    /// confirmarla. Solo cambia cómo se presenta la entrada en Tarjetas —de
+    /// tarjeta con degradado a fila discreta—, nunca afirma que la captura
+    /// automática esté funcionando: Lana no puede verificar que la
+    /// automatización de Atajos exista (no hay API pública, ver
+    /// `ApplePayEnvironmentProbe`), y decir "activado" sería mentir.
+    public private(set) var hasSeenApplePayGuide: Bool
 
     private let cardStore: any CardStore
     private let store: any ExpenseStore
     private let cardPaymentStore: any CardPaymentStore
     private let calendar: Calendar
+    private let userDefaults: UserDefaults
+
+    /// Dónde vive la bandera de la guía. Pública porque el target de la app
+    /// también la escribe al terminar el onboarding —ahí la guía se confirma
+    /// antes de que este modelo exista— y duplicar el literal en dos módulos
+    /// es cómo se desincronizan.
+    public static let applePayGuideSeenDefaultsKey = "lana.applePayGuideSeen"
 
     /// - Parameters:
     ///   - cardStore: dónde se guardan y leen las tarjetas.
     ///   - store: de dónde se leen los gastos, para el detalle de cada tarjeta.
     ///   - cardPaymentStore: de dónde se leen los eventos crudos que
     ///     `CardLedger` necesita para calcular deuda total.
+    ///   - userDefaults: dónde se persiste si la guía de Apple Pay ya se vio.
     public init(
         cardStore: any CardStore,
         store: any ExpenseStore,
         cardPaymentStore: any CardPaymentStore,
-        calendar: Calendar = .current) {
+        calendar: Calendar = .current,
+        userDefaults: UserDefaults = .standard) {
         self.cardStore = cardStore
         self.store = store
         self.cardPaymentStore = cardPaymentStore
         self.calendar = calendar
+        self.userDefaults = userDefaults
+        hasSeenApplePayGuide = userDefaults.bool(forKey: Self.applePayGuideSeenDefaultsKey)
+    }
+
+    /// La guía se recorrió hasta el final y se confirmó. Persiste de
+    /// inmediato: la entrada en Tarjetas tiene que bajar de volumen también
+    /// tras relanzar la app.
+    public func markApplePayGuideSeen() {
+        hasSeenApplePayGuide = true
+        userDefaults.set(true, forKey: Self.applePayGuideSeenDefaultsKey)
     }
 
     /// Carga las tarjetas y su deuda vigente. Se llama cuando la pantalla aparece.

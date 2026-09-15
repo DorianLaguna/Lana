@@ -16,12 +16,26 @@ public struct GuiaStep: Sendable, Equatable, Identifiable {
     public let title: String
     public let detail: String
     public let systemImage: String
+    /// Este paso lleva colgado el mapeo de parámetros (R2.3) — el que agrega
+    /// la acción de Lana, donde el usuario conecta cada dato de Wallet.
+    ///
+    /// Es un dato y no una deducción del texto: la vista lo detectaba
+    /// buscando una frase dentro de `detail`, así que reescribir el copy
+    /// borraba de la guía el mapeo que ADR-0033 marca como imprescindible,
+    /// en silencio y sin romper ninguna prueba.
+    public let attachesParameterMapping: Bool
 
-    public init(id: Int, title: String, detail: String, systemImage: String) {
+    public init(
+        id: Int,
+        title: String,
+        detail: String,
+        systemImage: String,
+        attachesParameterMapping: Bool = false) {
         self.id = id
         self.title = title
         self.detail = detail
         self.systemImage = systemImage
+        self.attachesParameterMapping = attachesParameterMapping
     }
 }
 
@@ -85,6 +99,13 @@ public struct MatchingExplanation: Sendable, Equatable {
     /// Señales en orden de prioridad: últimos 4 dígitos primero, luego
     /// alias / nombre en Wallet (R3.1).
     public let prioritySignals: [MatchSignal]
+    /// Los pasos concretos para encontrar el nombre con el que Wallet reporta
+    /// la tarjeta — el dato que hay que registrar en «Nombre en Wallet». Son
+    /// pasos numerados (no un párrafo) porque el nombre no está a la vista:
+    /// vive detrás de «Detalles de la tarjeta», y un texto corrido dejaba al
+    /// usuario sin saber dónde tocar. Es el hueco real de la guía: sabía QUÉ
+    /// registrar, no DÓNDE verlo.
+    public let findNameSteps: [GuiaStep]
     /// Qué hacer cuando el nombre en Wallet difiere del alias: registrar
     /// `walletMatchHint` (R3.2).
     public let mismatchGuidance: String
@@ -93,9 +114,11 @@ public struct MatchingExplanation: Sendable, Equatable {
 
     public init(
         prioritySignals: [MatchSignal],
+        findNameSteps: [GuiaStep],
         mismatchGuidance: String,
         noMatchGuidance: String) {
         self.prioritySignals = prioritySignals
+        self.findNameSteps = findNameSteps
         self.mismatchGuidance = mismatchGuidance
         self.noMatchGuidance = noMatchGuidance
     }
@@ -189,206 +212,4 @@ public struct GuiaApplePayContent: Sendable, Equatable {
         self.matching = matching
         self.limitations = limitations
     }
-}
-
-// MARK: - Standard content
-
-public extension GuiaApplePayContent {
-    /// El contenido real de producción — la única instancia que la app usa.
-    /// Todo el texto es en español (Docs/CONVENTIONS.md).
-    static let standard = GuiaApplePayContent(
-        deviceRequirement: DeviceRequirement(
-            physicalDeviceMessage: """
-            La captura automática de Apple Pay requiere un iPhone físico con al \
-            menos una tarjeta agregada a Wallet. Sin una tarjeta en Wallet, el \
-            disparador de Atajos nunca se activa.
-            """,
-            simulatorMessage: """
-            Esta función no puede probarse en el simulador de iOS: el simulador \
-            no permite agregar tarjetas a la Wallet, así que el pago con Apple \
-            Pay y su automatización no ocurren ahí. Prueba siempre en un \
-            dispositivo real.
-            """),
-        // R2.1: pasos numerados 1..n, consecutivos y ordenados. Cubren como
-        // mínimo abrir Atajos, crear automatización, seleccionar el disparador
-        // Wallet, agregar la acción del App Intent y guardar.
-        shortcutSteps: [
-            GuiaStep(
-                id: 1,
-                title: "Abre la app Atajos",
-                detail: """
-                Busca la app Atajos en tu iPhone y ábrela. Es la app de Apple \
-                donde se crean las automatizaciones.
-                """,
-                systemImage: "square.stack.3d.up"),
-            GuiaStep(
-                id: 2,
-                title: "Crea una automatización nueva",
-                detail: """
-                Ve a la pestaña Automatización y toca el botón para crear una \
-                automatización personal nueva.
-                """,
-                systemImage: "plus.circle"),
-            GuiaStep(
-                id: 3,
-                title: "Selecciona el disparador Wallet",
-                detail: """
-                Elige el disparador «Wallet» y selecciona la tarjeta cuyos \
-                pagos quieres capturar. Este disparador se activa cuando pagas \
-                por contacto (NFC) con esa tarjeta.
-                """,
-                systemImage: "creditcard"),
-            GuiaStep(
-                id: 4,
-                title: "Agrega la acción de Lana",
-                detail: """
-                En las acciones de la automatización, busca y agrega \
-                «Agregar transacción de Apple Pay» de Lana. Conecta el monto, \
-                el comercio y la tarjeta que entrega Wallet. Conecta además la \
-                MISMA variable de monto a «Monto como texto», y la transacción \
-                completa a «Transacción completa»: son respaldos, y sin ellos, \
-                si Wallet entrega el monto vacío, el pago no se registra.
-                """,
-                systemImage: "arrow.triangle.branch"),
-            GuiaStep(
-                id: 5,
-                title: "Configura para ejecutarse de inmediato",
-                detail: """
-                Desactiva «Preguntar antes de ejecutar» para que la \
-                automatización corra sola, sin pedir confirmación y sin abrir \
-                Lana. Así la transacción se captura en segundo plano.
-                """,
-                systemImage: "bolt"),
-            GuiaStep(
-                id: 6,
-                title: "Guarda la automatización",
-                detail: """
-                Guarda la automatización. Repite estos pasos creando una \
-                automatización independiente por cada tarjeta física que \
-                quieras capturar, nombrando cada una con su tarjeta.
-                """,
-                systemImage: "checkmark.circle")
-        ],
-        // Un mapeo por cada `@Parameter` de `AddTransactionIntent`, con su
-        // título textual — el usuario los busca en pantalla, así que
-        // aproximarlos no sirve. La variable de monto aparece dos veces a
-        // propósito: alimenta el campo numérico y el de respaldo (ADR-0033).
-        parameterMappings: [
-            ParameterMapping(
-                walletParameter: .amount,
-                intentParameter: .amount,
-                walletLabel: "Cantidad pago",
-                intentLabel: "Monto"),
-            ParameterMapping(
-                walletParameter: .amount,
-                intentParameter: .amountText,
-                walletLabel: "Cantidad pago (la misma)",
-                intentLabel: "Monto como texto"),
-            ParameterMapping(
-                walletParameter: .fullTransaction,
-                intentParameter: .fullTransaction,
-                walletLabel: "Transacción",
-                intentLabel: "Transacción completa"),
-            ParameterMapping(
-                walletParameter: .merchant,
-                intentParameter: .merchant,
-                walletLabel: "Comercio",
-                intentLabel: "Comercio"),
-            ParameterMapping(
-                walletParameter: .cardName,
-                intentParameter: .cardName,
-                walletLabel: "Tarjeta o pase",
-                intentLabel: "Tarjeta (como la nombra Wallet)")
-        ],
-        // R3.1: señales en orden de prioridad, últimos 4 dígitos primero
-        // (índice 0), luego alias / NombreEnWallet.
-        matching: MatchingExplanation(
-            prioritySignals: [
-                MatchSignal(
-                    id: 0,
-                    name: "Últimos 4 dígitos",
-                    explanation: """
-                    Lana empareja primero por los últimos 4 dígitos de la \
-                    tarjeta que reporta Wallet. Es la señal de mayor prioridad \
-                    y la más confiable.
-                    """),
-                MatchSignal(
-                    id: 1,
-                    name: "Alias o Nombre en Wallet",
-                    explanation: """
-                    Si los dígitos no coinciden, Lana compara el nombre que \
-                    reporta Wallet contra el alias de la tarjeta. Si le \
-                    registraste un «Nombre en Wallet», usa ese EN LUGAR del \
-                    alias, no además: déjalo vacío si el alias ya coincide.
-                    """)
-            ],
-            // R3.2: si el nombre en Wallet difiere del alias, registrar el
-            // campo NombreEnWallet (walletMatchHint) en Ajustes → Tarjetas.
-            mismatchGuidance: """
-            Si el nombre que Wallet reporta para tu tarjeta es distinto del \
-            alias visible en Lana, abre Ajustes → Tarjetas y escribe ese \
-            nombre exacto en el campo «Nombre en Wallet». Ojo: al llenarlo, \
-            ese campo reemplaza al alias para emparejar, así que una errata \
-            ahí rompe un emparejamiento que antes funcionaba.
-            """,
-            // R3.3: si nada empareja, revisar alias, NombreEnWallet y
-            // últimos 4 dígitos en Ajustes → Tarjetas.
-            noMatchGuidance: """
-            Si ninguna tarjeta empareja con lo que reporta Wallet, la \
-            automatización falla y no se registra el pago. Revisa en \
-            Ajustes → Tarjetas el alias, el Nombre en Wallet y los últimos 4 \
-            dígitos de tus tarjetas para corregir el emparejamiento.
-            """),
-        // R4.1–R4.6: exactamente una entrada por cada uno de los seis casos.
-        limitations: [
-            KnownLimitation(
-                kind: .nfcOnly,
-                message: """
-                Solo se capturan automáticamente los pagos por contacto (NFC) \
-                con el iPhone. Las compras hechas en el navegador no se \
-                capturan por esta vía y debes registrarlas manualmente.
-                """),
-            KnownLimitation(
-                kind: .needsReview,
-                message: """
-                Toda transacción capturada por esta vía entra marcada para \
-                revisión (needsReview) y requiere que la revises manualmente \
-                antes de considerarla confirmada.
-                """),
-            KnownLimitation(
-                kind: .rejectedTx,
-                message: """
-                El disparador de Wallet puede registrar pagos que en realidad \
-                fueron rechazados, por fallas conocidas del propio disparador.
-                """),
-            KnownLimitation(
-                kind: .duplicateTx,
-                message: """
-                El disparador de Wallet puede registrar transacciones \
-                duplicadas, por fallas conocidas del propio disparador.
-                """),
-            KnownLimitation(
-                kind: .reviewEach,
-                message: """
-                Por esas fallas conocidas, revisa cada transacción capturada: \
-                confirma que el monto, el comercio y la tarjeta sean correctos \
-                y descarta las rechazadas o duplicadas.
-                """),
-            KnownLimitation(
-                kind: .emptyWalletVariables,
-                message: """
-                A veces Wallet entrega el monto o el comercio vacíos al \
-                momento del pago. Cuando falta el monto no se registra nada, \
-                y el aviso aparece en la app Atajos, no en Lana. Por eso vale \
-                la pena conectar «Monto como texto» y «Transacción completa»: \
-                son los respaldos con los que Lana puede rescatar el dato.
-                """),
-            KnownLimitation(
-                kind: .manualIsPrimary,
-                message: """
-                La captura automática es solo una conveniencia. La captura \
-                manual sigue siendo el camino principal y obligatorio para \
-                registrar tus gastos con certeza.
-                """)
-        ])
 }

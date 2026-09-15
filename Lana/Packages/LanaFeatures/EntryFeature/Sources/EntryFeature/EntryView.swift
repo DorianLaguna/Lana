@@ -10,9 +10,12 @@ public struct EntryView: View {
     @Bindable private var model: EntryModel
     private let onOpenSettings: () -> Void
     private let onDone: () -> Void
-    /// `true` cuando se llega aquí desde el widget de Home Screen
-    /// (ADR-0018) — arranca a escuchar en cuanto la pantalla aparece, sin
-    /// esperar a que el usuario toque el micrófono.
+    /// Arranca a escuchar en cuanto la pantalla aparece, sin esperar a que
+    /// el usuario toque el micrófono de adentro. La app lo pasa siempre en
+    /// `true` — se llegue por el micrófono flotante o por el widget
+    /// (ADR-0018), quien abrió esta hoja ya dijo que quiere dictar. Sigue
+    /// siendo un parámetro para los `#Preview`, que no quieren pedir
+    /// permiso de micrófono al renderizarse.
     private let autoStartListening: Bool
 
     public init(
@@ -59,6 +62,7 @@ public struct EntryView: View {
         case .listening:
             ListeningView(
                 transcript: model.inputText,
+                preview: model.liveDrafts,
                 onStop: { Task { await model.stopListening() } },
                 onClear: { Task { await model.clearTranscript() } })
         case .reviewing, .saving:

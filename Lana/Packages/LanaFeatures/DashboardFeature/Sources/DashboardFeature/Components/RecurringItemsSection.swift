@@ -4,8 +4,8 @@ import LanaDesign
 import SwiftUI
 
 /// Ingresos y gastos recurrentes en el Dashboard — sueldo, renta,
-/// suscripciones. Cada fila se registra este mes con un toque; nunca se
-/// postea sola (`RecurringItem`).
+/// suscripciones. Cada fila dice si ya se registró este mes; lo pendiente se
+/// registra solo el día que vence, o antes con un toque (`RecurringItem`).
 public struct RecurringItemsSection: View {
     @Environment(\.lana) private var lana
     // Colapsado por default: con varios recurrentes dados de alta, la lista
@@ -13,19 +13,25 @@ public struct RecurringItemsSection: View {
     // abajo — el conteo ya dice lo esencial sin tener que desplegarla.
     @State private var isExpanded = false
     @State private var itemPendingDelete: RecurringItem?
+    @State private var itemPendingEarlyRegister: RecurringItem?
     private let items: [RecurringItem]
+    private let registrations: [RecurringItemID: RecurringItem.Registration]
     private let onAdd: () -> Void
     private let onEdit: (RecurringItem) -> Void
     private let onRegister: (RecurringItem) -> Void
     private let onDelete: (RecurringItem) -> Void
 
+    /// - Parameter registrations: qué recurrentes ya se registraron este mes;
+    ///   uno sin entrada sigue pendiente (`RecurringItemsModel.registrations`).
     public init(
         items: [RecurringItem],
+        registrations: [RecurringItemID: RecurringItem.Registration],
         onAdd: @escaping () -> Void,
         onEdit: @escaping (RecurringItem) -> Void,
         onRegister: @escaping (RecurringItem) -> Void,
         onDelete: @escaping (RecurringItem) -> Void) {
         self.items = items
+        self.registrations = registrations
         self.onAdd = onAdd
         self.onEdit = onEdit
         self.onRegister = onRegister
@@ -46,7 +52,7 @@ public struct RecurringItemsSection: View {
                 }
 
                 if items.isEmpty {
-                    Text("Agrega tu quincena, renta u otros pagos fijos, para registrarlos en un toque cada mes.")
+                    Text("Agrega tu quincena, renta u otros pagos fijos. Lana los registra sola el día que caen.")
                         .lanaFont(.caption)
                         .foregroundStyle(lana.textSecondary)
                 } else {
@@ -67,6 +73,31 @@ public struct RecurringItemsSection: View {
                     }
                 }
             }
+        }
+        // Registrar antes de tiempo fue justo lo que confundió: la palomita
+        // parecía un "¿ya pasó?" y en realidad registraba el movimiento con
+        // fecha de hoy. Preguntar solo cuando todavía no vence deja claro qué
+        // hace, sin estorbar cuando ya llegó.
+        .confirmationDialog(
+            itemPendingEarlyRegister.map(earlyRegisterTitle) ?? "",
+            isPresented: Binding(
+                get: { itemPendingEarlyRegister != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        itemPendingEarlyRegister = nil
+                    }
+                }),
+            titleVisibility: .visible,
+            presenting: itemPendingEarlyRegister) { item in
+                Button("Sí, registrar hoy") {
+                    onRegister(item)
+                    itemPendingEarlyRegister = nil
+                }
+        } message: { item in
+            Text("""
+            Se registra con fecha de hoy. Si todavía no, no hagas nada: \
+            Lana lo registra sola el día \(dueDay(of: item)).
+            """)
         }
     }
 
@@ -100,7 +131,7 @@ public struct RecurringItemsSection: View {
                 .lanaFont(.body)
                 .foregroundStyle(lana.textPrimary)
             HStack(spacing: Space.xs.rawValue) {
-                Text("Día \(item.dayOfMonth)")
+                Text(statusText(for: item))
                 if let label = paymentMethodLabel(item.paymentMethod) {
                     Text("·")
                     Text(label)
@@ -113,19 +144,27 @@ public struct RecurringItemsSection: View {
 
     private func rowActions(for item: RecurringItem) -> some View {
         HStack(spacing: Space.sm.rawValue) {
-            // Ya se registra solo cuando vence (`registerDueItems()`) — si
-            // ya se registró este mes, ofrecer la palomita otra vez solo
-            // invita a duplicar sin dar nada a cambio (no hay dedup en el
-            // registro manual, a propósito). Sigue visible antes de que
-            // venza, para quien quiera adelantarlo.
-            if !isRegisteredThisMonth(item) {
+            // La palomita es el estado: llena = ya registrado este mes, vacía
+            // = pendiente, y tocarla lo registra. Antes solo existía la vacía
+            // y desaparecía al registrar, así que no había forma de saber si
+            // faltaba o si ya estaba.
+            if registrations[item.id] != nil {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(lana.accent)
+                    .accessibilityLabel("Registrado este mes")
+            } else {
                 Button {
-                    onRegister(item)
+                    if item.isDue(asOf: Date()) {
+                        onRegister(item)
+                    } else {
+                        itemPendingEarlyRegister = item
+                    }
                 } label: {
                     Image(systemName: "checkmark.circle")
                         .foregroundStyle(lana.highlight)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Registrar \(item.name)")
             }
 
             // Reemplaza `.swipeActions`, que no hacía nada aquí — ese
@@ -139,6 +178,7 @@ public struct RecurringItemsSection: View {
                     .foregroundStyle(lana.critical)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Borrar \(item.name)")
             .confirmationDialog(
                 "¿Borrar \(item.name)?",
                 isPresented: Binding(
@@ -156,12 +196,25 @@ public struct RecurringItemsSection: View {
         }
     }
 
-    private func isRegisteredThisMonth(_ item: RecurringItem) -> Bool {
-        guard let lastRegisteredMonth = item.lastRegisteredMonth,
-              let currentMonthStart = Calendar.current.dateInterval(of: .month, for: Date())?.start else {
-            return false
+    private func statusText(for item: RecurringItem) -> String {
+        switch registrations[item.id] {
+        case let .linked(expense):
+            "Registrado el \(expense.date.formatted(.dateTime.day().month(.abbreviated)))"
+        case .legacy:
+            "Registrado este mes"
+        case nil:
+            "Pendiente · día \(dueDay(of: item))"
         }
-        return lastRegisteredMonth == currentMonthStart
+    }
+
+    /// El día en que cae este mes — un recurrente del 31 cae el 30 en septiembre.
+    private func dueDay(of item: RecurringItem) -> Int {
+        guard let occurrence = item.occurrence(inMonthOf: Date()) else { return item.dayOfMonth }
+        return Calendar.current.component(.day, from: occurrence)
+    }
+
+    private func earlyRegisterTitle(for item: RecurringItem) -> String {
+        item.kind == .income ? "¿Ya te llegó \(item.name)?" : "¿Ya pagaste \(item.name)?"
     }
 
     private func paymentMethodLabel(_ method: PaymentMethod?) -> String? {
@@ -176,23 +229,28 @@ public struct RecurringItemsSection: View {
 }
 
 #Preview {
-    ScrollView {
+    let rent = try? RecurringItem(
+        name: "Renta",
+        amount: Money(amount: 8000, currency: .mxn),
+        kind: .expense,
+        category: "hogar",
+        dayOfMonth: 5)
+    let salary = try? RecurringItem(
+        name: "Sueldo",
+        amount: Money(amount: 15000, currency: .mxn),
+        kind: .income,
+        dayOfMonth: 15)
+    let items = [rent, salary].compactMap(\.self)
+    let registrations: [RecurringItemID: RecurringItem.Registration] = rent.map { rent in
+        [rent.id: .linked(Expense(kind: .expense, amount: rent.amount, concept: rent.name, date: Date()))]
+    } ?? [:]
+
+    return ScrollView {
         VStack(spacing: Space.md.rawValue) {
             ForEach(LanaTheme.allCases) { theme in
                 RecurringItemsSection(
-                    items: [
-                        (try? RecurringItem(
-                            name: "Renta",
-                            amount: Money(amount: 8000, currency: .mxn),
-                            kind: .expense,
-                            category: "hogar",
-                            dayOfMonth: 5)),
-                        (try? RecurringItem(
-                            name: "Sueldo",
-                            amount: Money(amount: 15000, currency: .mxn),
-                            kind: .income,
-                            dayOfMonth: 15))
-                    ].compactMap(\.self),
+                    items: items,
+                    registrations: registrations,
                     onAdd: {},
                     onEdit: { _ in },
                     onRegister: { _ in },

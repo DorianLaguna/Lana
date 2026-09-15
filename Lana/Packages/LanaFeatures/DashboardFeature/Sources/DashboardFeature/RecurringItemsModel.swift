@@ -11,6 +11,10 @@ import Observation
 public final class RecurringItemsModel {
     /// Los ingresos/gastos recurrentes guardados.
     public private(set) var items: [RecurringItem] = []
+    /// Qué recurrentes ya se registraron en el mes actual, y cómo. Un
+    /// recurrente sin entrada sigue pendiente. Se deriva de los movimientos
+    /// del mes cada vez que se carga (ADR-0042).
+    public private(set) var registrations: [RecurringItemID: RecurringItem.Registration] = [:]
     /// Las tarjetas guardadas — para el selector de "con qué se paga" al
     /// dar de alta o editar un recurrente.
     public private(set) var cards: [Card] = []
@@ -22,6 +26,11 @@ public final class RecurringItemsModel {
     private let recurringItemStore: any RecurringItemStore
     private let store: any ExpenseStore
     private let cardStore: any CardStore
+    /// `DashboardView` pide el registro automático al aparecer, al refrescar
+    /// y al volver a primer plano; esas llamadas pueden solaparse, y dos
+    /// pasadas que leen el store antes de que cualquiera escriba registrarían
+    /// el mismo recurrente dos veces.
+    private var isRegisteringDueItems = false
 
     /// - Parameters:
     ///   - recurringItemStore: dónde se guardan y leen los recurrentes.
@@ -56,10 +65,13 @@ public final class RecurringItemsModel {
     /// podría estar mal (Apple Pay, un ticket escaneado); un recurrente no
     /// infiere nada — el usuario ya escribió cada campo (monto, categoría,
     /// con qué se paga) al darlo de alta, así que no hay nada ambiguo que
-    /// confirmar de nuevo. También recuerda que ya se registró este mes
-    /// (`lastRegisteredMonth`), para que `registerDueItems()` no lo vuelva
-    /// a postear. Repetir la llamada a propósito sigue creando otro gasto —
-    /// no hay deduplicado silencioso en la acción manual.
+    /// confirmar de nuevo.
+    ///
+    /// El movimiento lleva de qué recurrente salió, y eso es lo que lo marca
+    /// como registrado en el mes: no se guarda ninguna marca aparte, así que
+    /// borrarlo deja el recurrente pendiente otra vez (ADR-0042). Repetir la
+    /// llamada a propósito sigue creando otro gasto; no hay deduplicado
+    /// silencioso en la acción manual.
     public func register(_ item: RecurringItem, on date: Date = Date()) async throws {
         try await store.save(Expense(
             kind: item.kind,
@@ -68,38 +80,47 @@ public final class RecurringItemsModel {
             category: item.category,
             subcategory: item.subcategory,
             date: date,
-            paymentMethod: item.paymentMethod))
-        var updated = item
-        updated.lastRegisteredMonth = Calendar.current.dateInterval(of: .month, for: date)?.start
-        try await recurringItemStore.save(updated)
+            paymentMethod: item.paymentMethod,
+            recurringItemID: item.id))
     }
 
     /// Registra automáticamente lo que ya venció este mes y no se ha
     /// registrado. Antes, "recurrente" solo agregaba un botón de un toque,
     /// lo cual, como notó el usuario, no tenía mucho chiste: si de todos
     /// modos hay que acordarse de tocarlo cada mes, no es distinto de
-    /// anotarlo a mano. Se llama aparte de `onAppear()` (no cada vez que
-    /// la pantalla reaparece, solo una vez por sesión desde
-    /// `DashboardView`) para no mezclar "cargar la lista" con "tiene
-    /// efectos secundarios en el store".
+    /// anotarlo a mano. Se llama aparte de `onAppear()` para no mezclar
+    /// "cargar la lista" con "tiene efectos secundarios en el store".
+    ///
+    /// Pasa **una vez por mes** por cada recurrente (`lastAutoRegisteredMonth`),
+    /// ya sea que lo registre o que ya estuviera registrado a mano. Si
+    /// después alguien borra el movimiento, el recurrente queda pendiente
+    /// pero Lana no lo vuelve a postear sola: se borró por algo, como un
+    /// sueldo que se retrasó (ADR-0042).
     public func registerDueItems(asOf date: Date = Date(), calendar: Calendar = .current) async {
-        guard let monthStart = calendar.dateInterval(of: .month, for: date)?.start,
-              let daysInMonth = calendar.range(of: .day, in: .month, for: date)?.count else { return }
-        let today = calendar.component(.day, from: date)
-        // Se relee directo del store, no de `items` — `items` puede estar
-        // desactualizado si algo (un registro manual, otra pestaña) lo
-        // cambió sin pasar por `load()` todavía, y decidir con ese dato
-        // viejo podría duplicar un registro.
-        guard let currentItems = try? await recurringItemStore.items() else { return }
-        var registeredAny = false
+        guard !isRegisteringDueItems else { return }
+        isRegisteringDueItems = true
+        defer { isRegisteringDueItems = false }
+
+        guard let month = calendar.dateInterval(of: .month, for: date) else { return }
+        // Se relee directo del store, no de `items`/`registrations` — pueden
+        // estar desactualizados si algo (un registro manual, otra pestaña) los
+        // cambió sin pasar por `load()` todavía, y decidir con ese dato viejo
+        // podría duplicar un registro.
+        guard let currentItems = try? await recurringItemStore.items(),
+              let monthExpenses = try? await store.expenses(in: month) else { return }
+        var changedAny = false
         for item in currentItems {
-            let effectiveDay = min(item.dayOfMonth, daysInMonth)
-            guard effectiveDay <= today, item.lastRegisteredMonth != monthStart else { continue }
-            if await (try? register(item, on: date)) != nil {
-                registeredAny = true
+            guard item.isDue(asOf: date, calendar: calendar),
+                  !item.hasAutoRegistered(inMonthOf: date, calendar: calendar) else { continue }
+            if item.registration(in: monthExpenses, forMonthOf: date, calendar: calendar) == nil {
+                guard await (try? register(item, on: date)) != nil else { continue }
             }
+            var updated = item
+            updated.lastAutoRegisteredMonth = month.start
+            try? await recurringItemStore.save(updated)
+            changedAny = true
         }
-        if registeredAny {
+        if changedAny {
             await load()
         }
     }
@@ -115,6 +136,13 @@ public final class RecurringItemsModel {
         do {
             items = try await recurringItemStore.items()
             cards = try await cardStore.cards()
+            let now = Date()
+            if let month = Calendar.current.dateInterval(of: .month, for: now) {
+                let monthExpenses = try await store.expenses(in: month)
+                registrations = Dictionary(uniqueKeysWithValues: items.compactMap { item in
+                    item.registration(in: monthExpenses, forMonthOf: now).map { (item.id, $0) }
+                })
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

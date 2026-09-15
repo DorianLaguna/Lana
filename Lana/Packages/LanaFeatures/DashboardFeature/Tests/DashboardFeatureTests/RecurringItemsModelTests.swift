@@ -286,20 +286,20 @@ struct AddRecurringItemModelTests {
         #expect(items.first?.subcategory == "suscripciones")
     }
 
-    @Test("Un ingreso no lleva categoría aunque el formulario tenga una escrita")
+    @Test("Un ingreso recurrente guarda su categoría — un sueldo dice que es sueldo (ADR-0040)")
     func unIngresoNoLlevaCategoria() async throws {
         let recurringItemStore = InMemoryRecurringItemStore()
         let model = AddRecurringItemModel(recurringItemStore: recurringItemStore, store: InMemoryExpenseStore())
         model.name = "Sueldo"
         model.amount = 15000
         model.kind = .income
-        model.category = "otro"
+        model.category = IncomeCategory.sueldo.rawValue
         model.dayOfMonth = 15
 
         _ = await model.save()
 
         let items = try await recurringItemStore.items()
-        #expect(items.first?.category == nil)
+        #expect(items.first?.category == "sueldo")
     }
 
     @Test("Un gasto guarda con qué se paga, incluyendo transferencia")

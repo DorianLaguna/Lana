@@ -19,42 +19,54 @@ public final class SettingsModel {
     /// usuario sepa que su información sí está respaldada en la nube, no
     /// solo que la cuenta está activa.
     public private(set) var syncStatus: SyncStatus = .disabled
+    /// Estado del permiso de micrófono y dictado (ADR-0015). Hasta ahora solo
+    /// se veía dentro de la hoja de captura, y ya fallando; aquí el usuario
+    /// puede consultarlo —y arreglarlo— antes de necesitarlo. `nil` cuando no
+    /// hay quién lo reporte (previews, tests): entonces la fila no se muestra.
+    public private(set) var speechAvailability: SpeechAvailability?
 
     private let vocabularyStore: any CorrectionVocabularyStore
     private let syncStatusReporting: any SyncStatusReporting
+    private let speech: (any SpeechTranscribing)?
     private let userDefaults: UserDefaults
-    /// Reabre la guía de configuración de Apple Pay como hoja, en
-    /// `Mode.standalone` (R1.4). Lo inyecta `ContentView`, el único que
-    /// conoce `OnboardingFeature` — las features nunca se importan entre sí
-    /// (Docs/ARCHITECTURE.md), así que la fila no puede construir
-    /// `GuiaApplePayView`; solo dispara este handler. `nil` cuando no hay a
-    /// dónde llevar (previews, tests que no lo necesitan): sin él, la fila
-    /// no se muestra.
-    private let onConfigureApplePay: (() -> Void)?
     private static let themeDefaultsKey = "lana.selectedTheme"
 
-    /// `true` cuando hay un punto de entrada para reabrir la guía de Apple
-    /// Pay — la vista solo muestra la fila si esto lo es (R1.4). El modelo
-    /// decide, la vista refleja (Docs/ARCHITECTURE.md).
-    public var showsConfigureApplePayRow: Bool {
-        onConfigureApplePay != nil
+    /// El nombre del tema activo, tal como lo ve el usuario ("Zafiro") — la
+    /// fila resumida de Apariencia lo muestra sin abrir el selector completo.
+    public var selectedThemeName: String {
+        selectedTheme.displayName
+    }
+
+    /// Cuántas palabras ha aprendido Lana — para el subtítulo de la fila de
+    /// Aprendizaje en la pantalla principal, sin sacar la lista de su
+    /// pantalla propia.
+    public var learnedWordCount: Int {
+        vocabulary.count
+    }
+
+    /// La versión de la app, tal como está configurada en el bundle
+    /// (`MARKETING_VERSION` → `CFBundleShortVersionString`). Nunca
+    /// hardcodeada: sale de la única fuente correcta. `nil` si no hay bundle
+    /// con esa clave (no debería pasar en la app real).
+    public var appVersion: String? {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
     }
 
     /// - Parameters:
     ///   - vocabularyStore: dónde vive lo aprendido.
     ///   - syncStatusReporting: de dónde sale el estado real de sync.
+    ///   - speech: de dónde sale el estado del permiso de dictado; `nil` para
+    ///     no mostrar esa fila.
     ///   - userDefaults: dónde se persiste el tema elegido.
-    ///   - onConfigureApplePay: reabre la guía de Apple Pay como hoja
-    ///     (`Mode.standalone`, R1.4); lo cablea `ContentView`.
     public init(
         vocabularyStore: any CorrectionVocabularyStore,
         syncStatusReporting: any SyncStatusReporting,
-        userDefaults: UserDefaults = .standard,
-        onConfigureApplePay: (() -> Void)? = nil) {
+        speech: (any SpeechTranscribing)? = nil,
+        userDefaults: UserDefaults = .standard) {
         self.vocabularyStore = vocabularyStore
         self.syncStatusReporting = syncStatusReporting
+        self.speech = speech
         self.userDefaults = userDefaults
-        self.onConfigureApplePay = onConfigureApplePay
         if let rawValue = userDefaults.string(forKey: Self.themeDefaultsKey),
            let theme = LanaTheme(rawValue: rawValue) {
             selectedTheme = theme
@@ -65,10 +77,16 @@ public final class SettingsModel {
 
     /// Carga el vocabulario aprendido y arranca a escuchar el sync real. Se
     /// llama cuando la pantalla aparece.
+    ///
+    /// Consulta el permiso de dictado, nunca lo pide: pedirlo es cosa del
+    /// micrófono, la primera vez que se toca (ADR-0015). Todo lo que no sea el
+    /// stream de sync se resuelve ANTES de entrar a ese `for await`, que no
+    /// termina nunca.
     public func onAppear() async {
         isLoading = true
         vocabulary = await vocabularyStore.allEntries()
         isLoading = false
+        speechAvailability = await speech?.availability
         for await status in syncStatusReporting.statusUpdates() {
             syncStatus = status
         }
@@ -79,13 +97,6 @@ public final class SettingsModel {
     public func selectTheme(_ theme: LanaTheme) {
         selectedTheme = theme
         userDefaults.set(theme.rawValue, forKey: Self.themeDefaultsKey)
-    }
-
-    /// Reabre la guía de configuración de Apple Pay (R1.4). Delega en el
-    /// handler inyectado por `ContentView`, que la presenta como hoja en
-    /// `Mode.standalone`; no-op si no hay handler.
-    public func configureApplePay() {
-        onConfigureApplePay?()
     }
 
     /// Olvida una palabra específica.

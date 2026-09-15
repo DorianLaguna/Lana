@@ -32,6 +32,12 @@ public struct ParsingIndicatorView: View {
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing),
                     in: Circle())
+                // El halo inteligente en estado `.processing`: se contrae y
+                // gira sobre sí mismo, el gesto de "está pensando" —
+                // continuidad visual con el mismo halo del dashboard y de la
+                // escucha. El `variableColor` del símbolo se queda: aquí sí
+                // aporta (el ícono cambia de tono, no parpadea).
+                .background(IntelligenceHalo(state: .processing, baseSize: 68))
                 .symbolEffect(.variableColor.iterative.reversing, options: .repeating)
 
             Text(Self.phrases[phraseIndex])

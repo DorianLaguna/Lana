@@ -10,6 +10,14 @@ import SwiftUI
 private enum DashboardDestination: Hashable {
     case category(String)
     case paymentMethod(String)
+    /// La vista anual (estadísticas puras, sin IA).
+    case year
+    // Los drill-downs desde el año son los mismos que los del mes, pero
+    // derivan de `YearModel` en vez de `DashboardModel` — mismo `String` en el
+    // path, distinto origen, así que necesitan su propio caso o entrarían al
+    // detalle del mes con el título del año.
+    case yearCategory(String)
+    case yearPaymentMethod(String)
 }
 
 /// El dashboard mensual — ahora también el hogar de la captura (Fase 6.5),
@@ -18,9 +26,15 @@ private enum DashboardDestination: Hashable {
 /// (Docs/ARCHITECTURE.md).
 public struct DashboardView: View {
     @Environment(\.lana) private var lana
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable private var model: DashboardModel
     @Bindable private var recurringItemsModel: RecurringItemsModel
     @Bindable private var upcomingCardPaymentsModel: UpcomingCardPaymentsModel
+    /// La vista anual se arma aquí arriba, como los demás modelos, y no dentro
+    /// del `navigationDestination`: SwiftUI reconstruye el destino en cada
+    /// redibujo, y con él se perdería el año al que el usuario ya había
+    /// navegado (y se recargaría el store cada vez).
+    @Bindable private var yearModel: YearModel
     @State private var path: [DashboardDestination] = []
     @State private var addRecurringItemModel: AddRecurringItemModel?
     @State private var editExpenseModel: EditExpenseModel?
@@ -32,16 +46,24 @@ public struct DashboardView: View {
     /// quedaba con la cifra vieja hasta salir y volver a entrar a esa
     /// lista — el bug real detrás de "ya no debería haber deuda".
     private let onExpenseChanged: () -> Void
+    /// El Análisis con IA vive en `InsightsFeature`, que esta feature no puede
+    /// importar — `MainTabView`, que sí conoce las dos, lo presenta. Mismo
+    /// patrón que `onExpenseChanged`.
+    private let onOpenInsights: () -> Void
 
     public init(
         model: DashboardModel,
         recurringItemsModel: RecurringItemsModel,
         upcomingCardPaymentsModel: UpcomingCardPaymentsModel,
-        onExpenseChanged: @escaping () -> Void = {}) {
+        yearModel: YearModel,
+        onExpenseChanged: @escaping () -> Void = {},
+        onOpenInsights: @escaping () -> Void = {}) {
         self.model = model
         self.recurringItemsModel = recurringItemsModel
         self.upcomingCardPaymentsModel = upcomingCardPaymentsModel
+        self.yearModel = yearModel
         self.onExpenseChanged = onExpenseChanged
+        self.onOpenInsights = onOpenInsights
     }
 
     public var body: some View {
@@ -57,6 +79,7 @@ public struct DashboardView: View {
 
                     RecurringItemsSection(
                         items: recurringItemsModel.items,
+                        registrations: recurringItemsModel.registrations,
                         onAdd: { addRecurringItemModel = recurringItemsModel.makeAddModel() },
                         onEdit: { item in addRecurringItemModel = recurringItemsModel.makeAddModel(editing: item) },
                         onRegister: { item in
@@ -108,10 +131,38 @@ public struct DashboardView: View {
                         viewerIdentities: model.viewerIdentities)
                 }
                 .padding(Space.md.rawValue)
-                .padding(.bottom, Space.xxl.rawValue)
+                .floatingMicClearance()
             }
             .background(lana.surface)
             .navigationTitle("Dashboard")
+            // El registro a mano (ADR-0035), a propósito discreto: el
+            // micrófono flotante sigue siendo el camino principal y el
+            // centro visual de la app. Reusa la misma hoja y el mismo
+            // `onDone` que editar — es el mismo formulario, en modo crear.
+            .toolbar {
+                // Las dos lecturas (el año y el análisis) van juntas y a la
+                // izquierda del `+`, que es la única acción que escribe algo.
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        path.append(.year)
+                    } label: {
+                        Image(systemName: "chart.bar")
+                    }
+                    .accessibilityLabel("Ver el año")
+
+                    Button(action: onOpenInsights) {
+                        Image(systemName: "sparkles")
+                    }
+                    .accessibilityLabel("Análisis con IA")
+
+                    Button {
+                        editExpenseModel = model.makeNewExpenseModel()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Agregar a mano")
+                }
+            }
             .navigationDestination(for: DashboardDestination.self) { destination in
                 switch destination {
                 case let .category(category):
@@ -120,6 +171,25 @@ public struct DashboardView: View {
                     }
                 case let .paymentMethod(label):
                     PaymentMethodDetailView(model: model.makePaymentMethodDetailModel(for: label)) { expense in
+                        editExpenseModel = model.makeEditExpenseModel(for: expense)
+                    }
+                case .year:
+                    YearView(
+                        model: yearModel,
+                        // Tocar un mes regresa al Dashboard ya posado en él:
+                        // un solo toque, sin pantalla intermedia.
+                        onSelectMonth: { month in
+                            path.removeAll()
+                            Task { await model.goToMonth(month) }
+                        },
+                        onSelectCategory: { path.append(.yearCategory($0)) },
+                        onSelectPaymentMethod: { path.append(.yearPaymentMethod($0)) })
+                case let .yearCategory(category):
+                    CategoryDetailView(model: yearModel.makeCategoryDetailModel(for: category)) { expense in
+                        editExpenseModel = model.makeEditExpenseModel(for: expense)
+                    }
+                case let .yearPaymentMethod(label):
+                    PaymentMethodDetailView(model: yearModel.makePaymentMethodDetailModel(for: label)) { expense in
                         editExpenseModel = model.makeEditExpenseModel(for: expense)
                     }
                 }
@@ -138,27 +208,40 @@ public struct DashboardView: View {
                     editExpenseModel = nil
                     // `CategoryDetailModel`/`PaymentMethodDetailModel` (si
                     // hay uno empujado) derivan sus gastos de `model` en
-                    // vivo — no hace falta refrescarlos aparte.
-                    Task { await model.onAppear() }
+                    // vivo — no hace falta refrescarlos aparte. La vista
+                    // anual sí: tiene su propia carga de veinticuatro meses,
+                    // y sin esto un gasto editado desde el drill-down del año
+                    // dejaría las barras con la cifra vieja.
+                    Task {
+                        await model.onAppear()
+                        await yearModel.refreshIfLoaded()
+                        // Borrar el movimiento de un recurrente lo deja
+                        // pendiente otra vez (ADR-0042) — sin recargar, la
+                        // fila seguiría diciendo "Registrado".
+                        await recurringItemsModel.onAppear()
+                    }
                     onExpenseChanged()
                 })
             }
         }
-        .task {
-            // Primero los recurrentes vencidos (puede crear gastos nuevos),
-            // luego el mes — si no, el mes se carga sin lo que se acaba de
-            // registrar automáticamente.
-            await recurringItemsModel.onAppear()
-            await recurringItemsModel.registerDueItems()
-            await model.onAppear()
-            await upcomingCardPaymentsModel.onAppear()
+        .task { await refresh() }
+        .refreshable { await refresh() }
+        // Con la app viva en segundo plano desde antes del día de pago, el
+        // sueldo no se registraba hasta matarla o jalar para refrescar.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await refresh() }
         }
-        .refreshable {
-            await recurringItemsModel.onAppear()
-            await recurringItemsModel.registerDueItems()
-            await model.onAppear()
-            await upcomingCardPaymentsModel.onAppear()
-        }
+    }
+
+    /// Primero los recurrentes vencidos (puede crear gastos nuevos), luego el
+    /// mes — si no, el mes se carga sin lo que se acaba de registrar
+    /// automáticamente.
+    private func refresh() async {
+        await recurringItemsModel.onAppear()
+        await recurringItemsModel.registerDueItems()
+        await model.onAppear()
+        await upcomingCardPaymentsModel.onAppear()
     }
 
     /// Un solo bloque por moneda — antes eran dos: las cajas de
@@ -239,7 +322,11 @@ public struct DashboardView: View {
                 cardStore: InMemoryCardStore()),
             upcomingCardPaymentsModel: UpcomingCardPaymentsModel(
                 cardStore: InMemoryCardStore(),
-                cardPaymentStore: InMemoryCardPaymentStore()))
+                cardPaymentStore: InMemoryCardPaymentStore()),
+            yearModel: YearModel(
+                store: InMemoryExpenseStore(),
+                cardStore: InMemoryCardStore(),
+                sharedListStore: InMemorySharedListStore()))
             .lanaTheme(theme)
     }
 }

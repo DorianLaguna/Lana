@@ -115,7 +115,7 @@ public struct PaymentMethodDetailView: View {
             sharedListStore: InMemorySharedListStore())
         NavigationStack {
             PaymentMethodDetailView(
-                model: PaymentMethodDetailModel(label: "crédito", dashboard: dashboard, cardStore: cardStore),
+                model: PaymentMethodDetailModel(label: "crédito", source: dashboard, cardStore: cardStore),
                 onExpenseTap: { _ in })
         }
         .task { await dashboard.onAppear() }

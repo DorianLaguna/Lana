@@ -213,13 +213,17 @@ public actor CoreDataExpenseStore: ExpenseStore {
                     sharedListID: expense.sharedListID,
                     payer: expense.payer,
                     split: expense.split,
+                    recurringItemID: expense.recurringItemID,
                     needsReview: expense.needsReview))
             case .income:
                 return .incomeAdded(IncomeAdded(
                     id: EventID(rawValue: expense.id.rawValue),
                     amount: expense.amount,
                     concept: expense.concept,
+                    category: expense.category,
+                    subcategory: expense.subcategory,
                     date: expense.date,
+                    recurringItemID: expense.recurringItemID,
                     needsReview: expense.needsReview))
             }
         }
