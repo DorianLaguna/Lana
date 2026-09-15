@@ -41,7 +41,7 @@ struct BudgetMixBar: View {
                 // Lo que falta para completar la barra cuando los tramos no
                 // llegan al 100% — pista, no un cuarto grupo.
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(lana.separator.opacity(0.5))
+                    .fill(lana.hairlineStrong.opacity(0.5))
             }
         }
         .frame(height: 12)
@@ -62,25 +62,25 @@ struct BudgetMixBar: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(share.group.displayName)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text(Money(amount: share.amount, currency: currency).formatted())
                     .lanaFont(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
             Spacer(minLength: Space.sm.rawValue)
             VStack(alignment: .trailing, spacing: 2) {
                 Text(share.share.formatted(.percent.precision(.fractionLength(0))))
                     .lanaFont(.body)
                     .monospacedDigit()
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 if let target = share.target {
                     // La meta se dice con palabras además del número: el color
                     // nunca es el único portador de información.
                     Text("meta \(target.formatted(.percent.precision(.fractionLength(0))))")
                         .lanaFont(.caption)
                         .monospacedDigit()
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
             }
         }
@@ -98,7 +98,7 @@ struct BudgetMixBar: View {
     private func color(for group: BudgetGroup) -> Color {
         switch group {
         case .necesidad: lana.accent
-        case .deseo: lana.highlight
+        case .deseo: lana.attention
         case .ahorro: lana.positive
         }
     }

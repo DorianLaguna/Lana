@@ -31,12 +31,12 @@ public struct BalancesView: View {
             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                 Text("Saldos")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
 
                 if balances.isEmpty {
                     Text("Todo saldado — nadie le debe a nadie.")
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(balances) { balance in
@@ -64,7 +64,7 @@ public struct BalancesView: View {
         HStack(spacing: Space.sm.rawValue) {
             Text(balance.participant.displayName)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             trendIcon(balance.trend)
 
@@ -73,10 +73,10 @@ public struct BalancesView: View {
             Text(Money(amount: abs(balance.amount), currency: balance.currency).formatted())
                 .lanaFont(.body)
                 .monospacedDigit()
-                .foregroundStyle(balance.amount > 0 ? lana.positive : lana.textPrimary)
+                .foregroundStyle(balance.amount > 0 ? lana.positive : lana.ink)
             Text(balance.amount > 0 ? "le deben" : "debe")
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
         .padding(.vertical, Space.xs.rawValue)
     }
@@ -89,7 +89,7 @@ public struct BalancesView: View {
         }
         return Image(systemName: systemImage)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
     }
 
     private func debtRow(_ debt: Debt) -> some View {
@@ -100,12 +100,12 @@ public struct BalancesView: View {
                 HStack(spacing: Space.sm.rawValue) {
                     Text("\(participantName(debt.from)) le debe a \(participantName(debt.to))")
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     Spacer()
                     Text(debt.amount.formatted())
                         .lanaFont(.caption)
                         .monospacedDigit()
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                 }
                 .contentShape(Rectangle())
             }

@@ -1,143 +1,115 @@
 ---
 name: theming
-description: El sistema de diseño y temas de color de Lana — tokens semánticos, los seis pares de color curados, y las reglas para usarlos. Usa esta skill siempre que se escriba o modifique cualquier vista de SwiftUI, se elija un color, se toque LanaDesign, o se trabaje en la pantalla de personalización de tema. Aplica aunque el usuario no mencione diseño ni colores.
+description: El sistema de diseño y temas de color de Lana — tokens semánticos, los ocho temas curados, la escala tipográfica y de espaciado, los componentes base y las reglas para usarlos. Usa esta skill siempre que se escriba o modifique cualquier vista de SwiftUI, se elija un color, se toque LanaDesign, o se trabaje en la pantalla de personalización de tema. Aplica aunque el usuario no mencione diseño ni colores.
 ---
 
 # Sistema de diseño de Lana
 
-## Principio
+La fuente de verdad es ADR-0044 (rediseño "Hoy primero"). Esto es el resumen
+operativo.
 
-El usuario personaliza el tema **eligiendo un par curado**, nunca colores sueltos.
+## Los tres principios del rediseño
 
-La razón es concreta: dos colores escogidos al azar se pelean, rompen contraste y
-hacen que la app se vea rota. Con pares diseñados, cualquier combinación que el
-usuario elija se ve bien y cumple accesibilidad. Él siente que la app es suya; tú
-conservas el control de que se vea bien.
+1. **Una pantalla, una pregunta.** Arriba se responde lo importante; el desglose
+   se pide, no se impone.
+2. **Dictar es la app.** El micrófono vive dentro de la barra de pestañas y nunca
+   tapa contenido.
+3. **Un solo acento.** Sin arcoíris: gris con un acento para lo que domina.
 
-Un color picker libre es más "poder" para el usuario y peor producto.
+## Temas
 
-## Tokens semánticos
+El usuario elige uno de **ocho temas curados**, nunca colores sueltos. Desde
+ADR-0044 un tema cambia **solo el acento**; superficies y tinta son las mismas
+para todos (en oscuro las del handoff, en claro su análogo). Obsidiana, Ámbar y
+Zafiro fuerzan oscuro; los otros cinco siguen al sistema.
 
-Los colores se nombran por su **rol**, nunca por cómo se ven. `Color.lana.accent`,
-jamás `Color.lana.blue`. Cuando el usuario cambia de tema, el rol sigue siendo
-correcto y el nombre sigue teniendo sentido.
+| Tema | Relleno (`accentFill`) |
+|---|---|
+| Cobalto *(default)* | `#5B7CFA` |
+| Cempasúchil | `#F08A4B` |
+| Jacaranda | `#8A6CF0` |
+| Nopal | `#4FD08A` |
+| Bugambilia | `#D8578F` |
+| Obsidiana | `#2A2C33` |
+| Ámbar | `#C9962E` |
+| Zafiro | `#1F4FA8` |
 
-```swift
-public extension ShapeStyle where Self == Color {
-    static var lana: LanaColors { LanaColors() }
-}
+El acento existe en tres formas:
 
-public struct LanaColors {
-    // Derivados del tema
-    public let accent: Color          // primario: acciones, selección, foco
-    public let accentMuted: Color     // primario al 15%: fondos de estado activo
-    public let highlight: Color       // secundario: datos, gráficas, categorías
-    public let categoryRamp: [Color]  // 12 tonos derivados del par, en orden fijo
+- `accentFill` — rellenos: botones, barras, micrófono, swatch.
+- `accent` — **texto** tocable. Mismo tono ajustado a 4.5:1 por modo.
+- `onAccent` — lo que va encima de `accentFill` (blanco o `bg`).
 
-    // Por tema — cada uno con su propia variante clara/oscura (ADR-0016)
-    public let surface: Color         // fondo de pantalla
-    public let surfaceRaised: Color   // tarjetas, hojas
-    public let textPrimary: Color
-    public let textSecondary: Color
-    public let separator: Color
+Nunca uses `accentFill` como color de texto: en Zafiro y Obsidiana no se lee.
 
-    // Fijos en todos los temas (ADR-0006)
-    public let positive: Color        // ingresos
-    public let warning: Color         // presupuesto cerca del límite
-    public let critical: Color        // sobregiro, errores
-}
-```
-
-**Semánticos fijos:** `positive`, `warning` y `critical` **no cambian con el tema**.
-Si el rojo de alerta cambiara según el tema, el usuario tendría que reaprender qué
-significa. La personalización es identidad, no semántica.
-
-**Superficie y texto sí cambian por tema (ADR-0016).** Hasta antes de ese ADR eran
-también fijos — el pedido fue que elegir un tema cambiara la app entera, no solo
-acentos pequeños. Para 5 de los 6 temas los valores por tema son idénticos a los
-que antes eran globales (sin diferencia visual). Obsidiana es la excepción: usa un
-fondo casi negro **forzado en sus dos variantes**, clara y oscura — no un tinte
-que siga el modo del sistema — porque el pedido explícito fue que se sienta
-"siempre oscuro" sin importar si el dispositivo está en modo claro. Por eso
-`ContentView` también aplica `.preferredColorScheme(.dark)` cuando Obsidiana está
-activo: eso cubre la barra de estado y el teclado, que `LanaColors` no controla.
-
-## Los seis temas
-
-Cada uno es un par primario/secundario. Todos verificados a 4.5:1 sobre `surface`
-en claro y oscuro.
-
-| Tema | Primario | Secundario |
-|---|---|---|
-| Cobalto *(default)* | `#1B4FD8` | `#F2B705` |
-| Cempasúchil | `#E8590C` | `#6D3B8E` |
-| Jacaranda | `#6C4FB3` | `#4FA88B` |
-| Nopal | `#2F7A4F` | `#E0457B` |
-| Bugambilia | `#C2185B` | `#F2A007` |
-| Obsidiana | `#7D7D91` | `#C9A227` |
-
-Los nombres vienen del mundo del usuario, no de la rueda de color. "Jacaranda"
-comunica algo; "Morado 2" no.
-
-Obsidiana es el único tema donde primario/secundario **no** varían entre variante
-clara y oscura — con la superficie forzada a casi negro en ambas (ver arriba), el
-tono pensado originalmente para verse sobre blanco ya no tenía contra qué
-funcionar, así que ambas variantes usan el mismo tono pensado para fondo oscuro.
-
-**Al agregar un tema nuevo:** verifica contraste en claro y oscuro contra la
-`surface`, `surfaceRaised` y `textPrimary` **propias de ese tema**, y confirma que
-la rampa de categorías mantenga sus tonos distinguibles entre sí. Un par que no
-pasa no entra.
-
-## Colores de categoría
-
-Se derivan de la rampa del tema, en orden fijo. **El usuario no elige el color de
-una categoría.**
-
-Suena restrictivo, pero es lo que evita que el dashboard se vuelva un arcoíris
-donde ninguna gráfica se lee. Si el usuario quiere distinguir categorías, para eso
-están los nombres y los íconos — ahí sí tiene libertad total, incluyendo emoji.
-
-## Espaciado y tipografía
-
-Unidad base 4pt. Solo se usan estos valores:
+## Tokens de color
 
 ```swift
-public enum Space { case xs, sm, md, lg, xl, xxl }  // 4, 8, 16, 24, 32, 48
+// Superficies
+lana.bg          // fondo de pantalla
+lana.surface     // tarjetas
+lana.surface2    // chips, pistas de barras, botón secundario
+lana.surface3    // segmento activo, avatar sobre tarjeta
+lana.hairline / lana.hairlineStrong
+
+// Tinta
+lana.ink         // texto principal y cifras
+lana.ink70 … lana.ink28   // apoyo con opacidad; ink42 solo para apoyo ≥12.5 pt
+
+// Semánticos (fijos en todos los temas)
+lana.attention   // por revisar, pendientes, lo que domina
+lana.positive    // ingresos, saldos a favor
 ```
 
-Cualquier `.padding(17)` en el código es un bug. Escala tipográfica ligada a
-Dynamic Type, nunca tamaños en puntos fijos.
+- **No hay rojo.** Ni para gastos ni para borrar. Borrar es un swipe o
+  `role: .destructive`: el rojo lo pone el sistema durante el gesto.
+- **Un acento por pantalla.** `attention` marca lo que reclama acción; `accent`
+  lo que se puede tocar. Nunca compitiendo en el mismo bloque.
+- **Las categorías no tienen color.** Barras en el acento, la dominante en
+  `attention` (`RankedBarList` ya lo hace).
+- Los fondos teñidos tienen token: `attentionSoft`, `attentionChip`,
+  `accentSoft`, etc. No escribas `.opacity(0.13)` en una vista.
 
-**Los montos siempre con cifras tabulares** (`.monospacedDigit()`) y alineados a la
-derecha. Sin esto, los números bailan entre renglones y una lista de gastos se ve
-descuidada.
+## Tipografía
+
+`lanaFont(_:)` con un rol de `LanaTextStyle`: `heroAmount`, `screenAmount`,
+`rowTitle`, `rowSubtitle`, `sectionHeader`, `explanation`… Tamaños del handoff,
+escalados con Dynamic Type; las cifras llevan dígitos tabulares desde el estilo y
+las héroe se limitan a XXL. Los estilos de transición (`largeAmount`, `body`,
+`caption`…) desaparecen cuando migre la última vista.
+
+## Espaciado, radios y medidas
+
+- `Space`: `xs/sm/md/lg/xl/xxl` (4/8/16/24/32/48) y los intermedios por valor
+  (`p10`, `p13`, `p18`…).
+- `Radius`: `inner` 14, `card` 16, `cardLarge` 18, `sheet` 28, `tabBar` 30.
+  Píldoras y avatares: `Capsule()` / `Circle()`.
+- `LanaMetrics`: `screenMargin` 20, alturas de componentes, grosores de barra.
+- Toda pantalla con barra de pestañas termina su scroll con
+  `.tabBarClearance()` (`.today` en Hoy).
+
+Un `.padding(17)` o un `Color(red:…)` en una feature es un bug: si falta un
+valor, falta un token.
+
+## Componentes base
+
+`LanaCard`, `SectionHeader`, `MovementRow`, `HairlineDivider`, `NavRow`,
+`ProgressTrack`, `RankedBarList`, `Chip`, `FlowLayout`, `.buttonStyle(.lana(...))`,
+`InitialAvatar`, `EmptyStateView`, `MonthSelector`, `YearSelector`,
+`LanaDateFormat` (fechas siempre en español). Úsalos antes de dibujar a mano.
 
 ## Reglas al escribir vistas
 
-- Ni un solo color literal fuera de `LanaDesign`. Ni `Color.blue`, ni
-  `Color(red:green:blue:)`, ni `.tint(.orange)`.
-- Ni un solo valor de espaciado literal. Todo sale de `Space`.
-- Prueba en los 6 temas antes de dar algo por terminado. El `#Preview` debe
-  iterarlos:
-
-```swift
-#Preview {
-    ForEach(LanaTheme.allCases) { theme in
-        EntryView().environment(\.lanaTheme, theme)
-    }
-}
-```
-
-- El color nunca es el único portador de información. Sobregiro lleva ícono o
-  texto además del rojo — daltonismo y modo escala de grises existen.
+- Ningún color, espaciado, radio ni tamaño literal fuera de `LanaDesign`.
+- Ninguna tarjeta lleva sombra: la jerarquía la da el fondo.
+- Toda vista pública con `#Preview` que itera `LanaTheme.allCases`.
+- El color nunca es el único portador de información: los ingresos llevan `+`,
+  lo pendiente lleva texto o ícono.
+- Área de toque mínima 44 pt; filas de 48 pt o más.
+- Todo icono lleva etiqueta de accesibilidad.
 
 ## Tono
 
-Lana no regaña. Un presupuesto excedido se presenta como un hecho con la acción
-disponible al lado, no como una advertencia con signos de admiración. El usuario
-de esta app ya abandonó otras; la última cosa que necesita es que su tracker lo
-haga sentir mal por gastar.
-
-Esto aplica al color tanto como al copy: usa `critical` donde hay algo que hacer,
-no donde hay algo que juzgar.
+Lana no regaña. Un exceso es un dato con la acción al lado. En copy: "Podrías…",
+"Si quieres…"; nunca "deberías", "cuidado" ni signos de admiración. En color:
+`attention` donde hay algo que hacer, nunca para juzgar.

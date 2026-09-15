@@ -22,14 +22,14 @@ public struct CategoryDetailView: View {
                     VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                         Text("Total en el mes")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                         Text(Money(amount: model.total, currency: model.currency).formatted())
                             .lanaFont(.largeAmount)
                             .monospacedDigit()
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Text("\(model.expenses.count) " + (model.expenses.count == 1 ? "gasto" : "gastos"))
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 }
 
@@ -38,17 +38,17 @@ public struct CategoryDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Subcategorías")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             ForEach(model.subcategoryTotals) { total in
                                 HStack {
                                     Text(total.subcategory.capitalized)
                                         .lanaFont(.body)
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                     Spacer()
                                     Text(Money(amount: total.amount, currency: total.currency).formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                             }
                         }
@@ -62,7 +62,7 @@ public struct CategoryDetailView: View {
             }
             .padding(Space.md.rawValue)
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle(model.category.capitalized)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

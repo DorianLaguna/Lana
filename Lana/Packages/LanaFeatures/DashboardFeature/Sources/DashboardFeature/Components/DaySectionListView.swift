@@ -31,7 +31,7 @@ public struct DaySectionListView: View {
                     VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                         Text(section.day.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
 
                         LanaCard {
                             VStack(spacing: Space.xs.rawValue) {

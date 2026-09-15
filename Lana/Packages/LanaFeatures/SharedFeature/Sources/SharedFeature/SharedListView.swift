@@ -44,7 +44,7 @@ public struct SharedListView: View {
                     }
                 }
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Compartido")
             .navigationDestination(for: SharedListID.self) { listID in
                 if let list = model.lists.first(where: { $0.id == listID }) {
@@ -101,23 +101,23 @@ private struct SharedListRow: View {
         LanaCard {
             HStack(spacing: Space.sm.rawValue) {
                 Image(systemName: "person.2.fill")
-                    .foregroundStyle(lana.highlight)
+                    .foregroundStyle(lana.accent)
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(list.name)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Text(list.participants.map(\.displayName).joined(separator: ", "))
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(lana.textSecondary.opacity(0.6))
+                    .foregroundStyle(lana.ink50.opacity(0.6))
             }
         }
     }

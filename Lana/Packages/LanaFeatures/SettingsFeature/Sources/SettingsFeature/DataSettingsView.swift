@@ -26,10 +26,10 @@ struct DataSettingsView: View {
                         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                             Text(statusTitle)
                                 .lanaFont(.headline)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Text(statusDetail)
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                                 .fixedSize(horizontal: false, vertical: true)
                             // La fecha exacta bajo la relativa: "hace 2 horas"
                             // dice qué tan reciente, no cuándo. Para saber si
@@ -38,7 +38,7 @@ struct DataSettingsView: View {
                             if case let .synced(lastSuccess) = model.syncStatus {
                                 Text(lastSuccess.formatted(date: .abbreviated, time: .shortened))
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                             }
                         }
                         Spacer(minLength: 0)
@@ -55,10 +55,10 @@ struct DataSettingsView: View {
                         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                             Text("Dónde revisarlo")
                                 .lanaFont(.headline)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Text("Ajustes › tu nombre › iCloud › Apps que usan iCloud")
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,12 +70,12 @@ struct DataSettingsView: View {
                 tienes configurada en este dispositivo.
                 """)
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("iCloud")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -86,13 +86,13 @@ struct DataSettingsView: View {
     private var statusIcon: some View {
         switch model.syncStatus {
         case .disabled:
-            Image(systemName: "icloud.slash").foregroundStyle(lana.textSecondary)
+            Image(systemName: "icloud.slash").foregroundStyle(lana.ink50)
         case .syncing:
             ProgressView().controlSize(.small)
         case .synced:
             Image(systemName: "checkmark.icloud").foregroundStyle(lana.accent)
         case .failed:
-            Image(systemName: "exclamationmark.icloud").foregroundStyle(lana.warning)
+            Image(systemName: "exclamationmark.icloud").foregroundStyle(lana.attention)
         }
     }
 

@@ -21,7 +21,7 @@ struct ShortcutStepsView: View {
         VStack(alignment: .leading, spacing: Space.lg.rawValue) {
             Text("Arma la automatización")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             VStack(spacing: Space.sm.rawValue) {
                 ForEach(steps) { step in
@@ -60,11 +60,11 @@ struct ShortcutStepsView: View {
                             .foregroundStyle(lana.accent)
                         Text(step.title)
                             .lanaFont(.headline)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                     }
                     Text(step.detail)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                         .fixedSize(horizontal: false, vertical: true)
 
                     // El mapeo de parámetros pertenece a ESTE paso —el de
@@ -106,7 +106,7 @@ struct ShortcutStepsView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("En Wallet: \(mapping.walletLabel)")
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: Space.xs.rawValue) {
                 Image(systemName: "arrow.turn.down.right")
@@ -114,7 +114,7 @@ struct ShortcutStepsView: View {
                     .foregroundStyle(lana.accent)
                 Text("En Lana: \(mapping.intentLabel)")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -132,7 +132,7 @@ struct ShortcutStepsView: View {
                     parameterMappings: GuiaApplePayContent.standard.parameterMappings,
                     onOpenShortcutsApp: {})
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }

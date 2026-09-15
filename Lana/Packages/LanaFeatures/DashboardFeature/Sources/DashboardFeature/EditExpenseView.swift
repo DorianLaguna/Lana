@@ -43,7 +43,7 @@ public struct EditExpenseView: View {
                 Section {
                     HStack {
                         Text("Monto")
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Spacer()
                         TextField("0", value: $model.amount, format: .number)
                             .monospacedDigit()
@@ -65,7 +65,7 @@ public struct EditExpenseView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
 
                 // Nada que borrar en un registro que todavía no existe —
@@ -269,7 +269,7 @@ public struct EditExpenseView: View {
                         if share.isPayer {
                             Text("pagó")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                         }
                     }
                 }

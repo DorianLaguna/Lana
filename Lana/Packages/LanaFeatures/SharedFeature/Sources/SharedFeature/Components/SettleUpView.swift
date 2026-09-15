@@ -30,7 +30,7 @@ public struct SettleUpView: View {
                 Section {
                     Text("\(fromName) le paga a \(toName)")
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     HStack {
                         Text("Monto")
                         Spacer()
@@ -47,7 +47,7 @@ public struct SettleUpView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle("Liquidar")

@@ -22,14 +22,14 @@ public struct PaymentMethodDetailView: View {
                     VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                         Text("Total en el mes")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                         Text(Money(amount: model.total, currency: model.currency).formatted())
                             .lanaFont(.largeAmount)
                             .monospacedDigit()
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Text("\(model.expenses.count) " + (model.expenses.count == 1 ? "gasto" : "gastos"))
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 }
 
@@ -42,17 +42,17 @@ public struct PaymentMethodDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Por tarjeta")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             ForEach(model.cardTotals) { total in
                                 HStack {
                                     Text(total.alias)
                                         .lanaFont(.body)
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                     Spacer()
                                     Text(Money(amount: total.amount, currency: total.currency).formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                             }
                         }
@@ -64,17 +64,17 @@ public struct PaymentMethodDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Por categoría")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             ForEach(model.categoryTotals) { total in
                                 HStack {
                                     Text(total.category.capitalized)
                                         .lanaFont(.body)
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                     Spacer()
                                     Text(Money(amount: total.amount, currency: total.currency).formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                             }
                         }
@@ -88,7 +88,7 @@ public struct PaymentMethodDetailView: View {
             }
             .padding(Space.md.rawValue)
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle(model.label.capitalized)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

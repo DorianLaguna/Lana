@@ -25,15 +25,15 @@ public struct CardDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Debes en total")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             Text(model.totalDebt.formatted())
                                 .lanaFont(.largeAmount)
                                 .monospacedDigit()
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
 
                             GeometryReader { proxy in
                                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(lana.separator)
+                                    .fill(lana.hairlineStrong)
                                     .overlay(alignment: .leading) {
                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                                             .fill(Color(hex: model.card.colorHex) ?? lana.accent)
@@ -45,11 +45,11 @@ public struct CardDetailView: View {
                             HStack {
                                 Text("\(model.totalDebt.formatted()) de \(limit.formatted()) límite")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 Spacer()
                                 Text("Corte el \(cutoffDay)")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                             }
 
                             Divider()
@@ -62,21 +62,21 @@ public struct CardDetailView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Para el corte")
                                         .lanaFont(.caption)
-                                        .foregroundStyle(lana.textSecondary)
+                                        .foregroundStyle(lana.ink50)
                                     Text(model.statementDue.formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text("Después del corte")
                                         .lanaFont(.caption)
-                                        .foregroundStyle(lana.textSecondary)
+                                        .foregroundStyle(lana.ink50)
                                     Text(model.currentCycleAccrued.formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                             }
 
@@ -95,17 +95,17 @@ public struct CardDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Por categoría en esta tarjeta")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             ForEach(model.categoryTotals) { total in
                                 HStack {
                                     Text(total.category.capitalized)
                                         .lanaFont(.body)
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                     Spacer()
                                     Text(Money(amount: total.amount, currency: total.currency).formatted())
                                         .lanaFont(.body)
                                         .monospacedDigit()
-                                        .foregroundStyle(lana.textPrimary)
+                                        .foregroundStyle(lana.ink)
                                 }
                             }
                         }
@@ -116,7 +116,7 @@ public struct CardDetailView: View {
             }
             .padding(Space.md.rawValue)
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle(model.card.alias)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

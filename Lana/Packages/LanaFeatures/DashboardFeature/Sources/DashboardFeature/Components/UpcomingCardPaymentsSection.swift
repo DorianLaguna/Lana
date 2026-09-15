@@ -24,19 +24,19 @@ public struct UpcomingCardPaymentsSection: View {
                 VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                     Text("Tarjetas esta quincena")
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
 
                     VStack(spacing: 0) {
                         ForEach(dueThisPayPeriod) { due in
                             HStack(spacing: Space.sm.rawValue) {
                                 Text(due.card.alias)
                                     .lanaFont(.body)
-                                    .foregroundStyle(lana.textPrimary)
+                                    .foregroundStyle(lana.ink)
                                 Spacer()
                                 Text(due.amount.formatted())
                                     .lanaFont(.body)
                                     .monospacedDigit()
-                                    .foregroundStyle(lana.textPrimary)
+                                    .foregroundStyle(lana.ink)
                             }
                             .padding(.vertical, Space.xs.rawValue)
                             if due.id != dueThisPayPeriod.last?.id {
@@ -51,12 +51,12 @@ public struct UpcomingCardPaymentsSection: View {
                             HStack {
                                 Text("Total")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 Spacer()
                                 Text(Money(amount: total.amount, currency: total.currency).formatted())
                                     .lanaFont(.body)
                                     .monospacedDigit()
-                                    .foregroundStyle(lana.textPrimary)
+                                    .foregroundStyle(lana.ink)
                             }
                         }
                     }

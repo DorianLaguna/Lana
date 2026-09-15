@@ -140,7 +140,7 @@ public struct SharedExpenseCaptureView: View {
                     }
                     Text(ruleKind.helpText)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
 
                     if ruleKind.needsPerParticipantInput {
                         ForEach(model.list.participants) { participant in
@@ -186,7 +186,7 @@ public struct SharedExpenseCaptureView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle(existingExpense == nil ? "Gasto compartido" : "Editar gasto")
@@ -287,14 +287,14 @@ extension SharedExpenseCaptureView {
                                 .monospacedDigit()
                         }
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     }
                 }
             }
         } else if let splitRule, amount > 0 {
             Text(previewError(for: splitRule))
                 .lanaFont(.caption)
-                .foregroundStyle(lana.warning)
+                .foregroundStyle(lana.attention)
         }
     }
 

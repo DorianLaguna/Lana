@@ -29,7 +29,7 @@ public struct SharedListDetailView: View {
                 if let shareErrorMessage = model.shareErrorMessage {
                     Text(shareErrorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
 
                 BalancesView(
@@ -44,7 +44,7 @@ public struct SharedListDetailView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Gastos")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             VStack(spacing: 0) {
                                 ForEach(model.expenses) { expense in
                                     Button {
@@ -66,7 +66,7 @@ public struct SharedListDetailView: View {
             }
             .padding(Space.md.rawValue)
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle(model.list.name)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -200,7 +200,7 @@ private struct SharedExpenseRow: View {
                 }
             }
             .lanaFont(.caption)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
             // Alineado bajo el texto de `TransactionRow`, no bajo su punto
             // de color — el punto mide `Space.sm` + el espacio entre él y
             // el texto es otro `Space.sm`.

@@ -30,7 +30,7 @@ public struct ListeningView: View {
         VStack(spacing: Space.lg.rawValue) {
             Text("Escuchando")
                 .lanaFont(.caption)
-                .foregroundStyle(lana.warning)
+                .foregroundStyle(lana.attention)
                 .textCase(.uppercase)
 
             Button(action: onStop) {
@@ -72,12 +72,12 @@ public struct ListeningView: View {
             if !transcript.isEmpty {
                 Button("Borrar y seguir escuchando", action: onClear)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.highlight)
+                    .foregroundStyle(lana.accent)
             }
 
             Text("Toca el micrófono para terminar")
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
         .padding(Space.lg.rawValue)
         .animation(.easeInOut(duration: 0.25), value: preview)
@@ -91,18 +91,18 @@ public struct ListeningView: View {
             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                 Text("Lo que llevo")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 ForEach(preview) { draft in
                     HStack(spacing: Space.sm.rawValue) {
                         Text(Self.title(for: draft))
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                             .lineLimit(1)
                         Spacer(minLength: Space.sm.rawValue)
                         Text(Self.amount(for: draft))
                             .lanaFont(.body)
                             .monospacedDigit()
-                            .foregroundStyle(draft.kind == .income ? lana.positive : lana.textPrimary)
+                            .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
                     }
                 }
             }
@@ -141,7 +141,7 @@ public struct ListeningView: View {
                 VStack(spacing: 0) {
                     Text(transcript.isEmpty ? "…" : transcript)
                         .lanaFont(.title)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                     Color.clear

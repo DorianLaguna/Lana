@@ -51,7 +51,7 @@ public struct EditSharedListView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle("Editar lista")
@@ -90,7 +90,7 @@ public struct EditSharedListView: View {
             HStack {
                 Text("Ingreso mensual")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 Spacer()
                 TextField("Sin capturar", text: $participant.incomeText)
                     .lanaFont(.body)

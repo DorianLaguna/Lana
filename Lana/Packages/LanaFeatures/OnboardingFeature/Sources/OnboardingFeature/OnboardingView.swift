@@ -63,7 +63,7 @@ public struct OnboardingView: View {
                 Color.clear
             }
         }
-        .background(lana.surface)
+        .background(lana.bg)
     }
 
     /// El paso de la guía de Apple Pay: hospeda `GuiaApplePayView` en

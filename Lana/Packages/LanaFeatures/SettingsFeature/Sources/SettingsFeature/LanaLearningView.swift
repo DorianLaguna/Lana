@@ -25,13 +25,13 @@ struct LanaLearningView: View {
             VStack(alignment: .leading, spacing: Space.md.rawValue) {
                 Text("Lana aprende de las correcciones que haces al registrar tus gastos.")
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
 
                 if !model.vocabulary.isEmpty {
                     HStack {
                         Text(wordCountText)
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                         Spacer()
                         Button("Borrar todo", role: .destructive) {
                             isConfirmingDeleteAll = true
@@ -43,9 +43,9 @@ struct LanaLearningView: View {
                 vocabularyList
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("Aprendizaje de Lana")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -104,11 +104,11 @@ struct LanaLearningView: View {
                         HStack {
                             Text(entry.term)
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Spacer()
                             Text("×\(entry.useCount)")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             Text(entry.category.capitalized)
                                 .lanaFont(.caption)
                                 .foregroundStyle(lana.categoryRamp[entry.category.lowercased().stableRampIndex])
@@ -121,7 +121,7 @@ struct LanaLearningView: View {
                                 termPendingDelete = entry.term
                             } label: {
                                 Image(systemName: "trash")
-                                    .foregroundStyle(lana.critical)
+                                    .foregroundStyle(lana.attention)
                             }
                             .buttonStyle(.plain)
                             // Sin esto VoiceOver solo anuncia "basurero", sin

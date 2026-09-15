@@ -53,13 +53,13 @@ public struct DraftCard: View {
                     if draft.needsReview {
                         Label("Revisar", systemImage: "exclamationmark.circle")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.warning)
+                            .foregroundStyle(lana.attention)
                     }
 
                     if let onDelete {
                         Button(action: onDelete) {
                             Image(systemName: "trash")
-                                .foregroundStyle(lana.critical)
+                                .foregroundStyle(lana.attention)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Borrar este borrador")
@@ -69,10 +69,10 @@ public struct DraftCard: View {
                 HStack {
                     Text("$")
                         .lanaFont(.largeAmount)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     TextField("0", value: $draft.amount, format: .number)
                         .lanaFont(.largeAmount)
-                        .foregroundStyle(draft.kind == .income ? lana.positive : lana.textPrimary)
+                        .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
                         .monospacedDigit()
                     #if os(iOS)
                         .keyboardType(.decimalPad)
@@ -88,7 +88,7 @@ public struct DraftCard: View {
 
                 DatePicker("Fecha", selection: $draft.date, displayedComponents: .date)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
 
                 if draft.kind == .expense {
                     paymentMethodPicker
@@ -109,7 +109,7 @@ public struct DraftCard: View {
             }
         }
         .lanaFont(.body)
-        .foregroundStyle(lana.textPrimary)
+        .foregroundStyle(lana.ink)
     }
 
     /// Sin opción "Automático" — antes mostraba ese texto literal aunque el
@@ -131,7 +131,7 @@ public struct DraftCard: View {
                 Text("Otra…").tag(SubcategorySelection.custom)
             }
             .lanaFont(.body)
-            .foregroundStyle(lana.textPrimary)
+            .foregroundStyle(lana.ink)
 
             if isEnteringCustomSubcategory {
                 LanaTextField("Nombre de la subcategoría", text: $draft.subcategory)
@@ -152,10 +152,10 @@ public struct DraftCard: View {
             VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                 HStack(spacing: Space.sm.rawValue) {
                     Image(systemName: "person.2")
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     Text("Compartido en \(list.name)")
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     Spacer()
                     Button("Quitar") {
                         draft.sharedListID = nil
@@ -170,7 +170,7 @@ public struct DraftCard: View {
                     }
                 }
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
                 splitBreakdown(in: list)
             }
@@ -189,20 +189,20 @@ public struct DraftCard: View {
                 }
             }
             .lanaFont(.body)
-            .foregroundStyle(lana.textPrimary)
+            .foregroundStyle(lana.ink)
             ForEach(draft.splitShares) { share in
                 HStack {
                     Text(displayNameByID(share.participant, in: list))
                     if share.isPayer {
                         Text("pagó")
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                     Spacer()
                     Text(share.amount.formatted())
                         .monospacedDigit()
                 }
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             }
         }
     }
@@ -295,7 +295,7 @@ public struct DraftCard: View {
             }
         }
         .lanaFont(.body)
-        .foregroundStyle(lana.textPrimary)
+        .foregroundStyle(lana.ink)
     }
 }
 

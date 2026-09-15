@@ -57,7 +57,7 @@ public struct GuiaApplePayView: View {
             }
             navigationBar
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .onAppear { model.presentFirstScreen() }
     }
 
@@ -72,14 +72,14 @@ public struct GuiaApplePayView: View {
         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
             Text("Configurar Apple Pay")
                 .lanaFont(.headline)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             Text(progressText)
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Space.md.rawValue)
-        .background(lana.surfaceRaised)
+        .background(lana.surface)
         .accessibilityElement(children: .combine)
     }
 
@@ -177,14 +177,14 @@ public struct GuiaApplePayView: View {
         HStack(spacing: Space.sm.rawValue) {
             if model.currentScreen != .requirements {
                 Button("Atrás") { model.back() }
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
 
             Spacer()
 
             if model.currentScreen != .closing {
                 Button(skipTitle) { model.skip() }
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
 
             if model.currentScreen == .closing {
@@ -201,7 +201,7 @@ public struct GuiaApplePayView: View {
         }
         .lanaFont(.body)
         .padding(Space.md.rawValue)
-        .background(lana.surfaceRaised)
+        .background(lana.surface)
     }
 
     /// Salirse de la guía. En onboarding es "Omitir" —hay un flujo del que te

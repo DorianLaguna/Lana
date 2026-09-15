@@ -25,7 +25,7 @@ struct ClosingStepView: View {
         VStack(alignment: .leading, spacing: Space.lg.rawValue) {
             Text("Repasa lo que configuraste")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             if summaryUnavailable {
                 // R6.2: el resumen no está disponible, pero el flujo continúa —
@@ -33,11 +33,11 @@ struct ClosingStepView: View {
                 LanaCard {
                     HStack(alignment: .top, spacing: Space.sm.rawValue) {
                         Image(systemName: "exclamationmark.triangle")
-                            .foregroundStyle(lana.warning)
+                            .foregroundStyle(lana.attention)
                             .frame(width: 28)
                         Text("El resumen no pudo cargarse, pero puedes continuar.")
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,17 +51,17 @@ struct ClosingStepView: View {
                 // "verificado".
                 Text("Estos son los pasos que cubrió la guía:")
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
 
                 LanaCard {
                     VStack(spacing: 0) {
                         ForEach(summary) { step in
                             HStack(alignment: .top, spacing: Space.sm.rawValue) {
                                 Image(systemName: "\(step.id).circle")
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 Text(step.title)
                                     .lanaFont(.body)
-                                    .foregroundStyle(lana.textPrimary)
+                                    .foregroundStyle(lana.ink)
                                 Spacer(minLength: 0)
                             }
                             .padding(.vertical, Space.xs.rawValue)
@@ -82,7 +82,7 @@ struct ClosingStepView: View {
                         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                             Text("¿Cómo saber si quedó bien?")
                                 .lanaFont(.headline)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Text("""
                             Lana no puede confirmar por su cuenta que la automatización \
                             haya quedado. La única forma segura es hacer un pago por \
@@ -90,7 +90,7 @@ struct ClosingStepView: View {
                             Lana para revisar, funcionó.
                             """)
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                             .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -105,7 +105,7 @@ struct ClosingStepView: View {
                         .frame(width: 28)
                     Text(nextStepMessage)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,7 +137,7 @@ struct ClosingStepView: View {
                     summaryUnavailable: false,
                     mode: .onboarding)
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }

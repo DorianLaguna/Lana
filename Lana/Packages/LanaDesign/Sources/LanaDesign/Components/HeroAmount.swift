@@ -34,15 +34,15 @@ public struct HeroAmount: View {
         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
             Text(label)
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             Text(amount)
                 .lanaFont(.largeAmount)
                 .monospacedDigit()
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             if let context {
                 Text(context)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

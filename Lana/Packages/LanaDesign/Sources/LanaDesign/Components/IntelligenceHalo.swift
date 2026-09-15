@@ -34,7 +34,7 @@ public enum IntelligenceHaloState: Equatable, Sendable {
 /// estado a mano.
 ///
 /// El color sale del acento del tema, salvo en `.error`, que usa
-/// `lana.warning` para que el cambio de estado se lea sin texto. La
+/// `lana.attention` para que el cambio de estado se lea sin texto. La
 /// intensidad, la escala y la velocidad las decide `state`.
 public struct IntelligenceHalo: View {
     @Environment(\.lana) private var lana
@@ -93,7 +93,7 @@ public struct IntelligenceHalo: View {
     /// El color de la nube: el acento del tema, salvo en `.error`, que tira
     /// a advertencia para que el cambio de estado se lea sin texto.
     private var haloColor: Color {
-        state == .error ? lana.warning : lana.accent
+        state == .error ? lana.attention : lana.accent
     }
 
     /// Cuánto más grande que el mic se dibuja la nube. Contenido a propósito
@@ -178,6 +178,6 @@ public struct IntelligenceHalo: View {
         .padding(Space.xl.rawValue)
         .frame(maxWidth: .infinity)
     }
-    .background(LanaColors(theme: .zafiro, colorScheme: .dark).surface)
+    .background(LanaColors(theme: .zafiro, colorScheme: .dark).bg)
     .lanaTheme(.zafiro)
 }

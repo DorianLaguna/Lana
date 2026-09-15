@@ -25,10 +25,10 @@ struct InsightsUnavailableView: View {
             VStack(alignment: .leading, spacing: Space.md.rawValue) {
                 Text(title)
                     .lanaFont(.headline)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text(message)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 if let action {
                     Button(action.title, action: action.perform)
                         .buttonStyle(.borderedProminent)

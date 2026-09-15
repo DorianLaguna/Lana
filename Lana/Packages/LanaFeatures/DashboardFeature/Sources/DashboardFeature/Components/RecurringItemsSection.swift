@@ -44,7 +44,7 @@ public struct RecurringItemsSection: View {
                 HStack {
                     Text("Recurrentes")
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     Spacer()
                     Button(action: onAdd) {
                         Image(systemName: "plus")
@@ -54,7 +54,7 @@ public struct RecurringItemsSection: View {
                 if items.isEmpty {
                     Text("Agrega tu quincena, renta u otros pagos fijos. Lana los registra sola el día que caen.")
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 } else {
                     DisclosureGroup(isExpanded: $isExpanded) {
                         VStack(spacing: 0) {
@@ -69,7 +69,7 @@ public struct RecurringItemsSection: View {
                     } label: {
                         Text("\(items.count) \(items.count == 1 ? "recurrente" : "recurrentes")")
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                     }
                 }
             }
@@ -107,7 +107,7 @@ public struct RecurringItemsSection: View {
             // el monto se teñía de verde para ingreso, fácil de pasar por
             // alto; el ícono lo deja inequívoco de un vistazo.
             Image(systemName: item.kind == .income ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
-                .foregroundStyle(item.kind == .income ? lana.positive : lana.textSecondary)
+                .foregroundStyle(item.kind == .income ? lana.positive : lana.ink50)
 
             label(for: item)
 
@@ -116,7 +116,7 @@ public struct RecurringItemsSection: View {
             Text(item.amount.formatted())
                 .lanaFont(.body)
                 .monospacedDigit()
-                .foregroundStyle(item.kind == .income ? lana.positive : lana.textPrimary)
+                .foregroundStyle(item.kind == .income ? lana.positive : lana.ink)
 
             rowActions(for: item)
         }
@@ -129,7 +129,7 @@ public struct RecurringItemsSection: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(item.name)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             HStack(spacing: Space.xs.rawValue) {
                 Text(statusText(for: item))
                 if let label = paymentMethodLabel(item.paymentMethod) {
@@ -138,7 +138,7 @@ public struct RecurringItemsSection: View {
                 }
             }
             .lanaFont(.caption)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
         }
     }
 
@@ -161,7 +161,7 @@ public struct RecurringItemsSection: View {
                     }
                 } label: {
                     Image(systemName: "checkmark.circle")
-                        .foregroundStyle(lana.highlight)
+                        .foregroundStyle(lana.accent)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Registrar \(item.name)")
@@ -175,7 +175,7 @@ public struct RecurringItemsSection: View {
                 itemPendingDelete = item
             } label: {
                 Image(systemName: "trash")
-                    .foregroundStyle(lana.critical)
+                    .foregroundStyle(lana.attention)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Borrar \(item.name)")

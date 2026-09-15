@@ -68,7 +68,7 @@ public struct MonthlyBarsChart: View {
                 // Recurrentes, por ejemplo).
                 Text("Toca un mes para verlo en el Dashboard")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     // Ya lo dice el `accessibilityHint` de cada barra; en
                     // VoiceOver esto sería la misma frase trece veces.
                     .accessibilityHidden(true)
@@ -85,17 +85,17 @@ public struct MonthlyBarsChart: View {
                 // La pista completa se dibuja siempre, para que los meses
                 // vacíos sigan siendo tocables y no queden como huecos.
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(lana.separator.opacity(0.5))
+                    .fill(lana.hairlineStrong.opacity(0.5))
                     .overlay(alignment: .bottom) {
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(point.month == highestMonth ? lana.highlight : lana.accent)
+                            .fill(point.month == highestMonth ? lana.attention : lana.accent)
                             .frame(height: proxy.size.height * fraction(of: point))
                     }
             }
             if !dynamicTypeSize.isAccessibilitySize {
                 Text(Self.initial(of: point.month))
                     .lanaFont(.caption)
-                    .foregroundStyle(point.hasActivity ? lana.textSecondary : lana.textSecondary.opacity(0.4))
+                    .foregroundStyle(point.hasActivity ? lana.ink50 : lana.ink50.opacity(0.4))
             }
         }
         .frame(maxWidth: .infinity)

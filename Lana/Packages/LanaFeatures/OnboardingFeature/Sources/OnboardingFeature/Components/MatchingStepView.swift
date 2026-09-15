@@ -20,7 +20,7 @@ struct MatchingStepView: View {
         VStack(alignment: .leading, spacing: Space.lg.rawValue) {
             Text("Empareja tus tarjetas")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             // Lo que el usuario tiene que hacer, separado de lo que solo
             // necesita entender: antes las cuatro tarjetas se veían iguales y
@@ -30,7 +30,7 @@ struct MatchingStepView: View {
 
                 Text("Luego regístralo en tu tarjeta dentro de Lana:")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .padding(.leading, Space.xs.rawValue)
 
                 Button(action: onOpenCardSettings) {
@@ -66,7 +66,7 @@ struct MatchingStepView: View {
         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
             Label(header, systemImage: systemImage)
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
                 .textCase(.uppercase)
             content()
         }
@@ -91,10 +91,10 @@ struct MatchingStepView: View {
                         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                             Text(signal.name)
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Text(signal.explanation)
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -113,7 +113,7 @@ struct MatchingStepView: View {
             VStack(alignment: .leading, spacing: Space.md.rawValue) {
                 Text("Encuentra el nombre de tu tarjeta en Wallet")
                     .lanaFont(.headline)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
 
                 ForEach(matching.findNameSteps) { step in
                     HStack(alignment: .top, spacing: Space.sm.rawValue) {
@@ -129,10 +129,10 @@ struct MatchingStepView: View {
                         VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                             Text(step.title)
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Text(step.detail)
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -151,7 +151,7 @@ struct MatchingStepView: View {
                     .frame(width: 28)
                 Text(message)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,7 +167,7 @@ struct MatchingStepView: View {
                     matching: GuiaApplePayContent.standard.matching,
                     onOpenCardSettings: {})
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }

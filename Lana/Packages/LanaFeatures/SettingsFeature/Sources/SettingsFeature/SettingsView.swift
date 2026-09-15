@@ -51,9 +51,9 @@ public struct SettingsView: View {
                 .padding(Space.md.rawValue)
                 // El micrófono flotante de `MainTabView` se monta sobre esta
                 // pantalla y tapaba la fila de Versión.
-                .floatingMicClearance()
+                .tabBarClearance()
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Ajustes")
             .task { await model.onAppear() }
             .navigationDestination(for: SettingsDestination.self) { destination in
@@ -235,7 +235,7 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
             Text(title.uppercased())
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             content()
         }
     }
@@ -282,11 +282,11 @@ struct SettingsRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 if let subtitle {
                     Text(subtitle)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
             }
 
@@ -295,7 +295,7 @@ struct SettingsRow: View {
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
         }
         .padding(.vertical, Space.xs.rawValue)

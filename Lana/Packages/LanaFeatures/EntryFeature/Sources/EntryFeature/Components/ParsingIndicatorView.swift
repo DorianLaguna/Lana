@@ -42,7 +42,7 @@ public struct ParsingIndicatorView: View {
 
             Text(Self.phrases[phraseIndex])
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.3), value: phraseIndex)
         }

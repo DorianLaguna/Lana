@@ -25,7 +25,7 @@ struct ThemeSettingsView: View {
                 tocarlo — no hay nada que guardar.
                 """)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
                 .fixedSize(horizontal: false, vertical: true)
 
                 LazyVGrid(
@@ -39,9 +39,9 @@ struct ThemeSettingsView: View {
                     }
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("Tema")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -89,12 +89,12 @@ private struct ThemeSwatch: View {
                     }
                     Text(theme.displayName)
                         .lanaFont(.caption)
-                        .foregroundStyle(colors.textPrimary)
+                        .foregroundStyle(colors.ink)
                 }
             }
             .padding(Space.sm.rawValue)
             .frame(maxWidth: .infinity)
-            .background(colors.surfaceRaised, in: RoundedRectangle(cornerRadius: Space.sm.rawValue, style: .continuous))
+            .background(colors.surface, in: RoundedRectangle(cornerRadius: Space.sm.rawValue, style: .continuous))
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: Space.sm.rawValue, style: .continuous)

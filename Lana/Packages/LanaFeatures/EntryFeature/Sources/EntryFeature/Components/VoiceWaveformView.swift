@@ -70,7 +70,7 @@ struct VoiceWaveformView: View {
     ForEach(LanaTheme.allCases) { theme in
         VoiceWaveformView()
             .padding()
-            .background(LanaColors(theme: theme, colorScheme: .dark).surface)
+            .background(LanaColors(theme: theme, colorScheme: .dark).bg)
             .lanaTheme(theme)
     }
 }

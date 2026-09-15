@@ -38,7 +38,7 @@ public struct EntryView: View {
         // el resto de la hoja se queda con el blanco propio de iOS en vez
         // del de `LanaDesign`, y se nota la costura entre los dos.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(lana.surface)
+        .background(lana.bg)
         .task { await model.onAppear(startListening: autoStartListening) }
         .onChange(of: model.stage) {
             if model.stage == .saved {
@@ -98,7 +98,7 @@ public struct EntryView: View {
                 VStack(spacing: Space.xs.rawValue) {
                     Text(speechUnavailableMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                         .multilineTextAlignment(.center)
                     if model.speechAvailability == .permissionDenied || model.speechAvailability == .restricted {
                         Button("Abrir Ajustes", action: onOpenSettings)
@@ -111,7 +111,7 @@ public struct EntryView: View {
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.critical)
+                    .foregroundStyle(lana.attention)
             }
         }
     }
@@ -132,7 +132,7 @@ public struct EntryView: View {
             let index = Int(context.date.timeIntervalSinceReferenceDate / 5) % Self.suggestionExamples.count
             Text("Prueba a decir: \"\(Self.suggestionExamples[index])\"")
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
                 .multilineTextAlignment(.center)
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.6), value: index)
@@ -171,7 +171,7 @@ public struct EntryView: View {
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.critical)
+                    .foregroundStyle(lana.attention)
             }
 
             Button {

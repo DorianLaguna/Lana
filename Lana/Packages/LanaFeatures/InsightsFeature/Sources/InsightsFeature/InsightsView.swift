@@ -44,7 +44,7 @@ public struct InsightsView: View {
                 }
                 .padding(Space.md.rawValue)
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Análisis")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -99,7 +99,7 @@ public struct InsightsView: View {
                     ProgressView()
                     Text("Leyendo \(model.anchorLabel)…")
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
             }
         } else if let message = model.errorMessage {
@@ -150,7 +150,7 @@ public struct InsightsView: View {
                     if let summary = model.narrative?.summary, !summary.isEmpty {
                         Text(summary)
                             .lanaFont(.title)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -179,13 +179,13 @@ public struct InsightsView: View {
             periodo y Lana puede compararlos contra una regla.
             """)
             .lanaFont(.caption)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
         }
         if mix.unclassified > 0 {
             Text("Sin clasificar: \(Money(amount: mix.unclassified, currency: currency).formatted())")
                 .lanaFont(.caption)
                 .monospacedDigit()
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
     }
 
@@ -225,7 +225,7 @@ public struct InsightsView: View {
             ForEach(items, id: \.self) { item in
                 Text(item)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -241,10 +241,10 @@ public struct InsightsView: View {
                     SectionCaption("Una regla que podría quedarte")
                     Text(suggestion.rule.displayName)
                         .lanaFont(.headline)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Text(suggestion.reason)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                     HStack(spacing: Space.sm.rawValue) {
                         Button("Usarla") { model.selectRule(suggestion.rule) }
                             .buttonStyle(.borderedProminent)
@@ -252,7 +252,7 @@ public struct InsightsView: View {
                         // Descartar se recuerda: no se vuelve a proponer.
                         Button("Ahora no") { model.dismissSuggestion() }
                             .buttonStyle(.plain)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -280,7 +280,7 @@ public struct InsightsView: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .semibold))
             }
-            .foregroundStyle(lana.highlight)
+            .foregroundStyle(lana.accent)
         }
         .accessibilityLabel("Regla de presupuesto")
     }
@@ -295,7 +295,7 @@ public struct InsightsView: View {
             esos se ven en la vista del año.
             """)
             .lanaFont(.caption)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

@@ -27,7 +27,7 @@ public struct AddCardPaymentView: View {
                 Section {
                     HStack {
                         Text("Monto")
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Spacer()
                         TextField("0", value: $amount, format: .number)
                             .monospacedDigit()
@@ -49,7 +49,7 @@ public struct AddCardPaymentView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle("Pagar")

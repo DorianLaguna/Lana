@@ -35,18 +35,18 @@ struct YearComparisonCard: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             Spacer()
             VStack(alignment: .trailing, spacing: 0) {
                 Text(Self.text(for: delta))
                     .lanaFont(.body)
                     .monospacedDigit()
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 if let relative = delta.relative {
                     Text(relative.formatted(.percent.precision(.fractionLength(0))))
                         .lanaFont(.caption)
                         .monospacedDigit()
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
             }
         }

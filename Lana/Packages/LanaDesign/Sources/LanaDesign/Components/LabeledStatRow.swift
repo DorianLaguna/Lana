@@ -24,12 +24,12 @@ public struct LabeledStatRow: View {
         HStack {
             Text(title)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             Spacer(minLength: Space.sm.rawValue)
             Text(value)
                 .lanaFont(.body)
                 .monospacedDigit()
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
         }
         // Una fila sola es un dato; la etiqueta y su cifra son una sola cosa
         // para VoiceOver, no dos.

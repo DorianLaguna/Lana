@@ -19,7 +19,7 @@ public struct SectionCaption: View {
     public var body: some View {
         Text(title)
             .lanaFont(.caption)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
     }
 }
 

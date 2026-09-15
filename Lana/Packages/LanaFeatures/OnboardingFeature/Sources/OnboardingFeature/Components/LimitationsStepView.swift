@@ -16,7 +16,7 @@ struct LimitationsStepView: View {
         VStack(alignment: .leading, spacing: Space.lg.rawValue) {
             Text("Qué esperar")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             VStack(spacing: Space.sm.rawValue) {
                 ForEach(limitations) { limitation in
@@ -28,7 +28,7 @@ struct LimitationsStepView: View {
                                 .frame(width: 28)
                             Text(limitation.message)
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,7 +55,7 @@ struct LimitationsStepView: View {
 
     private func tint(for kind: KnownLimitation.Kind) -> Color {
         switch kind {
-        case .rejectedTx, .duplicateTx, .emptyWalletVariables: lana.warning
+        case .rejectedTx, .duplicateTx, .emptyWalletVariables: lana.attention
         default: lana.accent
         }
     }
@@ -67,7 +67,7 @@ struct LimitationsStepView: View {
             ForEach(LanaTheme.allCases) { theme in
                 LimitationsStepView(limitations: GuiaApplePayContent.standard.limitations)
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }

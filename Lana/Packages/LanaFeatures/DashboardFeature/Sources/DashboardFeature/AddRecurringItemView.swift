@@ -28,7 +28,7 @@ public struct AddRecurringItemView: View {
                     model.name = name
                 }
                 .buttonStyle(.bordered)
-                .tint(model.name == name ? lana.highlight : lana.textSecondary)
+                .tint(model.name == name ? lana.highlight : lana.ink50)
             }
         }
     }
@@ -141,7 +141,7 @@ public struct AddRecurringItemView: View {
                 Section {
                     HStack {
                         Text("Monto")
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Spacer()
                         TextField("0", value: $model.amount, format: .number)
                             .monospacedDigit()
@@ -152,7 +152,7 @@ public struct AddRecurringItemView: View {
                     }
                     HStack {
                         Text("Día del mes")
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Spacer()
                         TextField("1-31", value: $model.dayOfMonth, format: .number)
                             .monospacedDigit()
@@ -179,7 +179,7 @@ public struct AddRecurringItemView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .task { await model.onAppear() }

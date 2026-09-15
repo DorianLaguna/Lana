@@ -51,9 +51,9 @@ struct LanaInfoView: View {
                 learningSection
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("Cómo funciona Lana")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -71,10 +71,10 @@ struct LanaInfoView: View {
                         endPoint: .bottomTrailing))
             Text("Lana es tu asistente financiero.")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             Text("Le dices lo que gastaste con tus palabras y ella lo registra por ti.")
                 .lanaFont(.body)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
     }
 
@@ -94,11 +94,11 @@ struct LanaInfoView: View {
                 VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                     Text(title)
                         .lanaFont(.headline)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     if let detail {
                         Text(detail)
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                     if let example {
                         registeredExample(example)
@@ -114,7 +114,7 @@ struct LanaInfoView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(example.merchant)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text(example.category)
                     .lanaFont(.caption)
                     .foregroundStyle(lana.categoryRamp[example.category.lowercased().stableRampIndex])
@@ -123,7 +123,7 @@ struct LanaInfoView: View {
             Text(example.amount)
                 .lanaFont(.headline)
                 .monospacedDigit()
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
         }
         .padding(.top, Space.xs.rawValue)
     }
@@ -144,7 +144,7 @@ struct LanaInfoView: View {
                 VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                     Text("Tus pagos con Apple Pay se registran solos")
                         .lanaFont(.headline)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Text("""
                     Si activas la captura automática, cada compra por contacto (NFC) con \
                     Apple Pay entra a Lana sin que la dictes. Así solo tienes que capturar \
@@ -152,7 +152,7 @@ struct LanaInfoView: View {
                     tu iPhone.
                     """)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .fixedSize(horizontal: false, vertical: true)
 
                     // El puntero se puede tocar: quien busca Apple Pay desde
@@ -168,7 +168,7 @@ struct LanaInfoView: View {
                     } else {
                         Text("Encuentra cómo activarla en la pestaña Tarjetas → Configurar Apple Pay.")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, Space.xs.rawValue)
                     }
@@ -194,14 +194,14 @@ struct LanaInfoView: View {
                 VStack(alignment: .leading, spacing: Space.xs.rawValue) {
                     Text("También puedes registrarlo a mano")
                         .lanaFont(.headline)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Text("""
                     El botón + del Dashboard abre el mismo formulario, en blanco: escribes \
                     el monto y el concepto tú. No pasa por el dictado, así que sirve \
                     cuando no puedes hablar.
                     """)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -213,13 +213,13 @@ struct LanaInfoView: View {
         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
             Text("Lana aprende de tus correcciones")
                 .lanaFont(.headline)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
             Text("""
             Cuando corriges la categoría de un gasto, Lana recuerda esa preferencia \
             para las próximas veces que menciones lo mismo.
             """)
             .lanaFont(.body)
-            .foregroundStyle(lana.textSecondary)
+            .foregroundStyle(lana.ink50)
         }
     }
 

@@ -32,7 +32,7 @@ public struct CreateSharedListView: View {
                                         model.removeParticipant(at: index)
                                     } label: {
                                         Image(systemName: "minus.circle")
-                                            .foregroundStyle(lana.critical)
+                                            .foregroundStyle(lana.attention)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -40,7 +40,7 @@ public struct CreateSharedListView: View {
                             HStack {
                                 Text("Ingreso mensual")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 Spacer()
                                 TextField("Opcional", text: $model.participantIncomes[index])
                                     .lanaFont(.body)
@@ -82,7 +82,7 @@ public struct CreateSharedListView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle("Nueva lista")

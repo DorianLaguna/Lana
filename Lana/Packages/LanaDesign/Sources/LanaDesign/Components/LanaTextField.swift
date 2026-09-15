@@ -18,13 +18,13 @@ public struct LanaTextField: View {
     public var body: some View {
         TextField(placeholder, text: $text)
             .lanaFont(.body)
-            .foregroundStyle(lana.textPrimary)
+            .foregroundStyle(lana.ink)
             .padding(Space.sm.rawValue)
-            .background(lana.surfaceRaised)
+            .background(lana.surface)
             .clipShape(RoundedRectangle(cornerRadius: Space.xs.rawValue, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Space.xs.rawValue, style: .continuous)
-                    .strokeBorder(isFocused ? lana.accent : lana.separator, lineWidth: isFocused ? 2 : 1))
+                    .strokeBorder(isFocused ? lana.accent : lana.hairlineStrong, lineWidth: isFocused ? 2 : 1))
             .focused($isFocused)
             .animation(.easeOut(duration: 0.15), value: isFocused)
     }

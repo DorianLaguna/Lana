@@ -75,11 +75,11 @@ public struct CardsView: View {
                         // El micrófono flotante de `MainTabView` caía justo
                         // encima de la entrada de Apple Pay, que es el último
                         // elemento de esta lista.
-                        .floatingMicClearance()
+                        .tabBarClearance()
                     }
                 }
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Tarjetas")
             // Por `CardID`, no por `Card`: así, cuando `model.cards` se
             // refresca tras editar, este destino se recalcula con la
@@ -131,7 +131,7 @@ public struct CardsView: View {
             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                 Text("AUTOMATIZACIÓN")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 seenApplePayRow(action)
             }
@@ -155,17 +155,17 @@ public struct CardsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Guía de Apple Pay")
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Text("Vuelve a verla cuando quieras")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
 
                     Spacer(minLength: Space.sm.rawValue)
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(lana.textSecondary.opacity(0.6))
+                        .foregroundStyle(lana.ink50.opacity(0.6))
                 }
             }
         }
@@ -232,11 +232,11 @@ private struct CardRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(card.alias)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     if let lastFourDigits = card.lastFourDigits {
                         Text("•••• \(lastFourDigits)")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 }
 
@@ -247,20 +247,20 @@ private struct CardRow: View {
                         Text(debt.formatted())
                             .lanaFont(.body)
                             .monospacedDigit()
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                         Text("debes")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     } else {
                         Text("Sin deuda")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 }
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(lana.textSecondary.opacity(0.6))
+                    .foregroundStyle(lana.ink50.opacity(0.6))
             }
         }
     }

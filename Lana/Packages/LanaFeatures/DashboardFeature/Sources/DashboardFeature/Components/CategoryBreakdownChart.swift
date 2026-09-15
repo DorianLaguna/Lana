@@ -52,22 +52,22 @@ public struct CategoryBreakdownChart: View {
                         .frame(width: 8, height: 8)
                     Text(total.category.capitalized)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                 }
                 Spacer()
                 HStack(spacing: Space.xs.rawValue) {
                     Text(Money(amount: total.amount, currency: total.currency).formatted())
                         .lanaFont(.body)
                         .monospacedDigit()
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(lana.textSecondary.opacity(0.6))
+                        .foregroundStyle(lana.ink50.opacity(0.6))
                 }
             }
             GeometryReader { proxy in
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(lana.separator)
+                    .fill(lana.hairlineStrong)
                     .overlay(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(color(for: total.category))

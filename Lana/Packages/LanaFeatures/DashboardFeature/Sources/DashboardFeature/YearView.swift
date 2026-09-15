@@ -65,9 +65,9 @@ public struct YearView: View {
                 }
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("El año")
         .task { await model.onAppear() }
         .refreshable { await model.onAppear() }
@@ -81,7 +81,7 @@ public struct YearView: View {
         if model.statistics.currencies.count > 1 {
             Text(currency.rawValue)
                 .lanaFont(.headline)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, Space.sm.rawValue)
         }
@@ -281,7 +281,7 @@ public struct YearView: View {
                 } label: {
                     SectionCaption("Más detalle")
                 }
-                .tint(lana.highlight)
+                .tint(lana.accent)
             }
         }
     }

@@ -29,7 +29,7 @@ public struct ReviewTrayView: View {
                                 TransactionRow(
                                     concept: expense.concept,
                                     categoryName: expense.category ?? "Ingreso",
-                                    categoryColor: lana.warning,
+                                    categoryColor: lana.attention,
                                     amountText: expense.amount.formatted(),
                                     isIncome: expense.kind == .income,
                                     needsReview: true)
@@ -40,7 +40,7 @@ public struct ReviewTrayView: View {
                     .padding(.top, Space.sm.rawValue)
                 } label: {
                     Label("\(sections.flatMap(\.items).count) por revisar", systemImage: "exclamationmark.circle")
-                        .foregroundStyle(lana.warning)
+                        .foregroundStyle(lana.attention)
                         .lanaFont(.headline)
                 }
             }

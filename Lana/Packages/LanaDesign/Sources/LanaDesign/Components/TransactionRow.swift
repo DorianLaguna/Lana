@@ -49,10 +49,10 @@ public struct TransactionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(concept)
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text(categoryName)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
 
             Spacer(minLength: Space.sm.rawValue)
@@ -63,7 +63,7 @@ public struct TransactionRow: View {
                 // llama a esto decide eso, `LanaDesign` no conoce de splits);
                 // este ícono solo explica por qué.
                 Image(systemName: "person.2")
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                     .accessibilityLabel("Gasto compartido")
             }
 
@@ -71,7 +71,7 @@ public struct TransactionRow: View {
                 // El color nunca es el único portador de información — el
                 // ícono lleva el significado, no el tono de fondo.
                 Image(systemName: "exclamationmark.circle")
-                    .foregroundStyle(lana.warning)
+                    .foregroundStyle(lana.attention)
                     .accessibilityLabel("Necesita revisión")
             }
 
@@ -79,12 +79,12 @@ public struct TransactionRow: View {
                 Text(amountText)
                     .lanaFont(.body)
                     .monospacedDigit()
-                    .foregroundStyle(isIncome ? lana.positive : lana.textPrimary)
+                    .foregroundStyle(isIncome ? lana.positive : lana.ink)
                 if let secondaryAmountText {
                     Text(secondaryAmountText)
                         .lanaFont(.caption)
                         .monospacedDigit()
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
             }
         }

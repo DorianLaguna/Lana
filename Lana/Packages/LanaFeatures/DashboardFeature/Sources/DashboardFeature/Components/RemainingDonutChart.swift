@@ -45,7 +45,7 @@ public struct RemainingDonutChart: View {
         VStack(spacing: Space.md.rawValue) {
             ZStack {
                 Circle()
-                    .stroke(lana.separator, style: StrokeStyle(lineWidth: 22, lineCap: .butt))
+                    .stroke(lana.hairlineStrong, style: StrokeStyle(lineWidth: 22, lineCap: .butt))
                 ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                     Circle()
                         .trim(from: segment.start, to: segment.end)
@@ -90,15 +90,15 @@ public struct RemainingDonutChart: View {
                 // Un dato con su cifra al lado, no un reproche (Docs/CLAUDE.md → Tono).
                 Text("Sin margen")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 Text(Money(amount: expenses - income, currency: currency).formatted())
                     .lanaFont(.headline)
                     .monospacedDigit()
-                    .foregroundStyle(lana.warning)
+                    .foregroundStyle(lana.attention)
             } else {
                 Text("Te sobra")
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 Text(Money(amount: remaining, currency: currency).formatted())
                     .lanaFont(.headline)
                     .monospacedDigit()
@@ -132,12 +132,12 @@ public struct RemainingDonutChart: View {
                 .frame(width: 8, height: 8)
             Text(label)
                 .lanaFont(.caption)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             Spacer()
             Text(amount)
                 .lanaFont(.caption)
                 .monospacedDigit()
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
         }
     }
 

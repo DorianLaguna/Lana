@@ -20,7 +20,7 @@ struct RequirementsStepView: View {
         VStack(alignment: .leading, spacing: Space.lg.rawValue) {
             Text("Antes de empezar")
                 .lanaFont(.title)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
 
             LanaCard {
                 requirementRow(
@@ -36,7 +36,7 @@ struct RequirementsStepView: View {
                 LanaCard {
                     requirementRow(
                         systemImage: "desktopcomputer",
-                        tint: lana.warning,
+                        tint: lana.attention,
                         message: requirement.simulatorMessage)
                 }
             }
@@ -52,7 +52,7 @@ struct RequirementsStepView: View {
                 .frame(width: 28)
             Text(message)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textPrimary)
+                .foregroundStyle(lana.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -66,7 +66,7 @@ struct RequirementsStepView: View {
                     requirement: GuiaApplePayContent.standard.deviceRequirement,
                     isRunningInSimulator: false)
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }
@@ -81,7 +81,7 @@ struct RequirementsStepView: View {
                     requirement: GuiaApplePayContent.standard.deviceRequirement,
                     isRunningInSimulator: true)
                     .padding(Space.md.rawValue)
-                    .background(LanaColors(theme: theme, colorScheme: .light).surface)
+                    .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
         }

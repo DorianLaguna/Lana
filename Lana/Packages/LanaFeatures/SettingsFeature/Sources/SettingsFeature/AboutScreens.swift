@@ -20,19 +20,19 @@ struct PrivacyView: View {
             VStack(alignment: .leading, spacing: Space.md.rawValue) {
                 Text("Tus datos son tuyos")
                     .lanaFont(.title)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text("""
                 Lo que registras en Lana se guarda en tu iCloud, en tu cuenta, no en \
                 servidores nuestros. Lo que le dictas se procesa en tu dispositivo para \
                 convertirlo en un gasto.
                 """)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("Privacidad")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -57,19 +57,19 @@ struct AboutLanaView: View {
                             endPoint: .bottomTrailing))
                 Text("Lana")
                     .lanaFont(.title)
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
                 Text("""
                 Lana es tu asistente financiero: le dices lo que gastaste con tus palabras \
                 y ella lo registra, aprende de tus correcciones y te ayuda a llevar tus \
                 cuentas al día.
                 """)
                 .lanaFont(.body)
-                .foregroundStyle(lana.textSecondary)
+                .foregroundStyle(lana.ink50)
             }
             .padding(Space.md.rawValue)
-            .floatingMicClearance()
+            .tabBarClearance()
         }
-        .background(lana.surface)
+        .background(lana.bg)
         .navigationTitle("Acerca de Lana")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

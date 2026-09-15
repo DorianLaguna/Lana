@@ -1,134 +1,86 @@
 import Testing
 @testable import LanaDesign
 
-/// Verifica el requisito de ADR-0006 (ampliado por ADR-0016): los seis
-/// temas cumplen 4.5:1 contra su **propia** superficie, en claro y oscuro
-/// — ya no contra dos superficies globales compartidas, porque Obsidiana
-/// tiene la suya, casi negra en sus dos variantes. "Un par que no pasa no
-/// entra" — esta suite es justamente el filtro. Corre en `swift test`, sin
-/// necesitar un contexto de renderizado (Docs/.claude/skills/theming).
-@Suite("Contraste de temas — ADR-0006 / ADR-0016")
+/// Verifica el contraste de la paleta del rediseño (ADR-0044): el acento de
+/// cada tema como texto, lo que va encima de su relleno, la tinta con
+/// opacidad y los semánticos fijos — en oscuro para todos los temas, y en
+/// claro para los que siguen al sistema. "Un tema que no pasa no entra."
+@Suite("Contraste de temas — ADR-0044")
 struct LanaThemeContrastTests {
-    static let minimumRatio = 4.5
+    static let textMinimum = 4.5
 
-    private struct ContrastCase {
+    private static func surfaces(_ neutrals: NeutralPalette) -> [(String, RGBColor)] {
+        [("bg", neutrals.bg), ("surface", neutrals.surface), ("surface2", neutrals.surface2)]
+    }
+
+    /// Los modos en que un tema realmente se ve.
+    private static func modes(for theme: LanaTheme) -> [NeutralPalette] {
+        theme.forcesDarkAppearance ? [.dark] : [.dark, .light]
+    }
+
+    @Test("El acento de texto cumple 4.5:1 contra las superficies de cada modo", arguments: LanaTheme.allCases)
+    func acentoComoTexto(theme: LanaTheme) {
+        for neutrals in Self.modes(for: theme) {
+            let accent = neutrals.isDark ? theme.palette.textDark : theme.palette.textLight
+            for (name, surface) in Self.surfaces(neutrals) {
+                let ratio = accent.contrastRatio(with: surface)
+                #expect(ratio >= Self.textMinimum, "\(theme.displayName) acento / \(name): \(ratio)")
+            }
+        }
+    }
+
+    @Test("Lo que va sobre el relleno del acento da al menos 3:1", arguments: LanaTheme.allCases)
+    func textoSobreRelleno(theme: LanaTheme) {
+        let fill = theme.palette.fill
+        let ratio = fill.preferredForeground.contrastRatio(with: fill)
+        #expect(ratio >= 3, "\(theme.displayName) sobre relleno: \(ratio)")
+    }
+
+    @Test("ink cumple 4.5:1 contra las superficies de ambos modos", arguments: [NeutralPalette.dark, .light])
+    func tintaPrincipal(neutrals: NeutralPalette) {
+        for (name, surface) in Self.surfaces(neutrals) {
+            let ratio = neutrals.ink.contrastRatio(with: surface)
+            #expect(ratio >= Self.textMinimum, "ink / \(name): \(ratio)")
+        }
+    }
+
+    @Test("Cada nivel de tinta cumple su mínimo ya mezclado sobre la superficie", arguments: InkLevel.allCases)
+    func nivelesDeTinta(level: InkLevel) {
+        guard let minimum = level.minimumContrast else { return }
+        for neutrals in [NeutralPalette.dark, .light] {
+            for (name, surface) in Self.surfaces(neutrals) {
+                let blended = neutrals.inkBase.composited(alpha: neutrals.opacity(for: level), over: surface)
+                let ratio = blended.contrastRatio(with: surface)
+                #expect(ratio >= minimum, "\(level) \(neutrals.isDark ? "oscuro" : "claro") / \(name): \(ratio)")
+            }
+        }
+    }
+
+    private struct SemanticCase {
         let label: String
-        let foreground: RGBColor
-        let background: RGBColor
+        let color: RGBColor
+        let neutrals: NeutralPalette
     }
 
-    @Test(
-        "El primario de cada tema cumple 4.5:1 contra la superficie propia, en claro y oscuro",
-        arguments: LanaTheme.allCases)
-    func primarioCumpleContraste(theme: LanaTheme) {
-        let palette = theme.palette
-        let lightRatio = palette.primaryLight.contrastRatio(with: palette.surfaceLight)
-        let darkRatio = palette.primaryDark.contrastRatio(with: palette.surfaceDark)
-
-        #expect(lightRatio >= Self.minimumRatio, "\(theme.displayName) primario claro: \(lightRatio)")
-        #expect(darkRatio >= Self.minimumRatio, "\(theme.displayName) primario oscuro: \(darkRatio)")
-    }
-
-    @Test(
-        "El secundario de cada tema cumple 4.5:1 contra la superficie propia, en claro y oscuro",
-        arguments: LanaTheme.allCases)
-    func secundarioCumpleContraste(theme: LanaTheme) {
-        let palette = theme.palette
-        let lightRatio = palette.secondaryLight.contrastRatio(with: palette.surfaceLight)
-        let darkRatio = palette.secondaryDark.contrastRatio(with: palette.surfaceDark)
-
-        #expect(lightRatio >= Self.minimumRatio, "\(theme.displayName) secundario claro: \(lightRatio)")
-        #expect(darkRatio >= Self.minimumRatio, "\(theme.displayName) secundario oscuro: \(darkRatio)")
-    }
-
-    @Test(
-        "textPrimary y textSecondary cumplen 4.5:1 contra superficie y superficie elevada propias, en claro y oscuro",
-        arguments: LanaTheme.allCases)
-    func textoCumpleContraste(theme: LanaTheme) {
-        let palette = theme.palette
-        let cases: [ContrastCase] = [
-            ContrastCase(
-                label: "textPrimary claro / surface",
-                foreground: palette.textPrimaryLight,
-                background: palette.surfaceLight),
-            ContrastCase(
-                label: "textPrimary claro / surfaceRaised",
-                foreground: palette.textPrimaryLight,
-                background: palette.surfaceRaisedLight),
-            ContrastCase(
-                label: "textPrimary oscuro / surface",
-                foreground: palette.textPrimaryDark,
-                background: palette.surfaceDark),
-            ContrastCase(
-                label: "textPrimary oscuro / surfaceRaised",
-                foreground: palette.textPrimaryDark,
-                background: palette.surfaceRaisedDark),
-            ContrastCase(
-                label: "textSecondary claro / surface",
-                foreground: palette.textSecondaryLight,
-                background: palette.surfaceLight),
-            ContrastCase(
-                label: "textSecondary claro / surfaceRaised",
-                foreground: palette.textSecondaryLight,
-                background: palette.surfaceRaisedLight),
-            ContrastCase(
-                label: "textSecondary oscuro / surface",
-                foreground: palette.textSecondaryDark,
-                background: palette.surfaceDark),
-            ContrastCase(
-                label: "textSecondary oscuro / surfaceRaised",
-                foreground: palette.textSecondaryDark,
-                background: palette.surfaceRaisedDark)
+    @Test("attention y positive cumplen 4.5:1 en ambos modos")
+    func semanticos() {
+        let cases = [
+            SemanticCase(label: "attention oscuro", color: LanaColors.attentionDark, neutrals: .dark),
+            SemanticCase(label: "attention claro", color: LanaColors.attentionLight, neutrals: .light),
+            SemanticCase(label: "positive oscuro", color: LanaColors.positiveDark, neutrals: .dark),
+            SemanticCase(label: "positive claro", color: LanaColors.positiveLight, neutrals: .light)
         ]
         for testCase in cases {
-            let ratio = testCase.foreground.contrastRatio(with: testCase.background)
-            #expect(ratio >= Self.minimumRatio, "\(theme.displayName) \(testCase.label): \(ratio)")
+            for (name, surface) in Self.surfaces(testCase.neutrals) {
+                let ratio = testCase.color.contrastRatio(with: surface)
+                #expect(ratio >= Self.textMinimum, "\(testCase.label) / \(name): \(ratio)")
+            }
         }
     }
 
-    /// Los 3 semánticos fijos (`positive`/`warning`/`critical`) no cambian
-    /// con el tema (ADR-0006), pero ahora cada tema tiene su propia
-    /// superficie — un rojo/verde/ámbar que pasaba contra blanco/negro puro
-    /// puede no pasar contra el negro específico de un tema forzado a oscuro.
-    ///
-    /// Los temas con `forcesDarkAppearance` (Obsidiana, Ámbar, Zafiro) son
-    /// un caso aparte: `ContentView` fuerza `.preferredColorScheme(.dark)`
-    /// mientras alguno de ellos esté activo (ver ADR-0016/ADR-0017), así
-    /// que la variante "clara" de estos semánticos — diseñada para verse
-    /// sobre blanco — nunca llega a combinarse en la app real con su
-    /// superficie casi negra. Probar esa combinación sería probar un estado
-    /// que no existe; solo se verifica la variante oscura, que sí es la que
-    /// de verdad se usa.
-    @Test("Los semánticos fijos cumplen 4.5:1 contra la superficie propia de cada tema", arguments: LanaTheme.allCases)
-    func semanticosFijosCumplenContraste(theme: LanaTheme) {
-        let palette = theme.palette
-        var cases: [ContrastCase] = [
-            ContrastCase(
-                label: "positive oscuro",
-                foreground: LanaColors.positiveDark,
-                background: palette.surfaceDark),
-            ContrastCase(label: "warning oscuro", foreground: LanaColors.warningDark, background: palette.surfaceDark),
-            ContrastCase(label: "critical oscuro", foreground: LanaColors.criticalDark, background: palette.surfaceDark)
-        ]
-        if !theme.forcesDarkAppearance {
-            cases += [
-                ContrastCase(
-                    label: "positive claro",
-                    foreground: LanaColors.positiveLight,
-                    background: palette.surfaceLight),
-                ContrastCase(
-                    label: "warning claro",
-                    foreground: LanaColors.warningLight,
-                    background: palette.surfaceLight),
-                ContrastCase(
-                    label: "critical claro",
-                    foreground: LanaColors.criticalLight,
-                    background: palette.surfaceLight)
-            ]
-        }
-        for testCase in cases {
-            let ratio = testCase.foreground.contrastRatio(with: testCase.background)
-            #expect(ratio >= Self.minimumRatio, "\(theme.displayName) \(testCase.label): \(ratio)")
-        }
+    @Test("Solo Obsidiana, Ámbar y Zafiro fuerzan oscuro")
+    func temasSiempreOscuros() {
+        let forced = LanaTheme.allCases.filter(\.forcesDarkAppearance)
+        #expect(forced == [.obsidiana, .ambar, .zafiro])
     }
 }

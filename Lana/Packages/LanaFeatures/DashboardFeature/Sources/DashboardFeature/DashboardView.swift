@@ -105,7 +105,7 @@ public struct DashboardView: View {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Por categoría")
                                 .lanaFont(.caption)
-                                .foregroundStyle(lana.textSecondary)
+                                .foregroundStyle(lana.ink50)
                             CategoryBreakdownChart(totals: model.categoryTotals) { category in
                                 path.append(.category(category))
                             }
@@ -117,7 +117,7 @@ public struct DashboardView: View {
                             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                                 Text("Por forma de pago")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 CategoryBreakdownChart(totals: model.paymentMethodTotals) { label in
                                     path.append(.paymentMethod(label))
                                 }
@@ -131,9 +131,9 @@ public struct DashboardView: View {
                         viewerIdentities: model.viewerIdentities)
                 }
                 .padding(Space.md.rawValue)
-                .floatingMicClearance()
+                .tabBarClearance()
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Dashboard")
             // El registro a mano (ADR-0035), a propósito discreto: el
             // micrófono flotante sigue siendo el camino principal y el
@@ -257,7 +257,7 @@ public struct DashboardView: View {
             LanaCard {
                 Text("Sin movimientos este mes")
                     .lanaFont(.body)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
         } else {
             ForEach(model.monthTotals) { total in

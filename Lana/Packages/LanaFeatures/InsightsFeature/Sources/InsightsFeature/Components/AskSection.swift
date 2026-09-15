@@ -29,7 +29,7 @@ struct AskSection: View {
                     if hasSomethingToClear {
                         Button("Borrar", action: onClear)
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.highlight)
+                            .foregroundStyle(lana.accent)
                             .frame(minHeight: 44)
                             .accessibilityLabel("Borrar la pregunta y su respuesta")
                     }
@@ -40,7 +40,7 @@ struct AskSection: View {
                     Button(action: onAsk) {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(canAsk ? lana.accent : lana.separator)
+                            .foregroundStyle(canAsk ? lana.accent : lana.hairlineStrong)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canAsk)
@@ -52,12 +52,12 @@ struct AskSection: View {
                         ProgressView()
                         Text("Consultando tus números…")
                             .lanaFont(.caption)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     }
                 } else if let answer, !answer.isEmpty {
                     Text(answer)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -102,11 +102,11 @@ struct AskSection: View {
                     HStack(spacing: Space.sm.rawValue) {
                         Text(suggestion)
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textPrimary)
+                            .foregroundStyle(lana.ink)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(lana.textSecondary.opacity(0.6))
+                            .foregroundStyle(lana.ink50.opacity(0.6))
                     }
                     // Blanco táctil de 44pt: una frase de un renglón mide
                     // menos (design-reviewer.md).

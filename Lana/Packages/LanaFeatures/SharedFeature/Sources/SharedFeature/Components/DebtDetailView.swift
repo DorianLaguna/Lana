@@ -30,25 +30,25 @@ public struct DebtDetailView: View {
                         HStack {
                             Text("\(fromName) le debe a \(toName)")
                                 .lanaFont(.body)
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Spacer()
                             Text(debt.amount.formatted())
                                 .lanaFont(.title)
                                 .monospacedDigit()
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                         }
                     }
 
                     if contributions.isEmpty {
                         Text("No hay gastos directos entre \(fromName) y \(toName) todavía.")
                             .lanaFont(.body)
-                            .foregroundStyle(lana.textSecondary)
+                            .foregroundStyle(lana.ink50)
                     } else {
                         LanaCard {
                             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                                 Text("De dónde sale")
                                     .lanaFont(.caption)
-                                    .foregroundStyle(lana.textSecondary)
+                                    .foregroundStyle(lana.ink50)
                                 VStack(spacing: 0) {
                                     ForEach(
                                         Array(runningTotals.enumerated()),
@@ -65,7 +65,7 @@ public struct DebtDetailView: View {
                 }
                 .padding(Space.md.rawValue)
             }
-            .background(lana.surface)
+            .background(lana.bg)
             .navigationTitle("Detalle del saldo")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -110,26 +110,26 @@ public struct DebtDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(contribution.concept)
                         .lanaFont(.body)
-                        .foregroundStyle(lana.textPrimary)
+                        .foregroundStyle(lana.ink)
                     Text(payerLine)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.textSecondary)
+                        .foregroundStyle(lana.ink50)
                 }
                 Spacer()
                 Text(contribution.amount.formatted())
                     .lanaFont(.body)
                     .monospacedDigit()
-                    .foregroundStyle(lana.textPrimary)
+                    .foregroundStyle(lana.ink)
             }
             HStack(spacing: Space.sm.rawValue) {
                 Text(sharesLine)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
                 Spacer()
                 Text("acumulado \(runningTotalMoney.formatted())")
                     .lanaFont(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(lana.textSecondary)
+                    .foregroundStyle(lana.ink50)
             }
         }
         .padding(.vertical, Space.xs.rawValue)

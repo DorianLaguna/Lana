@@ -58,7 +58,7 @@ public struct AddCardView: View {
                     Section {
                         HStack {
                             Text("Límite")
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Spacer()
                             TextField("0", value: $model.limitAmount, format: .number)
                                 .monospacedDigit()
@@ -69,7 +69,7 @@ public struct AddCardView: View {
                         }
                         HStack {
                             Text("Día de corte")
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Spacer()
                             TextField("1-31", value: $model.cutoffDay, format: .number)
                                 .monospacedDigit()
@@ -80,7 +80,7 @@ public struct AddCardView: View {
                         }
                         HStack {
                             Text("Día límite de pago")
-                                .foregroundStyle(lana.textPrimary)
+                                .foregroundStyle(lana.ink)
                             Spacer()
                             TextField("1-31", value: $model.dueDay, format: .number)
                                 .monospacedDigit()
@@ -95,7 +95,7 @@ public struct AddCardView: View {
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
                         .lanaFont(.caption)
-                        .foregroundStyle(lana.critical)
+                        .foregroundStyle(lana.attention)
                 }
             }
             .navigationTitle("Tarjeta")
@@ -138,7 +138,7 @@ public struct AddCardView: View {
                         .frame(width: 32, height: 32)
                         .overlay {
                             if model.colorHex == hex {
-                                Circle().strokeBorder(lana.textPrimary, lineWidth: 2)
+                                Circle().strokeBorder(lana.ink, lineWidth: 2)
                                     .padding(2)
                             }
                         }
