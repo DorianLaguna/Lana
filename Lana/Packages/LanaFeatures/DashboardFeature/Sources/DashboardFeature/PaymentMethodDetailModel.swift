@@ -26,6 +26,8 @@ public struct CardWithinPaymentMethodTotal: Identifiable, Sendable {
 
     public let cardID: CardID
     public let alias: String
+    /// El color que el usuario le puso a la tarjeta; `nil` si ya se borró.
+    public let colorHex: String?
     public let amount: Decimal
     public let currency: Currency
 }
@@ -107,6 +109,21 @@ public final class PaymentMethodDetailModel {
         expenses.first?.amount.currency ?? .mxn
     }
 
+    /// Qué parte de lo gastado en el periodo se pagó así, en 0...1.
+    public var periodShare: Double {
+        fraction(total, of: source.personalExpenseTotal)
+    }
+
+    /// "11 gastos · 35% de tu mes".
+    public var summary: String {
+        drillDownSummary(count: expenses.count, share: periodShare, periodNoun: source.periodNoun)
+    }
+
+    /// "Total en el mes", o "Total en el año" si se entró desde el año.
+    public var totalLabel: String {
+        "Total en el \(source.periodNoun)"
+    }
+
     /// El desglose por categoría, de mayor a menor.
     public var categoryTotals: [CategoryWithinPaymentMethodTotal] {
         var totals: [String: Decimal] = [:]
@@ -132,12 +149,13 @@ public final class PaymentMethodDetailModel {
             guard let cardID = Self.cardID(from: expense.paymentMethod) else { continue }
             totals[cardID, default: 0] += expense.amount.amount
         }
-        let aliasesByID = Dictionary(uniqueKeysWithValues: cards.map { ($0.id, $0.alias) })
+        let cardsByID = Dictionary(uniqueKeysWithValues: cards.map { ($0.id, $0) })
         return totals
             .map { cardID, amount in
                 CardWithinPaymentMethodTotal(
                     cardID: cardID,
-                    alias: aliasesByID[cardID] ?? "Tarjeta borrada",
+                    alias: cardsByID[cardID]?.alias ?? "Tarjeta borrada",
+                    colorHex: cardsByID[cardID]?.colorHex,
                     amount: amount,
                     currency: currency)
             }

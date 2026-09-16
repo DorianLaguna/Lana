@@ -71,6 +71,21 @@ public final class CategoryDetailModel {
         expenses.first?.amount.currency ?? .mxn
     }
 
+    /// Qué parte de lo gastado en el periodo se fue en esta categoría, en 0...1.
+    public var periodShare: Double {
+        fraction(total, of: source.personalExpenseTotal)
+    }
+
+    /// "11 gastos · 35% de tu mes".
+    public var summary: String {
+        drillDownSummary(count: expenses.count, share: periodShare, periodNoun: source.periodNoun)
+    }
+
+    /// "Total en el mes", o "Total en el año" si se entró desde el año.
+    public var totalLabel: String {
+        "Total en el \(source.periodNoun)"
+    }
+
     /// El desglose por subcategoría, de mayor a menor.
     public var subcategoryTotals: [SubcategoryTotal] {
         var totals: [String: Decimal] = [:]

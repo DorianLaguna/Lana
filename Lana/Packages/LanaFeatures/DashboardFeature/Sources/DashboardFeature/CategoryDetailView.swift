@@ -17,42 +17,19 @@ public struct CategoryDetailView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(spacing: Space.md.rawValue) {
-                LanaCard {
-                    VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                        Text("Total en el mes")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
-                        Text(Money(amount: model.total, currency: model.currency).formatted())
-                            .lanaFont(.largeAmount)
-                            .monospacedDigit()
-                            .foregroundStyle(lana.ink)
-                        Text("\(model.expenses.count) " + (model.expenses.count == 1 ? "gasto" : "gastos"))
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 0) {
+                DrillDownTotal(
+                    label: model.totalLabel,
+                    amount: Money(amount: model.total, currency: model.currency),
+                    summary: model.summary,
+                    share: model.periodShare)
+                    .padding(.bottom, Space.p30.rawValue)
 
                 if !model.subcategoryTotals.isEmpty {
-                    LanaCard {
-                        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                            Text("Subcategorías")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                            ForEach(model.subcategoryTotals) { total in
-                                HStack {
-                                    Text(total.subcategory.capitalized)
-                                        .lanaFont(.body)
-                                        .foregroundStyle(lana.ink)
-                                    Spacer()
-                                    Text(Money(amount: total.amount, currency: total.currency).formatted())
-                                        .lanaFont(.body)
-                                        .monospacedDigit()
-                                        .foregroundStyle(lana.ink)
-                                }
-                            }
-                        }
-                    }
+                    SectionHeader("Subcategorías")
+                        .padding(.bottom, Space.md.rawValue)
+                    RankedBarList(items: model.subcategoryTotals.map(rankedItem), restFill: .muted)
+                        .padding(.bottom, Space.p30.rawValue)
                 }
 
                 DaySectionListView(
@@ -60,13 +37,21 @@ public struct CategoryDetailView: View {
                     source: model.source,
                     onSelect: onExpenseTap)
             }
-            .padding(Space.md.rawValue)
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p18.rawValue)
+            .tabBarClearance()
         }
         .background(lana.bg)
         .navigationTitle(model.category.capitalized)
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .lanaInlineNavigationTitle()
+    }
+
+    private func rankedItem(_ total: SubcategoryTotal) -> RankedBarList.Item {
+        RankedBarList.Item(
+            id: total.subcategory,
+            title: total.subcategory.capitalized,
+            amountText: Money(amount: total.amount, currency: total.currency).formatted(),
+            value: NSDecimalNumber(decimal: total.amount).doubleValue)
     }
 }
 

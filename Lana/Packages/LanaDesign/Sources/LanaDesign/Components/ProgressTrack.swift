@@ -11,6 +11,9 @@ public struct ProgressTrack: View {
         case attention
         /// Lo que está bien.
         case positive
+        /// `ink28`: una categoría que no domina, en una pantalla donde el
+        /// acento ya se usa para lo que se toca.
+        case muted
         /// `accentFill → highlight`, de izquierda a derecha (Gastado/Ingresos).
         case accentGradient
     }
@@ -53,6 +56,8 @@ public struct ProgressTrack: View {
             AnyShapeStyle(lana.attention)
         case .positive:
             AnyShapeStyle(lana.positive)
+        case .muted:
+            AnyShapeStyle(lana.ink28)
         case .accentGradient:
             AnyShapeStyle(LinearGradient(
                 colors: [lana.accentFill, lana.highlight],
@@ -65,8 +70,9 @@ public struct ProgressTrack: View {
 /// Una lista de montos con barras proporcionales, ordenada de mayor a menor:
 /// "En qué se fue", "En qué usas esta tarjeta".
 ///
-/// La primera barra va en `attention` y al 100 %; las demás en el acento, con
-/// ancho proporcional a la primera. El color marca qué domina, no qué es.
+/// La primera barra va en `attention` y al 100 %; las demás en el acento (o en
+/// `ink28`, con `restFill: .muted`), con ancho proporcional a la primera. El
+/// color marca qué domina, no qué es.
 public struct RankedBarList: View {
     /// Una fila de la lista.
     public struct Item: Identifiable, Sendable {
@@ -90,20 +96,25 @@ public struct RankedBarList: View {
     private let items: [Item]
     private let barHeight: CGFloat
     private let itemSpacing: Space
+    private let restFill: ProgressTrack.Fill
     private let onSelect: ((Item) -> Void)?
 
     /// - Parameters:
     ///   - items: ya ordenados de mayor a menor.
     ///   - barHeight: `LanaMetrics.barRegular` en Mes, `LanaMetrics.barThin` en una tarjeta.
     ///   - itemSpacing: `.p18` en Mes, `.p14` en una tarjeta.
+    ///   - restFill: el relleno de las barras que no dominan. `.accent` en Mes;
+    ///     `.muted` en los detalles de categoría y de forma de pago.
     public init(
         items: [Item],
         barHeight: CGFloat = LanaMetrics.barRegular,
         itemSpacing: Space = .p18,
+        restFill: ProgressTrack.Fill = .accent,
         onSelect: ((Item) -> Void)? = nil) {
         self.items = items
         self.barHeight = barHeight
         self.itemSpacing = itemSpacing
+        self.restFill = restFill
         self.onSelect = onSelect
     }
 
@@ -129,7 +140,7 @@ public struct RankedBarList: View {
                         ProgressTrack(
                             fraction: maxValue > 0 ? item.value / maxValue : 0,
                             height: barHeight,
-                            fill: index == 0 ? .attention : .accent)
+                            fill: index == 0 ? .attention : restFill)
                     }
                     .contentShape(Rectangle())
                 }

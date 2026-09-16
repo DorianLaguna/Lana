@@ -49,6 +49,8 @@ public final class DashboardModel: ExpenseProviding {
     /// `false` si las tarjetas no se pudieron leer: sin esto, un fallo de
     /// lectura haría que todo movimiento con tarjeta dijera "Tarjeta eliminada".
     private(set) var hasLoadedCards = false
+    /// Ver `ExpenseProviding.periodNoun`.
+    let periodNoun = "mes"
     /// Los movimientos recién guardados, que Hoy resalta un momento al volver
     /// de la captura: hace visible la consecuencia de haber dictado, en vez de
     /// dejar que la fila nueva aparezca sin que se note dónde.

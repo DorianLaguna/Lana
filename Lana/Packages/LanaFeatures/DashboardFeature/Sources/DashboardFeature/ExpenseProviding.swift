@@ -29,4 +29,34 @@ protocol ExpenseProviding: AnyObject {
     /// `false` si las tarjetas no se pudieron leer: sin esto, un fallo de
     /// lectura haría que todo movimiento con tarjeta dijera "Tarjeta eliminada".
     var hasLoadedCards: Bool { get }
+    /// Cómo se nombra el periodo en un drill-down: "mes" o "año" ("Total en
+    /// el mes", "35% de tu año").
+    var periodNoun: String { get }
+}
+
+extension ExpenseProviding {
+    /// Lo que se gastó en todo el periodo — la parte propia de cada gasto,
+    /// igual que el total de un drill-down, para que su proporción cuadre.
+    var personalExpenseTotal: Decimal {
+        expenses
+            .filter { $0.kind == .expense }
+            .reduce(0) { $0 + $1.personalAmount(viewerIdentities: viewerIdentities).amount }
+    }
+}
+
+/// La línea bajo la cifra de un drill-down: "11 gastos · 35% de tu mes".
+/// Sin porcentaje cuando el periodo no tiene gastos.
+///
+/// Libre y no dentro de la vista: `swift test` truena al tocar miembros de
+/// un tipo `View`.
+func drillDownSummary(count: Int, share: Double, periodNoun: String) -> String {
+    let movements = "\(count) " + (count == 1 ? "gasto" : "gastos")
+    guard share > 0 else { return movements }
+    return "\(movements) · \(Int((share * 100).rounded()))% de tu \(periodNoun)"
+}
+
+/// Qué fracción de `total` es `part`, en 0...1. Cero si el total no es positivo.
+func fraction(_ part: Decimal, of total: Decimal) -> Double {
+    guard total > 0 else { return 0 }
+    return min(max(NSDecimalNumber(decimal: part / total).doubleValue, 0), 1)
 }

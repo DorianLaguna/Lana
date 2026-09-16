@@ -31,6 +31,8 @@ public final class YearModel: ExpenseProviding {
     public private(set) var cards: [Card] = []
     /// Ver `ExpenseProviding.hasLoadedCards`.
     private(set) var hasLoadedCards = false
+    /// Ver `ExpenseProviding.periodNoun`.
+    let periodNoun = "año"
     /// Las estadísticas del año. Se recalculan al cargar, nunca se persisten
     /// (ADR-0005).
     public private(set) var statistics: AnnualStatistics

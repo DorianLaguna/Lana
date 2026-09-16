@@ -17,68 +17,30 @@ public struct PaymentMethodDetailView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(spacing: Space.md.rawValue) {
-                LanaCard {
-                    VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                        Text("Total en el mes")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
-                        Text(Money(amount: model.total, currency: model.currency).formatted())
-                            .lanaFont(.largeAmount)
-                            .monospacedDigit()
-                            .foregroundStyle(lana.ink)
-                        Text("\(model.expenses.count) " + (model.expenses.count == 1 ? "gasto" : "gastos"))
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 0) {
+                DrillDownTotal(
+                    label: model.totalLabel,
+                    amount: Money(amount: model.total, currency: model.currency),
+                    summary: model.summary,
+                    share: model.periodShare)
+                    .padding(.bottom, Space.p30.rawValue)
 
                 // Solo crédito/débito traen tarjeta — efectivo y
-                // transferencia dejan `cardTotals` vacío y esta tarjeta ni
+                // transferencia dejan `cardTotals` vacío y esta sección ni
                 // aparece (pedido explícito del usuario: saber con cuál
                 // tarjeta se pagó cada cosa).
                 if !model.cardTotals.isEmpty {
-                    LanaCard {
-                        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                            Text("Por tarjeta")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                            ForEach(model.cardTotals) { total in
-                                HStack {
-                                    Text(total.alias)
-                                        .lanaFont(.body)
-                                        .foregroundStyle(lana.ink)
-                                    Spacer()
-                                    Text(Money(amount: total.amount, currency: total.currency).formatted())
-                                        .lanaFont(.body)
-                                        .monospacedDigit()
-                                        .foregroundStyle(lana.ink)
-                                }
-                            }
-                        }
-                    }
+                    SectionHeader("Por tarjeta")
+                        .padding(.bottom, Space.xs.rawValue)
+                    cardList
+                        .padding(.bottom, Space.p30.rawValue)
                 }
 
                 if !model.categoryTotals.isEmpty {
-                    LanaCard {
-                        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                            Text("Por categoría")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                            ForEach(model.categoryTotals) { total in
-                                HStack {
-                                    Text(total.category.capitalized)
-                                        .lanaFont(.body)
-                                        .foregroundStyle(lana.ink)
-                                    Spacer()
-                                    Text(Money(amount: total.amount, currency: total.currency).formatted())
-                                        .lanaFont(.body)
-                                        .monospacedDigit()
-                                        .foregroundStyle(lana.ink)
-                                }
-                            }
-                        }
-                    }
+                    SectionHeader("Por categoría")
+                        .padding(.bottom, Space.md.rawValue)
+                    RankedBarList(items: model.categoryTotals.map(rankedItem), restFill: .muted)
+                        .padding(.bottom, Space.p30.rawValue)
                 }
 
                 DaySectionListView(
@@ -86,14 +48,50 @@ public struct PaymentMethodDetailView: View {
                     source: model.source,
                     onSelect: onExpenseTap)
             }
-            .padding(Space.md.rawValue)
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p18.rawValue)
+            .tabBarClearance()
         }
         .background(lana.bg)
         .navigationTitle(model.label.capitalized)
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
-            .task { await model.onAppear() }
+        .lanaInlineNavigationTitle()
+        .task { await model.onAppear() }
+    }
+
+    /// Una fila por tarjeta, con el color que el usuario le puso — el mismo
+    /// rectángulo que en Tarjetas, para reconocerla sin leer el alias.
+    private var cardList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(model.cardTotals.enumerated()), id: \.element.id) { index, total in
+                HStack(spacing: Space.p12.rawValue) {
+                    RoundedRectangle(cornerRadius: Radius.swatch.rawValue, style: .continuous)
+                        .fill(total.colorHex.flatMap { Color(hex: $0) } ?? lana.surface3)
+                        .frame(width: LanaMetrics.cardSwatchWidth, height: LanaMetrics.cardSwatchHeight)
+                        .accessibilityHidden(true)
+                    Text(total.alias)
+                        .lanaFont(.rowTitle)
+                        .foregroundStyle(total.colorHex == nil ? lana.ink70 : lana.ink)
+                    Spacer(minLength: Space.sm.rawValue)
+                    Text(Money(amount: total.amount, currency: total.currency).formatted())
+                        .lanaFont(.rowAmount)
+                        .foregroundStyle(lana.ink)
+                }
+                .frame(minHeight: LanaMetrics.minRowHeight)
+                .accessibilityElement(children: .combine)
+                if index < model.cardTotals.count - 1 {
+                    HairlineDivider(strong: true)
+                }
+            }
+        }
+    }
+
+    private func rankedItem(_ total: CategoryWithinPaymentMethodTotal) -> RankedBarList.Item {
+        RankedBarList.Item(
+            id: total.category,
+            title: SuggestedCategory(rawValue: total.category)?.displayName
+                ?? total.category.prefix(1).uppercased() + total.category.dropFirst(),
+            amountText: Money(amount: total.amount, currency: total.currency).formatted(),
+            value: NSDecimalNumber(decimal: total.amount).doubleValue)
     }
 }
 
