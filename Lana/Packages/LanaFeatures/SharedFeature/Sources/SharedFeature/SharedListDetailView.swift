@@ -36,6 +36,7 @@ public struct SharedListDetailView: View {
                     balances: model.balances,
                     debts: model.debts,
                     participantName: { model.displayName(for: $0) },
+                    viewerID: model.viewerParticipantID,
                     onSettle: { settlingDebt = $0 },
                     onSelectDebt: { viewingDebt = $0 })
 

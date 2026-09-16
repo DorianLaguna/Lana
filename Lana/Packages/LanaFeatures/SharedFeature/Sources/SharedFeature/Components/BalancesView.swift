@@ -10,6 +10,7 @@ public struct BalancesView: View {
     private let balances: [ParticipantBalance]
     private let debts: [Debt]
     private let participantName: (ParticipantID) -> String
+    private let viewerID: ParticipantID?
     private let onSettle: (Debt) -> Void
     private let onSelectDebt: (Debt) -> Void
 
@@ -17,11 +18,13 @@ public struct BalancesView: View {
         balances: [ParticipantBalance],
         debts: [Debt],
         participantName: @escaping (ParticipantID) -> String,
+        viewerID: ParticipantID? = nil,
         onSettle: @escaping (Debt) -> Void,
         onSelectDebt: @escaping (Debt) -> Void) {
         self.balances = balances
         self.debts = debts
         self.participantName = participantName
+        self.viewerID = viewerID
         self.onSettle = onSettle
         self.onSelectDebt = onSelectDebt
     }
@@ -49,10 +52,20 @@ public struct BalancesView: View {
                     }
 
                     if !debts.isEmpty {
-                        VStack(spacing: Space.sm.rawValue) {
-                            ForEach(Array(debts.enumerated()), id: \.offset) { _, debt in
-                                debtRow(debt)
-                            }
+                        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+                            // Los saldos dicen cuánto; esto, quién le paga a
+                            // quién para quedar a mano. Sin el encabezado se
+                            // leía como una segunda lista de saldos.
+                            Text("Para quedar a mano")
+                                .lanaFont(.minorHeader)
+                                .foregroundStyle(lana.ink42)
+                                .accessibilityAddTraits(.isHeader)
+                                .padding(.top, Space.md.rawValue)
+                            ForEach(
+                                Array(orderedDebts(debts, viewer: viewerID).enumerated()),
+                                id: \.offset) { _, debt in
+                                    debtRow(debt)
+                                }
                         }
                     }
                 }
@@ -62,7 +75,10 @@ public struct BalancesView: View {
 
     private func balanceRow(_ balance: ParticipantBalance) -> some View {
         HStack(spacing: Space.sm.rawValue) {
-            Text(balance.participant.displayName)
+            // El mismo nombre que en "Para quedar a mano": "Yo" para quien
+            // mira. Con `participant.displayName` salía "Dorian" arriba y
+            // "Yo" abajo, y parecían dos personas.
+            Text(participantName(balance.participant.id))
                 .lanaFont(.rowTitle)
                 .foregroundStyle(lana.ink)
 
@@ -73,7 +89,7 @@ public struct BalancesView: View {
             Text(Money(amount: abs(balance.amount), currency: balance.currency).formatted())
                 .lanaFont(.rowAmount)
                 .foregroundStyle(balance.amount > 0 ? lana.positive : lana.ink)
-            Text(balance.amount > 0 ? "le deben" : "debe")
+            Text(balanceLabel(isOwed: balance.amount > 0, isViewer: balance.participant.id == viewerID))
                 .lanaFont(.rowSubtitle)
                 .foregroundStyle(lana.ink50)
         }
@@ -107,7 +123,7 @@ public struct BalancesView: View {
                 onSelectDebt(debt)
             } label: {
                 HStack(spacing: Space.sm.rawValue) {
-                    Text("\(participantName(debt.from)) le debe a \(participantName(debt.to))")
+                    Text(debtPhrase(debt, viewer: viewerID, name: participantName))
                         .lanaFont(.rowSubtitle)
                         .foregroundStyle(lana.ink50)
                     Spacer(minLength: Space.xs.rawValue)
@@ -127,6 +143,54 @@ public struct BalancesView: View {
         }
         .frame(minHeight: LanaMetrics.minTouchTarget)
     }
+}
+
+/// "le deben" / "debe", o "te deben" / "debes" para quien mira.
+func balanceLabel(isOwed: Bool, isViewer: Bool) -> String {
+    switch (isOwed, isViewer) {
+    case (true, true): "te deben"
+    case (false, true): "debes"
+    case (true, false): "le deben"
+    case (false, false): "debe"
+    }
+}
+
+/// "Evan te debe", "Le debes a Iori" o "Kin le debe a Iori". Antes siempre
+/// era la tercera forma, y daba "Evan le debe a Yo".
+func debtPhrase(_ debt: Debt, viewer: ParticipantID?, name: (ParticipantID) -> String) -> String {
+    if debt.to == viewer {
+        return "\(name(debt.from)) te debe"
+    }
+    if debt.from == viewer {
+        return "Le debes a \(name(debt.to))"
+    }
+    return "\(name(debt.from)) le debe a \(name(debt.to))"
+}
+
+/// Lo que toca a quien mira va primero —lo que le deben, luego lo que debe—
+/// y después lo de los demás, cada grupo de mayor a menor. Antes salían en el
+/// orden en que la simplificación las iba encontrando.
+func orderedDebts(_ debts: [Debt], viewer: ParticipantID?) -> [Debt] {
+    func group(_ debt: Debt) -> Int {
+        if debt.to == viewer {
+            return 0
+        }
+        if debt.from == viewer {
+            return 1
+        }
+        return 2
+    }
+    return debts.enumerated().sorted { lhs, rhs in
+        let (left, right) = (lhs.element, rhs.element)
+        if group(left) != group(right) {
+            return group(left) < group(right)
+        }
+        if left.amount.amount != right.amount.amount {
+            return left.amount.amount > right.amount.amount
+        }
+        return lhs.offset < rhs.offset
+    }
+    .map(\.element)
 }
 
 #Preview {
