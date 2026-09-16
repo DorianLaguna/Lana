@@ -66,6 +66,9 @@ public struct SharedListDetailView: View {
                 }
             }
             .padding(Space.md.rawValue)
+            // Sin esto, los últimos gastos quedaban detrás de la barra de
+            // pestañas y no había forma de subirlos.
+            .tabBarClearance()
         }
         .background(lana.bg)
         .navigationTitle(model.list.name)
