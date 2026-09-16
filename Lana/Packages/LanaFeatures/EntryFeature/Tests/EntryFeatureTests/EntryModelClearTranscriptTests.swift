@@ -208,6 +208,9 @@ actor ControllableSpeechTranscribing: SpeechTranscribing {
     private var continuation: AsyncThrowingStream<TranscriptSnapshot, Error>.Continuation?
     /// Lo dictado antes de que la continuation llegue al actor — ver `yield`.
     private var pending: [TranscriptSnapshot] = []
+    /// Paradas que llegaron antes que la continuation del stream que paraban
+    /// — ver `stopTranscribing()`.
+    private var pendingStops = 0
     private var levelContinuation: AsyncStream<Float>.Continuation?
     /// El último nivel enviado antes de que alguien escuchara — misma ventana
     /// que `pending`.
@@ -247,6 +250,14 @@ actor ControllableSpeechTranscribing: SpeechTranscribing {
     }
 
     private func store(_ continuation: AsyncThrowingStream<TranscriptSnapshot, Error>.Continuation) {
+        // Ya habían parado este stream antes de que su continuation llegara
+        // aquí: se cierra de inmediato, porque si no, quien lo itera espera
+        // para siempre a un stream que nadie va a terminar.
+        if pendingStops > 0 {
+            pendingStops -= 1
+            continuation.finish()
+            return
+        }
         self.continuation = continuation
         for snapshot in pending {
             continuation.yield(snapshot)
@@ -275,8 +286,20 @@ actor ControllableSpeechTranscribing: SpeechTranscribing {
         continuation.yield(snapshot)
     }
 
+    /// La otra mitad de la ventana que documenta `yield`: parar mientras la
+    /// continuation todavía va en camino al actor no puede ser un no-op.
+    ///
+    /// `clearTranscript()` encadena `stopTranscribing()` con un
+    /// `startListening()` nuevo, así que al cancelar hay un segundo stream
+    /// recién pedido cuya continuation puede no haber llegado. Si esa parada
+    /// se pierde, el `await` de quien lo itera no se reanuda nunca y la suite
+    /// entera se queda colgada sin que falle un solo `#expect`.
     func stopTranscribing() async {
-        continuation?.finish()
-        continuation = nil
+        guard let continuation else {
+            pendingStops += 1
+            return
+        }
+        continuation.finish()
+        self.continuation = nil
     }
 }
