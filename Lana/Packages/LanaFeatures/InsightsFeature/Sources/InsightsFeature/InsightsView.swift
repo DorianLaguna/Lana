@@ -107,6 +107,11 @@ public struct InsightsView: View {
     /// pantalla entera, como antes.
     @ViewBuilder
     private var content: some View {
+        // Los hallazgos van arriba y **siempre**: son lo que el usuario no
+        // sabía, y no dependen del modelo. El resumen narrado repite lo que ya
+        // se vio en Mes; esto no.
+        FindingsSection(findings: model.findings)
+
         if model.availability == .available {
             narratedAnalysis
         } else {
@@ -195,7 +200,7 @@ public struct InsightsView: View {
         return "Analizando \(currency.rawValue) · también tuviste movimientos en \(others)"
     }
 
-    // MARK: - Lo que se repite
+    // MARK: - Lo que se repite, según el modelo
 
     @ViewBuilder
     private var patternsSection: some View {

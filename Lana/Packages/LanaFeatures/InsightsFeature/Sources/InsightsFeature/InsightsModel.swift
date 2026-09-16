@@ -60,6 +60,12 @@ public final class InsightsModel {
     /// Las demás monedas del periodo, si las hay — para poder avisar que este
     /// análisis no habla de ellas.
     public internal(set) var otherCurrencies: [Currency] = []
+    /// Lo que se encontró en el historial, de mayor a menor dinero movido.
+    ///
+    /// **No depende de Apple Intelligence**: es aritmética sobre lo ya
+    /// registrado. Se carga por su propio camino, fuera de la guarda de
+    /// disponibilidad, por la misma razón que los chips (ADR-0038).
+    public internal(set) var findings: [Finding] = []
     /// Lo que el usuario está escribiendo para preguntar.
     public var question = ""
     /// La última respuesta. `nil` si todavía no ha preguntado.
@@ -74,9 +80,15 @@ public final class InsightsModel {
     /// Lo ya analizado en esta sesión de la pantalla — ver
     /// `InsightsModel+Cache.swift`.
     var cache: [AnalysisKey: Analysis] = [:]
+    /// Los hallazgos ya resueltos, con su propia llave: sobreviven aunque el
+    /// análisis narrado falle, así que no pueden compartir caché con él.
+    var findingsCache: [AnalysisKey: [Finding]] = [:]
 
-    private let store: any ExpenseStore
-    private let sharedListStore: any SharedListStore
+    /// `internal`, no `private`: los lee también la carga de hallazgos, que
+    /// vive en `InsightsModelFindings.swift` —la misma clase, en otro archivo—
+    /// y `private` no cruza de archivo.
+    let store: any ExpenseStore
+    let sharedListStore: any SharedListStore
     private let classifier: any SpendingClassifying
     private let narrator: any InsightNarrating
     /// `internal`, no `private`: lo usa la pregunta escrita a mano, que vive en
@@ -169,6 +181,7 @@ public final class InsightsModel {
     public func select(_ period: InsightsPeriod) async {
         guard period != self.period else { return }
         self.period = period
+        await loadFindings()
         await load()
     }
 
@@ -213,12 +226,17 @@ public final class InsightsModel {
         let component: Calendar.Component = period == .month ? .month : .year
         guard let moved = calendar.date(byAdding: component, value: amount, to: anchor) else { return }
         anchor = moved
+        await loadFindings()
         await load()
     }
 
     /// Consulta la disponibilidad del modelo y analiza el periodo vigente. Se
     /// llama cuando la pantalla aparece.
+    ///
+    /// Los hallazgos van **antes** y por su cuenta: si el análisis narrado no
+    /// se puede hacer, ellos igual tienen algo que decir.
     public func onAppear() async {
+        await loadFindings()
         await load()
     }
 
@@ -226,6 +244,8 @@ public final class InsightsModel {
     /// abra, los movimientos pueden ser otros y hay que volver a leerlos.
     public func onDismiss() {
         cache.removeAll()
+        findingsCache.removeAll()
+        findings = []
         question = ""
         answer = nil
     }
@@ -319,7 +339,10 @@ public final class InsightsModel {
 
     /// La moneda de más gasto. Con una sola —el caso normal— es esa; con
     /// varias, se analiza la principal y la vista avisa cuáles quedaron fuera.
-    private static func primaryCurrency(of statistics: PeriodStatistics) -> Currency? {
+    ///
+    /// `internal`: la usa también la carga de hallazgos. Tener dos reglas de
+    /// "cuál es la moneda principal" sería garantizar que se desincronicen.
+    static func primaryCurrency(of statistics: PeriodStatistics) -> Currency? {
         statistics.totals
             .max { ($0.expenses, $0.currency.rawValue) < ($1.expenses, $1.currency.rawValue) }?
             .currency
