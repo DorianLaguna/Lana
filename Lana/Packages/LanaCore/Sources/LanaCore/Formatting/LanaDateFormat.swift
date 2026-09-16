@@ -6,8 +6,13 @@ import Foundation
 ///
 /// Devuelve texto en caja de oración ("Lunes 14"); los encabezados lo pasan a
 /// mayúsculas con su estilo tipográfico.
+///
+/// Vive en `LanaCore` y no en `LanaDesign` porque `Money.formatted()` y
+/// `LedgerToolbox` también lo necesitan, y `LanaCore` no puede importar nada
+/// (ADR-0047). Escribir un monto o una fecha no es una decisión de diseño: es
+/// cómo habla el producto.
 public enum LanaDateFormat {
-    /// El locale de toda fecha visible.
+    /// El locale de toda fecha y todo monto visible. Una sola fuente de verdad.
     public static let locale = Locale(identifier: "es_MX")
 
     private static func calendar(_ base: Calendar) -> Calendar {
@@ -51,6 +56,23 @@ public enum LanaDateFormat {
         }
         let day = calendar.component(.day, from: date)
         return "\(day) de \(monthNameLowercased(date, calendar: calendar))"
+    }
+
+    /// "14 sept 2026" — una fecha puntual dentro de una fila, donde el día de
+    /// la semana sobra pero el año sí importa (un gasto de hace dos años).
+    public static func shortDate(_ date: Date, calendar: Calendar = .current) -> String {
+        date.formatted(
+            Date.FormatStyle(locale: locale, calendar: Self.calendar(calendar))
+                .day().month(.abbreviated).year())
+    }
+
+    /// "14 sept 2026, 9:41" — cuándo pasó algo, al minuto. Para "hace 2 horas"
+    /// no alcanza: saber si un cambio de ayer alcanzó a respaldarse pide el
+    /// dato completo.
+    public static func shortDateTime(_ date: Date, calendar: Calendar = .current) -> String {
+        date.formatted(
+            Date.FormatStyle(locale: locale, calendar: Self.calendar(calendar))
+                .day().month(.abbreviated).year().hour().minute())
     }
 
     /// "S" — la inicial de un mes bajo una barra de la vista anual.

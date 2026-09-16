@@ -75,7 +75,7 @@ struct DataSettingsView: View {
                     // tan reciente, no cuándo. Para saber si un cambio de ayer
                     // alcanzó a respaldarse hace falta el dato completo.
                     if case let .synced(lastSuccess) = model.syncStatus {
-                        Text(lastSuccess.formatted(date: .abbreviated, time: .shortened))
+                        Text(LanaDateFormat.shortDateTime(lastSuccess))
                             .lanaFont(.rowSubtitle)
                             .foregroundStyle(lana.ink42)
                     }

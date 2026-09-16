@@ -315,10 +315,11 @@
 				};
 			};
 			buildConfigurationList = 11A7EB03303F76A9007CE1D5 /* Build configuration list for PBXProject "Lana" */;
-			developmentRegion = en;
+			developmentRegion = es;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				es,
 				Base,
 			);
 			mainGroup = 11A7EAFF303F76A9007CE1D5;

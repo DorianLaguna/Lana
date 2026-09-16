@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import LanaDesign
+@testable import LanaCore
 
 @Suite("Fechas en español")
 struct LanaDateFormatTests {

@@ -17,8 +17,12 @@ enum MoneyDisplay {
     }
 
     /// "$9,437.13".
+    ///
+    /// Delega en `Money.formatted()`, que desde ADR-0047 ya fija el locale: un
+    /// monto se escribe igual en toda la app, lo pida quien lo pida. Se queda
+    /// como nombre por simetría con `whole` y `compact`, que sí hacen algo más.
     static func full(_ money: Money) -> String {
-        money.amount.formatted(.currency(code: money.currency.rawValue).locale(LanaDateFormat.locale))
+        money.formatted()
     }
 
     /// "$9,437": redondeado, sin centavos.

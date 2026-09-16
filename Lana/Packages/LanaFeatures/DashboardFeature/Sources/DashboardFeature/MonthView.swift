@@ -71,7 +71,7 @@ public struct MonthView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     MonthSelector(
-                        month: model.month,
+                        label: LanaDateFormat.monthYear(model.month),
                         onPrevious: { Task { await model.goToPreviousMonth() } },
                         onNext: { Task { await model.goToNextMonth() } })
                         .padding(.bottom, Space.p28.rawValue)

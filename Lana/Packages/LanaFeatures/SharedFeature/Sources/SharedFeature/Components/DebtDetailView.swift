@@ -100,7 +100,7 @@ public struct DebtDetailView: View {
     }
 
     private func contributionRow(_ contribution: DebtContribution, runningTotal: Decimal) -> some View {
-        let payerLine = "\(contribution.date.formatted(date: .abbreviated, time: .omitted)) · " +
+        let payerLine = "\(LanaDateFormat.shortDate(contribution.date)) · " +
             "pagó \(participantName(contribution.payer))"
         let sharesLine = "\(fromName): \(contribution.fromShare.formatted()) · " +
             "\(toName): \(contribution.toShare.formatted())"

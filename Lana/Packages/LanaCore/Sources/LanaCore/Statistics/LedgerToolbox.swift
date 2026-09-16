@@ -202,8 +202,11 @@ public struct LedgerToolbox: Sendable {
     static let invalidMonth = "Ese mes no existe."
 
     /// Solo el día y el mes: el año ya se entiende por el contexto.
+    ///
+    /// Con locale fijo, como toda fecha visible (`LanaDateFormat`): la app
+    /// declara inglés, así que sin esto un "15 de marzo" salía "March 15".
     static func day(_ date: Date) -> String {
-        date.formatted(.dateTime.day().month(.wide))
+        date.formatted(Date.FormatStyle(locale: LanaDateFormat.locale).day().month(.wide))
     }
 
     private static func label(year: Int, month: Int) -> String {
@@ -214,7 +217,7 @@ public struct LedgerToolbox: Sendable {
         guard let date = Calendar(identifier: .gregorian).date(from: components) else {
             return "\(month)/\(year)"
         }
-        return date.formatted(.dateTime.month(.wide).year())
+        return LanaDateFormat.monthYear(date)
     }
 
     private static func describe(_ delta: PeriodDelta) -> String {

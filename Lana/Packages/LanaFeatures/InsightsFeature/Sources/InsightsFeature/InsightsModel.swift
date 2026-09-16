@@ -196,8 +196,11 @@ public final class InsightsModel {
     /// Cómo se llama el periodo que se está viendo: "septiembre de 2026", "2026".
     public var anchorLabel: String {
         switch period {
-        case .month: anchor.formatted(.dateTime.month(.wide).year())
-        case .year: anchor.formatted(.dateTime.year())
+        // Con locale fijo: la app declara español desde ADR-0047, pero la
+        // etiqueta seguía al dispositivo y decía "September 2026".
+        case .month: LanaDateFormat.monthYear(anchor, calendar: calendar)
+        // Sin separador de miles: es un año, no un monto.
+        case .year: String(calendar.component(.year, from: anchor))
         }
     }
 

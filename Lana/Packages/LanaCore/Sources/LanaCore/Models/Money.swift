@@ -73,11 +73,17 @@ extension Money: Comparable {
 }
 
 public extension Money {
-    /// Formato de moneda localizado (`$1,234.00`). Vive en `LanaCore` porque
-    /// más de una feature lo necesita (Dashboard, Tarjetas) y las features
-    /// no pueden importarse entre sí (Docs/ARCHITECTURE.md).
+    /// Un monto escrito (`$1,234.00`). Vive en `LanaCore` porque más de una
+    /// feature lo necesita (Dashboard, Tarjetas) y las features no pueden
+    /// importarse entre sí (Docs/ARCHITECTURE.md).
+    ///
+    /// Con **locale fijo**, igual que las fechas (ADR-0047). Sin él seguía al
+    /// dispositivo: con región distinta de México, los mismos pesos salían
+    /// "MX$1,234.50", y en Alemania "1.234,50 MX$". La moneda ya la dice
+    /// `currency`; el formato no tiene por qué cambiar según dónde esté el
+    /// teléfono.
     func formatted() -> String {
-        amount.formatted(.currency(code: currency.rawValue))
+        amount.formatted(.currency(code: currency.rawValue).locale(LanaDateFormat.locale))
     }
 }
 

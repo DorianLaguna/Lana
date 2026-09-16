@@ -1,25 +1,29 @@
 import SwiftUI
 
-/// Navegación entre meses: ‹ Septiembre 2026 ›, siempre en español.
+/// Navegación entre meses: ‹ Septiembre 2026 ›.
 ///
-/// Vive en `LanaDesign` porque lo usan Mes y el Análisis, y las features no se
-/// importan entre sí. Solo recibe primitivos.
+/// Recibe la etiqueta **ya formateada**, no la fecha: el formato de fechas en
+/// español vive en `LanaDateFormat`, que está en `LanaCore` porque los montos y
+/// las herramientas de análisis también lo necesitan (ADR-0047). Pedirle la
+/// fecha aquí obligaría a que el sistema de diseño dependiera del dominio, y el
+/// propio contrato de este componente ya decía que solo recibe primitivos.
 public struct MonthSelector: View {
     @Environment(\.lana) private var lana
 
-    private let month: Date
+    private let label: String
     private let onPrevious: () -> Void
     private let onNext: () -> Void
 
-    public init(month: Date, onPrevious: @escaping () -> Void, onNext: @escaping () -> Void) {
-        self.month = month
+    /// - Parameter label: el mes ya escrito, "Septiembre 2026".
+    public init(label: String, onPrevious: @escaping () -> Void, onNext: @escaping () -> Void) {
+        self.label = label
         self.onPrevious = onPrevious
         self.onNext = onNext
     }
 
     public var body: some View {
         PeriodSelector(
-            label: LanaDateFormat.monthYear(month),
+            label: label,
             previousLabel: "Mes anterior",
             nextLabel: "Mes siguiente",
             onPrevious: onPrevious,
@@ -93,7 +97,7 @@ private struct PeriodSelector: View {
     VStack(spacing: Space.md.rawValue) {
         ForEach(LanaTheme.allCases) { theme in
             VStack {
-                MonthSelector(month: Date(), onPrevious: {}, onNext: {})
+                MonthSelector(label: "Septiembre 2026", onPrevious: {}, onNext: {})
                 YearSelector(year: 2026, onPrevious: {}, onNext: {})
             }
             .lanaTheme(theme)
