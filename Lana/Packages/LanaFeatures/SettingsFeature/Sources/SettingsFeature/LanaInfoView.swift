@@ -2,14 +2,12 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// "Cómo funciona Lana": explica en lenguaje de usuario qué hace el asistente
-/// —no la IA por dentro— y el flujo hablas → entiende → registra, más el
-/// aprendizaje por corrección (ADR-0012). Sin lógica: todo es texto fijo,
-/// orientado a lo que Lana PUEDE hacer, nunca a modelos, prompts ni APIs
-/// (ADR-0013: sin datos ni detalles técnicos en la superficie).
+/// "Cómo funciona Lana": qué hace el asistente en lenguaje de usuario —no la
+/// IA por dentro— y el flujo hablas → entiende → registra, más el aprendizaje
+/// por corrección (ADR-0012).
 ///
-/// El botón de regresar lo da el `NavigationStack` de `SettingsView`, no se
-/// dibuja a mano (mismo patrón que `CardDetailView`).
+/// Todo es texto fijo y habla de lo que Lana puede hacer, nunca de modelos,
+/// prompts ni APIs (ADR-0013). Se empuja desde Ajustes, así que no lleva barra.
 struct LanaInfoView: View {
     @Environment(\.lana) private var lana
     /// Salta a la pestaña Tarjetas, donde vive la guía de Apple Pay. `nil` en
@@ -22,59 +20,87 @@ struct LanaInfoView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.lg.rawValue) {
+            VStack(alignment: .leading, spacing: 0) {
                 header
+                    .padding(.bottom, Space.p26.rawValue)
 
-                VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                    stepCard(
-                        number: 1,
-                        title: "Tú hablas",
-                        detail: "«Gasté $250 en Oxxo»")
-                    stepCard(
-                        number: 2,
-                        title: "Lana entiende",
-                        detail: "Identifica el importe, el comercio y la categoría.")
+                VStack(spacing: Space.p10.rawValue) {
+                    stepCard(number: 1, title: "Tú hablas", detail: "«300 de súper y 120 en uber»")
+                    stepCard(number: 2, title: "Lana entiende", detail: "Saca el monto, el concepto y la categoría.")
                     stepCard(
                         number: 3,
                         title: "Lana registra",
                         detail: nil,
-                        example: RegisteredExample(
-                            merchant: "Oxxo",
-                            amount: "$250",
-                            category: "Comida"))
+                        example: RegisteredExample(merchant: "Súper", amount: "$300", category: "Despensa"))
                 }
+                .padding(.bottom, Space.p26.rawValue)
 
-                applePaySection
+                infoCard(
+                    icon: "creditcard.and.123",
+                    title: "Tus pagos con Apple Pay se registran solos",
+                    detail: """
+                    Si activas la captura automática, cada compra por contacto entra a Lana sin que la \
+                    dictes, marcada por revisar. Así solo capturas lo demás: efectivo, transferencias y \
+                    lo que no pasa por tu iPhone.
+                    """) {
+                        // Se puede tocar: quien busca Apple Pay desde Ajustes se
+                        // quedaba a media frase, teniendo que encontrar la
+                        // pestaña por su cuenta.
+                        if let onOpenCards {
+                            Button("Ir a Tarjetas", action: onOpenCards)
+                                .lanaFont(.bodyEmphasis)
+                                .foregroundStyle(lana.accent)
+                                .buttonStyle(.plain)
+                                .frame(minHeight: LanaMetrics.minTouchTarget)
+                        }
+                    }
+                    .padding(.bottom, Space.p10.rawValue)
 
-                manualEntrySection
+                infoCard(
+                    icon: "square.and.pencil",
+                    title: "También puedes registrarlo a mano",
+                    detail: """
+                    Dentro de la hoja del micrófono, "Agregar a mano" abre el mismo formulario en \
+                    blanco: escribes el monto y el concepto tú. No pasa por el dictado, así que sirve \
+                    cuando no puedes hablar.
+                    """) {
+                        EmptyView()
+                    }
+                    .padding(.bottom, Space.p26.rawValue)
 
-                learningSection
+                SectionHeader("Lana aprende de tus correcciones", style: .minor)
+                    .padding(.bottom, Space.sm.rawValue)
+                Text("""
+                Cuando corriges la categoría de un movimiento, Lana lo recuerda para las próximas veces \
+                que menciones lo mismo.
+                """)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink70)
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(Space.md.rawValue)
-            .tabBarClearance()
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p18.rawValue)
+            .tabBarClearance(.noTabBar)
         }
         .background(lana.bg)
         .navigationTitle("Cómo funciona Lana")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .lanaInlineNavigationTitle()
+        .hidesLanaTabBar()
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
             Image(systemName: "sparkles")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [lana.accent, lana.highlight],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing))
-            Text("Lana es tu asistente financiero.")
-                .lanaFont(.title)
+                .font(.system(size: LanaMetrics.emptyStateIcon))
+                .foregroundStyle(lana.accent)
+                .accessibilityHidden(true)
+            Text("Hablas, entiende, registra.")
+                .lanaFont(.screenTitle)
                 .foregroundStyle(lana.ink)
             Text("Le dices lo que gastaste con tus palabras y ella lo registra por ti.")
-                .lanaFont(.body)
-                .foregroundStyle(lana.ink50)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink70)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -84,21 +110,23 @@ struct LanaInfoView: View {
         detail: String?,
         example: RegisteredExample? = nil) -> some View {
         LanaCard {
-            HStack(alignment: .top, spacing: Space.md.rawValue) {
+            HStack(alignment: .top, spacing: Space.p12.rawValue) {
                 Text("\(number)")
-                    .lanaFont(.headline)
-                    .foregroundStyle(lana.accent)
-                    .frame(width: 28, height: 28)
-                    .background(lana.accent.opacity(0.15), in: Circle())
+                    .lanaFont(.footnote)
+                    .fontWeight(.bold)
+                    .foregroundStyle(lana.bg)
+                    .frame(width: LanaMetrics.badge, height: LanaMetrics.badge)
+                    .background(lana.accentFill, in: Circle())
 
-                VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                VStack(alignment: .leading, spacing: Space.p6.rawValue) {
                     Text(title)
-                        .lanaFont(.headline)
+                        .lanaFont(.bodyEmphasis)
                         .foregroundStyle(lana.ink)
                     if let detail {
                         Text(detail)
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.ink50)
+                            .lanaFont(.explanation)
+                            .foregroundStyle(lana.ink70)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     if let example {
                         registeredExample(example)
@@ -109,122 +137,43 @@ struct LanaInfoView: View {
         }
     }
 
+    /// Cómo queda un movimiento ya registrado: la misma fila que se ve en Hoy.
     private func registeredExample(_ example: RegisteredExample) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(example.merchant)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink)
-                // Sin color por categoría: ya no tienen uno propio (ADR-0044).
-                Text(example.category)
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink42)
-            }
-            Spacer()
-            Text(example.amount)
-                .lanaFont(.headline)
-                .monospacedDigit()
-                .foregroundStyle(lana.ink)
-        }
-        .padding(.top, Space.xs.rawValue)
+        MovementRow(
+            title: example.merchant,
+            subtitle: "\(example.category) · Efectivo",
+            amountText: example.amount)
     }
 
-    /// Que el usuario sepa que no todo hay que dictarlo: los pagos con Apple
-    /// Pay se registran solos, así que lo que de verdad conviene capturar por
-    /// voz es el efectivo y las transferencias. Las instrucciones no se
-    /// repiten aquí —viven en Tarjetas— solo se apunta a dónde encontrarlas.
-    private var applePaySection: some View {
+    private func infoCard(
+        icon: String,
+        title: String,
+        detail: String,
+        @ViewBuilder action: () -> some View) -> some View {
         LanaCard {
-            HStack(alignment: .top, spacing: Space.md.rawValue) {
-                Image(systemName: "creditcard.and.123")
-                    .lanaFont(.headline)
+            HStack(alignment: .top, spacing: Space.p12.rawValue) {
+                Image(systemName: icon)
+                    .lanaFont(.bodyEmphasis)
                     .foregroundStyle(lana.accent)
-                    .frame(width: 28, height: 28)
-                    .background(lana.accent.opacity(0.15), in: Circle())
+                    .frame(width: LanaMetrics.badge, height: LanaMetrics.badge)
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                    Text("Tus pagos con Apple Pay se registran solos")
-                        .lanaFont(.headline)
+                VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+                    Text(title)
+                        .lanaFont(.bodyEmphasis)
                         .foregroundStyle(lana.ink)
-                    Text("""
-                    Si activas la captura automática, cada compra por contacto (NFC) con \
-                    Apple Pay entra a Lana sin que la dictes. Así solo tienes que capturar \
-                    a mano lo demás: el efectivo, las transferencias y lo que no pasa por \
-                    tu iPhone.
-                    """)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink50)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    // El puntero se puede tocar: quien busca Apple Pay desde
-                    // Ajustes se quedaba a media frase, teniendo que salir y
-                    // encontrar la pestaña por su cuenta.
-                    if let onOpenCards {
-                        Button(action: onOpenCards) {
-                            Label("Ir a Tarjetas", systemImage: "creditcard")
-                        }
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.accent)
-                        .padding(.top, Space.xs.rawValue)
-                    } else {
-                        Text("Encuentra cómo activarla en la pestaña Tarjetas → Configurar Apple Pay.")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, Space.xs.rawValue)
-                    }
+                    Text(detail)
+                        .lanaFont(.explanation)
+                        .foregroundStyle(lana.ink70)
+                        .fixedSize(horizontal: false, vertical: true)
+                    action()
                 }
                 Spacer(minLength: 0)
             }
         }
     }
 
-    /// El registro a mano (ADR-0035). Existe y es deliberadamente secundario,
-    /// pero quien no puede dictar —en una junta, sin permiso de micrófono, sin
-    /// Apple Intelligence— no se entera de que está ahí si esta pantalla no lo
-    /// nombra.
-    private var manualEntrySection: some View {
-        LanaCard {
-            HStack(alignment: .top, spacing: Space.md.rawValue) {
-                Image(systemName: "plus")
-                    .lanaFont(.headline)
-                    .foregroundStyle(lana.accent)
-                    .frame(width: 28, height: 28)
-                    .background(lana.accent.opacity(0.15), in: Circle())
-
-                VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                    Text("También puedes registrarlo a mano")
-                        .lanaFont(.headline)
-                        .foregroundStyle(lana.ink)
-                    Text("""
-                    El botón + del Dashboard abre el mismo formulario, en blanco: escribes \
-                    el monto y el concepto tú. No pasa por el dictado, así que sirve \
-                    cuando no puedes hablar.
-                    """)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink50)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    private var learningSection: some View {
-        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-            Text("Lana aprende de tus correcciones")
-                .lanaFont(.headline)
-                .foregroundStyle(lana.ink)
-            Text("""
-            Cuando corriges la categoría de un gasto, Lana recuerda esa preferencia \
-            para las próximas veces que menciones lo mismo.
-            """)
-            .lanaFont(.body)
-            .foregroundStyle(lana.ink50)
-        }
-    }
-
-    /// El ejemplo del paso 3: cómo queda un gasto ya registrado.
+    /// El ejemplo del paso 3.
     private struct RegisteredExample {
         let merchant: String
         let amount: String

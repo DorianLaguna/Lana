@@ -2,13 +2,11 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// "iCloud": informa que los datos de la app se guardan y sincronizan con la
-/// cuenta de iCloud YA configurada en el dispositivo (ADR-0020). No hay
-/// login, cuenta ni configuración de cuenta dentro de la app — ese concepto
-/// no existe aquí; solo se refleja el estado real de sync.
+/// "iCloud": el estado real de sincronización (ADR-0020).
 ///
-/// Reutiliza `SettingsModel.syncStatus` tal cual; no duplica ni toca la
-/// lógica de CloudKit. El botón de regresar lo da el `NavigationStack`.
+/// No hay login ni cuenta dentro de la app — ese concepto no existe aquí: se
+/// usa la cuenta de iCloud que ya tiene el dispositivo, y esta pantalla solo
+/// refleja cómo va. Se empuja desde Ajustes, así que no lleva barra.
 struct DataSettingsView: View {
     @Environment(\.lana) private var lana
     private let model: SettingsModel
@@ -19,85 +17,91 @@ struct DataSettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                LanaCard {
-                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                        statusIcon
-                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                            Text(statusTitle)
-                                .lanaFont(.headline)
-                                .foregroundStyle(lana.ink)
-                            Text(statusDetail)
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink50)
-                                .fixedSize(horizontal: false, vertical: true)
-                            // La fecha exacta bajo la relativa: "hace 2 horas"
-                            // dice qué tan reciente, no cuándo. Para saber si
-                            // un cambio de ayer alcanzó a respaldarse, hace
-                            // falta el dato completo.
-                            if case let .synced(lastSuccess) = model.syncStatus {
-                                Text(lastSuccess.formatted(date: .abbreviated, time: .shortened))
-                                    .lanaFont(.caption)
-                                    .foregroundStyle(lana.ink50)
-                            }
-                        }
-                        Spacer(minLength: 0)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 0) {
+                statusCard
+                    .padding(.bottom, Space.p12.rawValue)
 
-                // Dónde tocar, textual: no hay URL pública que abra la
-                // configuración de iCloud, y mandar al usuario a la página de
-                // Lana en Ajustes —lo único que `openSettingsURLString`
-                // permite— sería un callejón sin salida cuando el problema es
-                // la cuenta. El camino escrito sí lo lleva.
+                // Dónde tocar, en texto: no hay URL pública que abra la
+                // configuración de iCloud, y mandar a la página de Lana en
+                // Ajustes sería un callejón sin salida cuando el problema es la
+                // cuenta. El camino escrito sí lleva.
                 if needsICloudWayfinding {
                     LanaCard {
-                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+                        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
                             Text("Dónde revisarlo")
-                                .lanaFont(.headline)
+                                .lanaFont(.bodyEmphasis)
                                 .foregroundStyle(lana.ink)
                             Text("Ajustes › tu nombre › iCloud › Apps que usan iCloud")
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink50)
+                                .lanaFont(.explanation)
+                                .foregroundStyle(lana.ink70)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.bottom, Space.p12.rawValue)
                 }
 
                 Text("""
-                Los datos de esta app se almacenan en tu iCloud, usando la cuenta que ya \
-                tienes configurada en este dispositivo.
+                Tus movimientos viven en tu iCloud, con la cuenta que ya tienes configurada en este \
+                iPhone.
                 """)
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink42)
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(Space.md.rawValue)
-            .tabBarClearance()
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p18.rawValue)
+            .tabBarClearance(.noTabBar)
         }
         .background(lana.bg)
         .navigationTitle("iCloud")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .lanaInlineNavigationTitle()
+        .hidesLanaTabBar()
+    }
+
+    private var statusCard: some View {
+        LanaCard(radius: .cardLarge) {
+            HStack(alignment: .top, spacing: Space.p12.rawValue) {
+                statusIcon
+                VStack(alignment: .leading, spacing: Space.p2.rawValue) {
+                    Text(statusTitle)
+                        .lanaFont(.pushTitle)
+                        .foregroundStyle(lana.ink)
+                    Text(statusDetail)
+                        .lanaFont(.explanation)
+                        .foregroundStyle(lana.ink70)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // La fecha exacta bajo la relativa: "hace 2 horas" dice qué
+                    // tan reciente, no cuándo. Para saber si un cambio de ayer
+                    // alcanzó a respaldarse hace falta el dato completo.
+                    if case let .synced(lastSuccess) = model.syncStatus {
+                        Text(lastSuccess.formatted(date: .abbreviated, time: .shortened))
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(lana.ink42)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private var statusIcon: some View {
         switch model.syncStatus {
         case .disabled:
-            Image(systemName: "icloud.slash").foregroundStyle(lana.ink50)
+            Image(systemName: "icloud.slash").foregroundStyle(lana.attention)
         case .syncing:
             ProgressView().controlSize(.small)
         case .synced:
-            Image(systemName: "checkmark.icloud").foregroundStyle(lana.accent)
+            Image(systemName: "checkmark.icloud").foregroundStyle(lana.positive)
         case .failed:
             Image(systemName: "exclamationmark.icloud").foregroundStyle(lana.attention)
         }
     }
 
-    /// Solo cuando hay algo que el usuario pueda ir a revisar. Sincronizando o
-    /// ya sincronizado, el camino a Ajustes sobra.
+    /// Solo cuando hay algo que ir a revisar. Sincronizando o ya al día, el
+    /// camino a Ajustes sobra.
     private var needsICloudWayfinding: Bool {
         switch model.syncStatus {
         case .disabled, .failed: true
@@ -109,7 +113,7 @@ struct DataSettingsView: View {
         switch model.syncStatus {
         case .disabled: "Sin iCloud activo"
         case .syncing: "Sincronizando…"
-        case .synced: "Sincronizado con iCloud"
+        case .synced: "iCloud al día"
         case .failed: "No se pudo respaldar la última vez"
         }
     }
@@ -117,16 +121,13 @@ struct DataSettingsView: View {
     private var statusDetail: String {
         switch model.syncStatus {
         case .disabled:
-            "Tus datos solo viven en este dispositivo."
+            "Todo vive en este iPhone."
         case .syncing:
-            "Estamos poniendo tus datos al día en iCloud."
+            "Estamos poniendo tus movimientos al día."
         case let .synced(lastSuccess):
             "Última vez \(lastSuccess.formatted(.relative(presentation: .named)))."
         case .failed:
-            """
-            Tus datos siguen aquí, en tu dispositivo. Revisa tu conexión o el espacio \
-            disponible en iCloud.
-            """
+            "Tus movimientos siguen aquí. Revisa tu conexión o el espacio en iCloud."
         }
     }
 }
