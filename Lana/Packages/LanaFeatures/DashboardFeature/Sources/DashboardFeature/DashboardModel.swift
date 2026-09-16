@@ -273,6 +273,13 @@ public final class DashboardModel: ExpenseProviding {
         expenses.filter(\.needsReview).sorted { $0.date > $1.date }
     }
 
+    /// Cuántos de los que esperan revisión llegaron solos por Apple Pay — lo
+    /// que dice "2 de Apple Pay" en Hoy: si eso lo puso el usuario dictando o
+    /// entró sin que hiciera nada (ADR-0049).
+    public var needsReviewFromApplePayCount: Int {
+        expenses.count { $0.needsReview && $0.source == .applePay }
+    }
+
     /// El desglose del mes por forma de pago (efectivo, débito, crédito,
     /// transferencia) — solo gastos, igual que `categoryTotals`; un ingreso
     /// no se "paga" con nada. No distingue tarjeta por tarjeta, solo el

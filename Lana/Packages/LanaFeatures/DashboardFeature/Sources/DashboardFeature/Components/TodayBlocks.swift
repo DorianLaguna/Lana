@@ -122,6 +122,9 @@ struct DailyPaceCard: View {
 struct ReviewPromptRow: View {
     @Environment(\.lana) private var lana
     let count: Int
+    /// Cuántos de esos llegaron por Apple Pay. En cero no se dice nada: lo
+    /// demás lo dictó el usuario.
+    let applePayCount: Int
     let action: () -> Void
 
     var body: some View {
@@ -138,6 +141,13 @@ struct ReviewPromptRow: View {
                     .lanaFont(.bodyEmphasis)
                     .foregroundStyle(lana.ink)
                 Spacer(minLength: Space.sm.rawValue)
+                // `ink60`, no el `ink50` del handoff: sobre `attentionSoft`
+                // no llega a 4.5:1 en claro.
+                if applePayCount > 0 {
+                    Text(applePayText)
+                        .lanaFont(.footnote)
+                        .foregroundStyle(lana.ink60)
+                }
                 RowChevron()
             }
             .padding(.vertical, Space.p15.rawValue)
@@ -149,7 +159,11 @@ struct ReviewPromptRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(count) por revisar")
+        .accessibilityLabel(applePayCount > 0 ? "\(count) por revisar, \(applePayText)" : "\(count) por revisar")
+    }
+
+    private var applePayText: String {
+        "\(applePayCount) de Apple Pay"
     }
 }
 

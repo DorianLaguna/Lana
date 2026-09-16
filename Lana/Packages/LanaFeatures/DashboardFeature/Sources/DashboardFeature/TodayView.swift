@@ -167,7 +167,10 @@ public struct TodayView<Settings: View>: View {
 
         let reviewCount = model.needsReviewItems.count
         if reviewCount > 0 {
-            ReviewPromptRow(count: reviewCount, action: onOpenReview)
+            ReviewPromptRow(
+                count: reviewCount,
+                applePayCount: model.needsReviewFromApplePayCount,
+                action: onOpenReview)
                 .padding(.bottom, Space.p28.rawValue)
         } else {
             Spacer()
