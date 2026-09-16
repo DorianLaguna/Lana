@@ -146,7 +146,8 @@ struct GuideNotice: View {
 }
 
 /// Un número de paso en un círculo: la numeración se ve, no depende solo del
-/// orden visual.
+/// orden visual. Neutro y no en el acento: no se toca, y el acento sobre su
+/// propio tinte no llega a 4.5:1.
 struct GuideStepNumber: View {
     @Environment(\.lana) private var lana
 
@@ -157,9 +158,9 @@ struct GuideStepNumber: View {
             .lanaFont(.footnote)
             .fontWeight(.semibold)
             .monospacedDigit()
-            .foregroundStyle(lana.accent)
+            .foregroundStyle(lana.ink70)
             .frame(width: LanaMetrics.badge, height: LanaMetrics.badge)
-            .background(lana.accentSoft, in: Circle())
+            .background(lana.surface3, in: Circle())
     }
 }
 
