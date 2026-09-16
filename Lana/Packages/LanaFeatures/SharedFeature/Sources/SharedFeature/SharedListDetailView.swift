@@ -144,8 +144,8 @@ public struct SharedListDetailView: View {
             .sheet(isPresented: isViewingDebtBinding) {
                 if let debt = viewingDebt {
                     DebtDetailView(
-                        debt: debt,
-                        contributions: model.contributions(for: debt),
+                        explanation: model.explanation(for: debt),
+                        viewerID: model.viewerParticipantID,
                         participantName: { model.displayName(for: $0) })
                 }
             }

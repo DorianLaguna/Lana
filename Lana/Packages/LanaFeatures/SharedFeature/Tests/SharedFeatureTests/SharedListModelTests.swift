@@ -278,8 +278,8 @@ struct SharedListDetailModelTests {
         #expect(model.balances.allSatisfy { $0.trend == .growing })
     }
 
-    @Test("contributions(for:) detalla el gasto detrás de la deuda ya cargada")
-    func contributionsDetallaElGastoDetrasDeLaDeudaYaCargada() async throws {
+    @Test("explanation(for:) detalla el gasto detrás de la deuda ya cargada")
+    func explanationDetallaElGastoDetrasDeLaDeudaYaCargada() async throws {
         let list = SharedList(
             name: "Depa",
             participants: [alice, bob],
@@ -295,12 +295,12 @@ struct SharedListDetailModelTests {
         await model.onAppear(asOf: referenceDate)
         let debt = try #require(model.debts.first)
 
-        let contributions = model.contributions(for: debt)
+        let entries = model.explanation(for: debt).debtorEntries
 
-        #expect(contributions.count == 1)
-        #expect(contributions.first?.concept == "gasto")
-        let contributionsSum = contributions.reduce(Decimal(0)) { $0 + $1.signedEffect }
-        #expect(contributionsSum == debt.amount.amount)
+        #expect(entries.count == 1)
+        #expect(entries.first?.concept == "gasto")
+        let entriesSum = entries.reduce(Decimal(0)) { $0 + $1.effect }
+        #expect(-entriesSum == debt.amount.amount)
     }
 
     @Test("Un saldo grabado hace más de 30 días, sin cambios recientes, marca tendencia estable")

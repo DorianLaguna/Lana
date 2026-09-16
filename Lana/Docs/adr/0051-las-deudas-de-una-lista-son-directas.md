@@ -1,6 +1,6 @@
 # ADR-0051: Las deudas de una lista son directas, no simplificadas
 
-- **Estado:** Aceptada
+- **Estado:** Superseded por ADR-0053
 - **Fecha:** 2026-09-16
 - **Relacionada:** ADR-0024 (detalle de deuda por gasto), ADR-0007 (proporción
   congelada)

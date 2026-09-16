@@ -40,7 +40,7 @@ Cada decisión de diseño se mide contra eso.
 | Presupuesto por categoría | Sección de Mes en `DashboardFeature`, sin paquete propio | 0048 |
 | Origen de un movimiento | Campo opcional en el evento raíz; ninguna corrección lo cambia | 0049 |
 | Nuevo miembro de una lista | Se pregunta si se suma a lo ya registrado; solo partes iguales, como corrección | 0050 |
-| Deudas en una lista | Directas entre cada par, no simplificadas | 0051 |
+| Deudas en una lista | Cada quien paga o cobra su saldo, repartido en proporción | 0053 |
 | Quitar a alguien de una lista | Solo si su única huella son partes de gastos iguales | 0052 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
@@ -172,7 +172,7 @@ Esta fase define lo que no se puede cambiar después. Tómate el tiempo.
       Nunca se suman ni se mezclan.
 - [x] Ciclos de corte: saldo actual vs saldo al corte por tarjeta
 - [x] `Projection`: disponible por quincena. **Solo cuenta lo que tiene fecha.**
-- [x] Simplificación de deudas para 3+ personas — la lista ya no la muestra: usa deudas directas (ADR-0051)
+- [x] Simplificación de deudas para 3+ personas — la lista ya no la muestra: cada quien paga o cobra su saldo (ADR-0053)
 - [x] Protocolos: `ExpenseStore`, `ExpenseParsing`, `InsightQuerying`, `PurchaseGating`
 - [x] Implementaciones en memoria para tests y previews
 

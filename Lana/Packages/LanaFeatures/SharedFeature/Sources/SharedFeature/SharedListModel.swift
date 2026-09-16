@@ -139,7 +139,7 @@ public final class SharedListModel {
                     totals[currency, default: 0] += byParticipant[viewer] ?? 0
                 }
             }
-            debts[list.id] = byCurrency.keys.flatMap { ledger.directDebts(in: list.id, currency: $0) }
+            debts[list.id] = byCurrency.keys.flatMap { ledger.settlementPlan(in: list.id, currency: $0) }
         }
         netBalance = totals
             .filter { $0.value != 0 }

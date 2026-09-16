@@ -19,7 +19,8 @@ public final class SharedListDetailModel {
     public private(set) var viewerParticipantID: ParticipantID?
     /// El saldo de cada participante, con tendencia (ADR-0008).
     public private(set) var balances: [ParticipantBalance] = []
-    /// Quién le debe a quién directamente, neto por par (ADR-0051).
+    /// Quién le paga a quién para quedar a mano: cada quien paga o cobra su
+    /// saldo, ni más ni menos (ADR-0053).
     public private(set) var debts: [Debt] = []
     /// Los gastos de esta lista, más reciente primero.
     public private(set) var expenses: [Expense] = []
@@ -377,12 +378,20 @@ public final class SharedListDetailModel {
         }
     }
 
-    /// El detalle, gasto por gasto, de la relación directa entre
-    /// `debt.from` y `debt.to` — el "por qué" detrás de la cifra que ya se
-    /// ve en `BalancesView` (ADR-0024). Suma `debt.amount` más lo que ya se
-    /// liquidaron entre los dos (ADR-0051).
-    public func contributions(for debt: Debt) -> [DebtContribution] {
-        PersonLedger(events: events).contributions(between: debt.from, and: debt.to, in: list.id)
+    /// De dónde sale una fila de "Para quedar a mano" (ADR-0053): el saldo
+    /// total de quien debe, qué parte de lo que se debe en la lista cobra
+    /// quien recibe, y los movimientos que formaron ese saldo.
+    public func explanation(for debt: Debt) -> DebtExplanation {
+        let ledger = PersonLedger(events: events)
+        let currency = debt.amount.currency
+        let balances = ledger.netBalances(in: list.id)[currency] ?? [:]
+        let totalOwed = balances.values.filter { $0 > 0 }.reduce(Decimal(0), +)
+        return DebtExplanation(
+            debt: debt,
+            debtorOwes: Money(amount: -(balances[debt.from] ?? 0), currency: currency),
+            creditorCollects: Money(amount: balances[debt.to] ?? 0, currency: currency),
+            totalOwed: Money(amount: totalOwed, currency: currency),
+            debtorEntries: ledger.balanceEntries(for: debt.from, in: list.id, currency: currency))
     }
 
     private func load(asOf date: Date) async {
@@ -422,7 +431,7 @@ public final class SharedListDetailModel {
                 }
             }.sorted { $0.participant.displayName < $1.participant.displayName }
 
-            debts = currentByCurrency.keys.flatMap { currentLedger.directDebts(in: list.id, currency: $0) }
+            debts = currentByCurrency.keys.flatMap { currentLedger.settlementPlan(in: list.id, currency: $0) }
 
             let wideRange = DateInterval(
                 start: calendar.date(byAdding: .year, value: -5, to: date) ?? .distantPast,

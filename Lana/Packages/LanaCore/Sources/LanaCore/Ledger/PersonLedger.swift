@@ -67,31 +67,79 @@ public struct PersonLedger: Sendable {
         return Self.simplify(balances, currency: currency)
     }
 
-    /// Quién le debe a quién **directamente**: cada participante a cada
-    /// persona que pagó algo que compartió con él, neto entre los dos y
-    /// descontando lo que ya se liquidaron (ADR-0051).
+    /// Quién le paga a quién para quedar a mano, sin que nadie pague ni cobre
+    /// más que su saldo (ADR-0053).
     ///
-    /// Es lo que muestra la lista. `simplifiedDebts` da menos transferencias,
-    /// pero empareja deudores con acreedores con los que no compartieron
-    /// nada: "Fernando te debe $128" cuando también le debía a Iori. Cada
-    /// deuda de aquí coincide con la suma de `contributions(between:and:in:)`
-    /// de ese par, así que su detalle siempre cuadra.
-    public func directDebts(in sharedListID: SharedListID, currency: Currency) -> [Debt] {
-        struct Pair: Hashable {
-            let low: ParticipantID
-            let high: ParticipantID
-        }
-        // Positivo: `low` le debe a `high`.
-        var net: [Pair: Decimal] = [:]
-        func owes(_ debtor: ParticipantID, _ creditor: ParticipantID, _ amount: Decimal) {
-            guard debtor != creditor else { return }
-            if debtor < creditor {
-                net[Pair(low: debtor, high: creditor), default: 0] += amount
-            } else {
-                net[Pair(low: creditor, high: debtor), default: 0] -= amount
+    /// Cada deudor reparte lo que debe entre quienes cobran, en proporción a
+    /// lo que cobra cada uno. Así la lista siempre suma el saldo de arriba —"
+    /// debes $21.21" son $21.21 en pagos, no $93 que pagas y $72 que te
+    /// pagan—, y quienes compartieron lo mismo deben lo mismo a las mismas
+    /// personas, que era lo que la simplificación no respetaba.
+    ///
+    /// Cuadra al centavo en las dos direcciones: lo de cada deudor suma su
+    /// saldo y lo de cada acreedor suma el suyo.
+    public func settlementPlan(in sharedListID: SharedListID, currency: Currency) -> [Debt] {
+        let balances = netBalances(in: sharedListID)[currency] ?? [:]
+        let creditors = balances.filter { $0.value > 0 }.keys.sorted()
+        let debtors = balances.filter { $0.value < 0 }.keys.sorted()
+        let totalCredit = creditors.reduce(Decimal(0)) { $0 + (balances[$1] ?? 0) }
+        guard totalCredit > 0, !debtors.isEmpty else { return [] }
+
+        let cent = Decimal(string: "0.01") ?? 0
+        var cells: [ParticipantID: [ParticipantID: Decimal]] = [:]
+        for debtor in debtors {
+            let owed = -(balances[debtor] ?? 0)
+            var row: [ParticipantID: Decimal] = [:]
+            var remainders: [(creditor: ParticipantID, remainder: Decimal)] = []
+            for creditor in creditors {
+                let exact = (owed * (balances[creditor] ?? 0) / totalCredit).rounded(scale: 6, mode: .plain)
+                let truncated = exact.rounded(scale: 2, mode: .down)
+                row[creditor] = truncated
+                remainders.append((creditor, exact - truncated))
             }
+            let leftover = owed - row.values.reduce(0, +)
+            let leftoverCents = NSDecimalNumber(decimal: (leftover / cent).rounded(scale: 0, mode: .plain)).intValue
+            let order = remainders
+                .sorted { $0.remainder == $1.remainder ? $0.creditor < $1.creditor : $0.remainder > $1.remainder }
+            for index in 0 ..< max(leftoverCents, 0) {
+                row[order[index % order.count].creditor, default: 0] += cent
+            }
+            cells[debtor] = row
         }
 
+        /// Cada fila ya suma exacto; si una columna quedó un centavo arriba y
+        /// otra abajo, se mueve el centavo dentro de una fila, que no la
+        /// descuadra.
+        func received(_ creditor: ParticipantID) -> Decimal {
+            debtors.reduce(0) { $0 + (cells[$1]?[creditor] ?? 0) }
+        }
+        var moves = 0
+        while moves < 10000,
+              let over = creditors.first(where: { received($0) > (balances[$0] ?? 0) }),
+              let under = creditors.first(where: { received($0) < (balances[$0] ?? 0) }),
+              let debtor = debtors.first(where: { (cells[$0]?[over] ?? 0) >= cent }) {
+            cells[debtor]?[over, default: 0] -= cent
+            cells[debtor]?[under, default: 0] += cent
+            moves += 1
+        }
+
+        return debtors.flatMap { debtor in
+            creditors.compactMap { creditor -> Debt? in
+                guard let amount = cells[debtor]?[creditor], amount > 0 else { return nil }
+                return Debt(from: debtor, to: creditor, amount: Money(amount: amount, currency: currency))
+            }
+        }
+    }
+
+    /// Cómo se llegó al saldo de `participant`, movimiento por movimiento: lo
+    /// que puso en cada gasto que pagó, lo que le tocó en cada gasto, y lo que
+    /// pagó o recibió al liquidar. Los efectos suman exactamente su saldo en
+    /// `netBalances` (ADR-0053).
+    public func balanceEntries(
+        for participant: ParticipantID,
+        in sharedListID: SharedListID,
+        currency: Currency) -> [BalanceEntry] {
+        var entries: [BalanceEntry] = []
         for transaction in LedgerFold.resolve(events).values {
             guard transaction.kind == .expense,
                   !transaction.isVoided,
@@ -100,26 +148,36 @@ public struct PersonLedger: Sendable {
                   let payer = transaction.payer,
                   let portions = try? transaction.split?.portions(of: transaction.amount)
             else { continue }
-            for (participant, share) in portions {
-                owes(participant, payer, share.amount)
-            }
+            let share = portions[participant]?.amount ?? 0
+            let othersShares = portions.filter { $0.key != participant }.values.reduce(Decimal(0)) { $0 + $1.amount }
+            let effect = payer == participant ? othersShares : -share
+            guard payer == participant || share > 0 else { continue }
+            entries.append(BalanceEntry(
+                id: transaction.id,
+                date: transaction.date,
+                concept: transaction.concept,
+                amount: transaction.amount,
+                payer: payer,
+                share: Money(amount: share, currency: currency),
+                effect: effect))
         }
         for event in events {
             guard case let .settlementRecorded(settlement) = event,
                   settlement.sharedListID == sharedListID,
-                  settlement.amount.currency == currency
+                  settlement.amount.currency == currency,
+                  settlement.from == participant || settlement.to == participant
             else { continue }
-            owes(settlement.from, settlement.to, -settlement.amount.amount)
+            entries.append(BalanceEntry(
+                id: settlement.id,
+                date: settlement.date,
+                concept: "Liquidación",
+                amount: settlement.amount,
+                payer: settlement.from,
+                share: Money(amount: 0, currency: currency),
+                isSettlement: true,
+                effect: settlement.from == participant ? settlement.amount.amount : -settlement.amount.amount))
         }
-
-        return net
-            .compactMap { pair, amount -> Debt? in
-                guard amount != 0 else { return nil }
-                return amount > 0
-                    ? Debt(from: pair.low, to: pair.high, amount: Money(amount: amount, currency: currency))
-                    : Debt(from: pair.high, to: pair.low, amount: Money(amount: -amount, currency: currency))
-            }
-            .sorted { ($0.from, $0.to) < ($1.from, $1.to) }
+        return entries.sorted { ($0.date, $0.id.rawValue.uuidString) < ($1.date, $1.id.rawValue.uuidString) }
     }
 
     /// El detalle, gasto por gasto, de la relación directa entre `from` y

@@ -115,7 +115,7 @@ public struct BalancesView: View {
             .accessibilityLabel(label)
     }
 
-    /// Quién le paga a quién, directo (ADR-0051), con la acción al lado: el
+    /// Quién le paga a quién según el plan de pagos (ADR-0053), con la acción al lado: el
     /// renglón entero abre el detalle y "Liquidar" registra el pago.
     private func debtRow(_ debt: Debt) -> some View {
         HStack(spacing: Space.sm.rawValue) {
