@@ -19,6 +19,21 @@ extension MainTabView {
             upcomingCardPayments: upcomingCardPaymentsModel)
     }
 
+    /// Igual que `refreshAfterExpenseChange()`, resaltando en Hoy lo que se
+    /// acaba de guardar: las filas nuevas entran con un tinte del acento que
+    /// se disuelve solo (rediseño, sección 08).
+    func refreshAfterExpenseChange(highlighting savedIDs: [ExpenseID]) async {
+        await refreshAfterExpenseChange()
+        guard !savedIDs.isEmpty else { return }
+        dashboardModel.highlight(savedIDs)
+        // Un respiro para que la fila ya esté en pantalla cuando el resalte
+        // empieza a desvanecerse.
+        try? await Task.sleep(for: .milliseconds(120))
+        withAnimation(.easeOut(duration: 0.9)) {
+            dashboardModel.clearHighlights()
+        }
+    }
+
     /// Todo lo que puede quedar viejo cuando se crea, edita o borra un gasto
     /// desde cualquier punto de la app. Agregar una pantalla nueva que
     /// dependa de los gastos se hace aquí, no en cada `onDone` (ADR-0032).

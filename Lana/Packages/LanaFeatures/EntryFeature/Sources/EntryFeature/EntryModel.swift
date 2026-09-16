@@ -64,6 +64,13 @@ public final class EntryModel {
     /// La parte de `inputText` que el reconocedor ya no va a reescribir. Lo
     /// que sigue después es la palabra en curso, que se dibuja apagada.
     public private(set) var finalizedTranscript = ""
+    /// Lo que se acaba de guardar, para que Hoy resalte esas filas: hace
+    /// visible la consecuencia de haber dictado (rediseño, sección 08).
+    public private(set) var lastSavedIDs: [ExpenseID] = []
+    /// Los borradores que ya estaban en revisión cuando se tocó "Seguir
+    /// dictando". Lo que se dicte después se agrega a estos, no los reemplaza.
+    /// No `private`: lo aplica `EntryModelLivePreview.swift` al terminar.
+    var keptDrafts: [DraftTransaction] = []
 
     /// Interno y no privado, igual que el estado de escucha de abajo: lo usa
     /// el parseo en vivo, que vive en `EntryModelLivePreview.swift`.
@@ -224,6 +231,21 @@ public final class EntryModel {
         await speech.stopTranscribing()
     }
 
+    /// "Seguir dictando" desde la revisión: vuelve a escuchar **conservando**
+    /// lo ya revisado. Dictar dos veces seguidas suma movimientos, nunca
+    /// reemplaza los que el usuario ya corrigió.
+    public func resumeListening() async {
+        keptDrafts = drafts
+        await startListening()
+    }
+
+    /// Junta lo recién dictado con lo que se conservó de la revisión anterior.
+    /// No `private`: lo llama también `finishListening(generation:)`.
+    func apply(_ newDrafts: [DraftTransaction]) {
+        drafts = keptDrafts + newDrafts
+        keptDrafts = []
+    }
+
     /// Borra lo dictado hasta ahora sin dejar de escuchar — pedido explícito
     /// del usuario ("me gustaría borrar lo que dije en algún punto, para
     /// reiniciar"). No se puede resetear a medias una sesión de
@@ -256,7 +278,7 @@ public final class EntryModel {
                 stage = .composing
                 return
             }
-            drafts = makeDrafts(from: results)
+            apply(makeDrafts(from: results))
             stage = .reviewing
         } catch {
             errorMessage = error.localizedDescription
@@ -336,6 +358,7 @@ public final class EntryModel {
                 }
                 try await store.save(draft.asExpense())
             }
+            lastSavedIDs = drafts.map(\.id)
             stage = .saved
         } catch {
             errorMessage = error.localizedDescription

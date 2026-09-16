@@ -15,6 +15,13 @@ extension EntryModel {
         let finalText = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !finalText.isEmpty else {
             resetLivePreview()
+            // Se tocó "Seguir dictando" y no se dijo nada: lo ya revisado
+            // sigue ahí, no se pierde por haber abierto el micrófono de más.
+            if !keptDrafts.isEmpty {
+                apply([])
+                stage = .reviewing
+                return
+            }
             stage = .composing
             return
         }
@@ -25,7 +32,7 @@ extension EntryModel {
             guard generation == listeningGeneration else { return }
         }
         if liveParsedText == finalText, !liveDrafts.isEmpty {
-            drafts = liveDrafts
+            apply(liveDrafts)
             resetLivePreview()
             stage = .reviewing
             return

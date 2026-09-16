@@ -167,7 +167,17 @@ public struct EntryView: View {
     // MARK: - Revisar
 
     private var reviewingView: some View {
-        VStack(spacing: Space.md.rawValue) {
+        VStack(alignment: .leading, spacing: 0) {
+            reviewHeader
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.bottom, Space.md.rawValue)
+
+            if !model.inputText.isEmpty {
+                transcriptQuote
+                    .padding(.horizontal, LanaMetrics.screenMargin)
+                    .padding(.bottom, Space.p20.rawValue)
+            }
+
             ScrollView {
                 VStack(spacing: Space.p12.rawValue) {
                     ForEach($model.drafts) { $draft in
@@ -181,14 +191,70 @@ public struct EntryView: View {
                     }
                 }
                 .padding(.horizontal, LanaMetrics.screenMargin)
-                .padding(.top, Space.p14.rawValue)
             }
 
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
                     .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.attention)
+                    .padding(.horizontal, LanaMetrics.screenMargin)
+                    .padding(.top, Space.p10.rawValue)
             }
+
+            reviewFooter
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.md.rawValue)
+                .padding(.bottom, Space.p40.rawValue)
+        }
+    }
+
+    /// "ENTENDÍ 2 MOVIMIENTOS · en el teléfono": lo que se entendió y dónde se
+    /// procesó, que es la razón para confiar en la app.
+    private var reviewHeader: some View {
+        HStack(spacing: Space.sm.rawValue) {
+            Circle()
+                .fill(lana.positive)
+                .frame(width: LanaMetrics.dot, height: LanaMetrics.dot)
+            Text(understoodLabel)
+                .lanaFont(.sectionHeader)
+                .foregroundStyle(lana.positive)
+            Spacer(minLength: Space.sm.rawValue)
+            Text("en el teléfono")
+                .lanaFont(.footnote)
+                .foregroundStyle(lana.ink42)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var understoodLabel: String {
+        let count = model.drafts.count
+        return count == 1 ? "Entendí un movimiento" : "Entendí \(count) movimientos"
+    }
+
+    /// Lo dictado, entre comillas. Tocarlo vuelve a escuchar conservando lo ya
+    /// revisado.
+    private var transcriptQuote: some View {
+        Button {
+            Task { await model.resumeListening() }
+        } label: {
+            Text("«\(model.inputText)»")
+                .lanaFont(.quote)
+                .foregroundStyle(lana.ink70)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Vuelve a dictar")
+    }
+
+    private var reviewFooter: some View {
+        HStack(spacing: Space.p10.rawValue) {
+            Button("Seguir dictando") {
+                Task { await model.resumeListening() }
+            }
+            .buttonStyle(.lana(.secondary, size: .large))
+            .disabled(model.stage == .saving)
 
             Button {
                 Task { await model.confirm() }
@@ -197,14 +263,18 @@ public struct EntryView: View {
                     ProgressView()
                         .tint(lana.onAccent)
                 } else {
-                    Text(model.drafts.count > 1 ? "Guardar los \(model.drafts.count)" : "Guardar")
+                    Text(saveLabel)
                 }
             }
             .buttonStyle(.lana(size: .large, isExpanded: true))
             .disabled(model.stage == .saving)
-            .padding(.horizontal, LanaMetrics.screenMargin)
-            .padding(.bottom, Space.p40.rawValue)
         }
+    }
+
+    /// El número es real y cambia al quitar borradores. Guardar nunca se
+    /// bloquea, ni siquiera con dudas (Docs/CLAUDE.md).
+    private var saveLabel: String {
+        model.drafts.count > 1 ? "Guardar los \(model.drafts.count)" : "Guardar"
     }
 }
 

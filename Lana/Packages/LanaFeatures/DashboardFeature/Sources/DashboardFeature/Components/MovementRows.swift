@@ -5,6 +5,7 @@ import SwiftUI
 /// Filas de movimiento separadas por una línea fina, sin línea tras la última.
 /// La misma forma en Hoy y en los días de Mes.
 struct MovementRows: View {
+    @Environment(\.lana) private var lana
     let expenses: [Expense]
     let model: DashboardModel
     let onSelect: (Expense) -> Void
@@ -16,6 +17,7 @@ struct MovementRows: View {
                     onSelect(expense)
                 } label: {
                     row(for: expense)
+                        .background(highlight(for: expense))
                 }
                 .buttonStyle(.plain)
                 if index < expenses.count - 1 {
@@ -23,6 +25,16 @@ struct MovementRows: View {
                 }
             }
         }
+    }
+
+    /// El resalte de una fila recién guardada, que se disuelve solo: la
+    /// consecuencia de haber dictado tiene que verse (rediseño, sección 08).
+    private func highlight(for expense: Expense) -> some View {
+        let isHighlighted = model.highlightedExpenseIDs.contains(expense.id)
+        return RoundedRectangle(cornerRadius: Radius.inner.rawValue, style: .continuous)
+            .fill(isHighlighted ? lana.accentHighlight : .clear)
+            .padding(.horizontal, -Space.p10.rawValue)
+            .animation(.easeOut(duration: 0.9), value: isHighlighted)
     }
 
     /// Separada de `body`: con todos los argumentos inline, el type-checker

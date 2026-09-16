@@ -40,6 +40,20 @@ public final class DashboardModel: ExpenseProviding {
     /// `false` si las tarjetas no se pudieron leer: sin esto, un fallo de
     /// lectura haría que todo movimiento con tarjeta dijera "Tarjeta eliminada".
     private(set) var hasLoadedCards = false
+    /// Los movimientos recién guardados, que Hoy resalta un momento al volver
+    /// de la captura: hace visible la consecuencia de haber dictado, en vez de
+    /// dejar que la fila nueva aparezca sin que se note dónde.
+    public private(set) var highlightedExpenseIDs: Set<ExpenseID> = []
+
+    /// Marca lo que se acaba de guardar. La vista desvanece el resalte sola.
+    public func highlight(_ ids: [ExpenseID]) {
+        highlightedExpenseIDs = Set(ids)
+    }
+
+    /// Apaga el resalte.
+    public func clearHighlights() {
+        highlightedExpenseIDs = []
+    }
 
     /// - Parameters:
     ///   - store: de dónde se leen las transacciones.

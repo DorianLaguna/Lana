@@ -222,8 +222,11 @@ struct MainTabView: View {
                 model: entryModel,
                 onOpenSettings: openSettings,
                 onDone: {
+                    // Lo recién guardado se resalta un momento en Hoy: hace
+                    // visible la consecuencia de haber dictado.
+                    let saved = entryModel.lastSavedIDs
                     isCapturePresented = false
-                    Task { await refreshAfterExpenseChange() }
+                    Task { await refreshAfterExpenseChange(highlighting: saved) }
                 },
                 onManualEntry: {
                     opensManualEntryAfterCapture = true

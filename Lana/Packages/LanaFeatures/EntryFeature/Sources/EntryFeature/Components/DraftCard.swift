@@ -2,25 +2,25 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// El preview del parseo, editable inline (Docs/PLAN.md → Fase 5: "Edición
-/// inline antes de guardar"). Un `Binding` porque la vista no decide nada —
-/// solo refleja y edita lo que `EntryModel` ya resolvió. `kind` y
-/// `paymentMethod` son editables aquí — antes eran de solo lectura, lo que
-/// no dejaba corregir un ingreso mal detectado como gasto ni elegir con qué
-/// se pagó.
+/// Un borrador en la revisión (rediseño, sección 08): concepto y monto
+/// editables en línea, y todo lo demás como chips que abren su propio
+/// selector. Va sobre `bg`, más oscuro que la hoja, no más claro.
+///
+/// Un `Binding` porque la vista no decide nada: refleja y edita lo que
+/// `EntryModel` ya resolvió.
 public struct DraftCard: View {
     @Environment(\.lana) private var lana
     @Binding private var draft: DraftTransaction
     private let cards: [Card]
     private let allSubcategories: [String: [String]]
     private let sharedLists: [SharedList]
-    /// Cómo mostrar el nombre de un participante — `EntryModel` es quien
-    /// sabe cuál es "yo" en cada lista, este componente no.
+    /// Cómo mostrar el nombre de un participante — `EntryModel` es quien sabe
+    /// cuál es "yo" en cada lista, este componente no.
     private let viewerName: (ParticipantID, SharedListID) -> String
-    /// `nil` cuando es el único borrador en revisión — no tiene sentido
-    /// ofrecer borrarlo, ya lo cubre cancelar la captura entera.
+    /// `nil` cuando es el único borrador: borrarlo ya lo cubre cerrar la hoja.
     private let onDelete: (() -> Void)?
     @State private var isEnteringCustomSubcategory = false
+    @State private var showsDatePicker = false
 
     public init(
         draft: Binding<DraftTransaction>,
@@ -38,217 +38,153 @@ public struct DraftCard: View {
     }
 
     public var body: some View {
-        LanaCard {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                HStack {
-                    Picker("", selection: $draft.kind) {
-                        Text("Gasto").tag(Expense.Kind.expense)
-                        Text("Ingreso").tag(Expense.Kind.income)
+        LanaCard(fill: .background) {
+            VStack(alignment: .leading, spacing: 0) {
+                headline
+                    .padding(.bottom, Space.p12.rawValue)
+
+                FlowLayout {
+                    kindChip
+                    categoryChip
+                    if draft.kind == .expense {
+                        subcategoryChip
                     }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-
-                    Spacer()
-
-                    if draft.needsReview {
-                        Label("Revisar", systemImage: "exclamationmark.circle")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.attention)
+                    dateChip
+                    if draft.kind == .expense {
+                        paymentChip
                     }
-
-                    if let onDelete {
-                        Button(action: onDelete) {
-                            Image(systemName: "trash")
-                                .foregroundStyle(lana.attention)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Borrar este borrador")
+                    if draft.currency != .mxn {
+                        Chip(draft.currency.rawValue)
+                    }
+                    ForEach(draft.doubts) { doubt in
+                        Chip(doubt.label, tone: .doubt)
                     }
                 }
 
-                HStack {
-                    Text("$")
-                        .lanaFont(.largeAmount)
-                        .foregroundStyle(lana.ink50)
-                    TextField("0", value: $draft.amount, format: .number)
-                        .lanaFont(.largeAmount)
-                        .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
-                        .monospacedDigit()
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
+                if isEnteringCustomSubcategory {
+                    LanaTextField("Nombre de la subcategoría", text: $draft.subcategory)
+                        .padding(.top, Space.p10.rawValue)
                 }
 
-                LanaTextField("Concepto", text: $draft.concept)
-                if draft.kind == .expense {
-                    categoryPicker
-                    subcategoryPicker
-                    sharedExpenseBanner
+                if !draft.doubts.isEmpty {
+                    Text("Se guarda igual y queda por revisar.")
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
+                        .padding(.top, Space.p10.rawValue)
                 }
 
-                DatePicker("Fecha", selection: $draft.date, displayedComponents: .date)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink)
-
-                if draft.kind == .expense {
-                    paymentMethodPicker
-                }
+                DraftSharedBlock(draft: $draft, sharedLists: sharedLists, viewerName: viewerName)
             }
+        }
+        .sheet(isPresented: $showsDatePicker) {
+            datePickerSheet
         }
     }
 
-    /// Dropdown, no texto libre — pedido explícito del usuario, mismo
-    /// patrón que ya usan `AddRecurringItemView`/`EditExpenseView`. Antes
-    /// se dejó como texto libre a propósito para no frenar una captura por
-    /// voz rápida, pero aquí ya no se está dictando, se está revisando —
-    /// el usuario ya tiene el teclado en la mano si va a tocar algo.
-    private var categoryPicker: some View {
-        Picker("Categoría", selection: $draft.category) {
-            ForEach(SuggestedCategory.allCases) { category in
-                Text(category.displayName).tag(category.rawValue)
-            }
-        }
-        .lanaFont(.body)
-        .foregroundStyle(lana.ink)
-    }
+    // MARK: - Concepto y monto
 
-    /// Sin opción "Automático" — antes mostraba ese texto literal aunque el
-    /// parser sí hubiera resuelto algo, así que no había forma de saber si
-    /// de verdad detectó una subcategoría o la dejó vacía (pedido explícito
-    /// del usuario: "cuando lo cheque no tenga que decir automático, si no
-    /// la subcategoria a la que pertenece ya"). Ahora la selección refleja
-    /// el valor real de `draft.subcategory` directamente (capitalizado),
-    /// esté ya en el historial o recién propuesto por el parser — la única
-    /// opción con texto especial es "Otra…", para escribir una que nunca
-    /// se ha usado.
-    private var subcategoryPicker: some View {
-        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-            Picker("Subcategoría", selection: subcategorySelection) {
-                Text("Sin subcategoría").tag(SubcategorySelection.none)
-                ForEach(subcategoryOptions, id: \.self) { subcategory in
-                    Text(subcategory.capitalized).tag(SubcategorySelection.existing(subcategory))
-                }
-                Text("Otra…").tag(SubcategorySelection.custom)
-            }
-            .lanaFont(.body)
-            .foregroundStyle(lana.ink)
-
-            if isEnteringCustomSubcategory {
-                LanaTextField("Nombre de la subcategoría", text: $draft.subcategory)
-            }
-        }
-    }
-
-    /// Si el texto se detectó como compartido (`EntryModel.applySharedMatch`,
-    /// ADR-0025), esto es lo único que hace visible que el gasto va a ir a
-    /// una lista y no al Dashboard personal — sin esto, confirmar sería
-    /// invisible: el usuario nunca vería a dónde fue su dinero hasta entrar
-    /// a esa lista después. "Quitar" no borra el gasto, solo revierte la
-    /// detección — el gasto se guarda como personal, como si el texto nunca
-    /// hubiera mencionado a nadie.
-    @ViewBuilder
-    private var sharedExpenseBanner: some View {
-        if let sharedListID = draft.sharedListID, let list = sharedLists.first(where: { $0.id == sharedListID }) {
-            VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                HStack(spacing: Space.sm.rawValue) {
-                    Image(systemName: "person.2")
-                        .foregroundStyle(lana.ink50)
-                    Text("Compartido en \(list.name)")
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.ink50)
-                    Spacer()
-                    Button("Quitar") {
-                        draft.sharedListID = nil
-                        draft.payer = nil
-                        draft.split = nil
-                    }
-                    .lanaFont(.caption)
-                }
-                Picker("Pagó", selection: payerBinding(in: list)) {
-                    ForEach(list.participants) { participant in
-                        Text(displayName(participant, in: list)).tag(participant.id)
-                    }
-                }
-                .lanaFont(.body)
+    private var headline: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
+            TextField("Concepto", text: $draft.concept)
+                .lanaFont(.rowTitle)
                 .foregroundStyle(lana.ink)
 
-                splitBreakdown(in: list)
+            HStack(alignment: .firstTextBaseline, spacing: Space.p2.rawValue) {
+                Text("$")
+                    .lanaFont(.rowSubtitle)
+                    .foregroundStyle(lana.ink50)
+                TextField("0", value: $draft.amount, format: .number)
+                    .lanaFont(.draftAmount)
+                    .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
+                    .multilineTextAlignment(.trailing)
+                    .fixedSize()
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
+            }
+
+            if let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark")
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink35)
+                        .frame(width: LanaMetrics.minTouchTarget / 2, height: LanaMetrics.minTouchTarget / 2)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Quitar este movimiento")
             }
         }
     }
 
-    /// Cómo queda repartido antes de confirmar (ADR-0029) — el borrador ya
-    /// traía la lista y el pagador, pero no cuánto le toca a cada quien, que
-    /// es lo único que hace verificable la detección automática.
-    @ViewBuilder
-    private func splitBreakdown(in list: SharedList) -> some View {
-        if draft.split != nil {
-            Picker("División", selection: splitKindBinding(in: list)) {
-                ForEach(SplitRuleKind.resolvable(in: list)) { kind in
-                    Text(kind.displayName).tag(SplitRuleKind?.some(kind))
-                }
-            }
-            .lanaFont(.body)
-            .foregroundStyle(lana.ink)
-            ForEach(draft.splitShares) { share in
-                HStack {
-                    Text(displayNameByID(share.participant, in: list))
-                    if share.isPayer {
-                        Text("pagó")
-                            .foregroundStyle(lana.ink50)
-                    }
-                    Spacer()
-                    Text(share.amount.formatted())
-                        .monospacedDigit()
-                }
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
-            }
+    // MARK: - Chips
+
+    private var kindChip: some View {
+        Menu {
+            Button("Gasto") { draft.kind = .expense }
+            Button("Ingreso") { draft.kind = .income }
+        } label: {
+            Chip(draft.kind == .income ? "Ingreso" : "Gasto")
         }
+        .accessibilityLabel("Tipo: \(draft.kind == .income ? "ingreso" : "gasto")")
     }
 
-    private func displayNameByID(_ id: ParticipantID, in list: SharedList) -> String {
-        viewerName(id, list.id)
-    }
-
-    /// Cambiar la regla la resuelve contra la lista al vuelo — solo se
-    /// ofrecen las que no piden un número por participante (ADR-0030), así
-    /// que `resolve(in:)` nunca devuelve `nil` para lo que está en el picker.
-    private func splitKindBinding(in list: SharedList) -> Binding<SplitRuleKind?> {
-        Binding(
-            get: { draft.split.map(SplitRuleKind.init) },
-            set: { kind in
-                if let resolved = kind?.resolve(in: list) {
-                    draft.split = resolved
+    private var categoryChip: some View {
+        Menu {
+            if draft.kind == .expense {
+                ForEach(SuggestedCategory.allCases) { category in
+                    Button(category.displayName) { draft.category = category.rawValue }
                 }
-            })
+            } else {
+                ForEach(IncomeCategory.allCases) { category in
+                    Button(category.displayName) { draft.category = category.rawValue }
+                }
+            }
+        } label: {
+            Chip(categoryLabel, tone: draft.category.isEmpty ? .doubt : .neutral)
+        }
+        .accessibilityLabel("Categoría: \(categoryLabel)")
     }
 
-    /// El pagador nunca queda vacío mientras el gasto sea de una lista — si
-    /// la detección no lo resolvió, cae al primer participante y el picker
-    /// deja corregirlo antes de confirmar.
-    private func payerBinding(in list: SharedList) -> Binding<ParticipantID> {
-        Binding(
-            get: { draft.payer ?? list.participants.first?.id ?? ParticipantID() },
-            set: { draft.payer = $0 })
+    private var categoryLabel: String {
+        guard !draft.category.isEmpty else { return "Sin categoría" }
+        if draft.kind == .income {
+            return IncomeCategory(rawValue: draft.category)?.displayName ?? draft.category.capitalized
+        }
+        return SuggestedCategory(rawValue: draft.category)?.displayName ?? draft.category.capitalized
     }
 
-    /// "Yo" en lugar del nombre propio (ADR-0028) — `viewerName` lo resuelve
-    /// `EntryModel`, que es quien conoce la identidad marcada en cada lista.
-    private func displayName(_ participant: Participant, in list: SharedList) -> String {
-        viewerName(participant.id, list.id)
+    /// Dropdown, no texto libre: aquí ya no se está dictando, se está
+    /// revisando. "Otra…" abre el campo para una que nunca se ha usado.
+    private var subcategoryChip: some View {
+        Menu {
+            Button("Sin subcategoría") {
+                isEnteringCustomSubcategory = false
+                draft.subcategory = ""
+            }
+            ForEach(subcategoryOptions, id: \.self) { subcategory in
+                Button(subcategory.capitalized) {
+                    isEnteringCustomSubcategory = false
+                    draft.subcategory = subcategory
+                }
+            }
+            Button("Otra…") {
+                isEnteringCustomSubcategory = true
+                draft.subcategory = ""
+            }
+        } label: {
+            Chip(subcategoryLabel)
+        }
+        .accessibilityLabel("Subcategoría: \(subcategoryLabel)")
     }
 
-    private enum SubcategorySelection: Hashable {
-        case none
-        case existing(String)
-        case custom
+    private var subcategoryLabel: String {
+        guard !draft.subcategory.isEmpty else { return "Sin subcategoría" }
+        return "\(categoryLabel) › \(draft.subcategory.capitalized)"
     }
 
-    /// El historial de la categoría, más el valor actual si el parser
-    /// propuso algo que todavía no está en ese historial (p. ej. la
-    /// primera vez que se usa "mamá" en regalos) — así se ve de inmediato,
-    /// en vez de perderse hasta la siguiente vez que se use.
+    /// El historial de la categoría más lo que el parser acaba de proponer,
+    /// para que se vea de inmediato y no hasta la próxima vez que se use.
     private var subcategoryOptions: [String] {
         var options = Set(allSubcategories[draft.category] ?? [])
         if !draft.subcategory.isEmpty, !isEnteringCustomSubcategory {
@@ -257,62 +193,92 @@ public struct DraftCard: View {
         return options.sorted()
     }
 
-    private var subcategorySelection: Binding<SubcategorySelection> {
-        Binding(
-            get: {
-                if isEnteringCustomSubcategory {
-                    return .custom
-                }
-                if draft.subcategory.isEmpty {
-                    return .none
-                }
-                return .existing(draft.subcategory)
-            },
-            set: { selection in
-                switch selection {
-                case .none:
-                    isEnteringCustomSubcategory = false
-                    draft.subcategory = ""
-                case let .existing(name):
-                    isEnteringCustomSubcategory = false
-                    draft.subcategory = name
-                case .custom:
-                    isEnteringCustomSubcategory = true
-                    draft.subcategory = ""
-                }
-            })
+    private var dateChip: some View {
+        Button {
+            showsDatePicker = true
+        } label: {
+            Chip(Self.dateLabel(for: draft.date))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Fecha: \(Self.dateLabel(for: draft.date))")
     }
 
-    /// Una opción por tarjeta, no dos — el tipo (crédito/débito) ya es fijo
-    /// en `Card.kind`, no algo que se elige por transacción.
-    private var paymentMethodPicker: some View {
-        Picker("Método de pago", selection: $draft.paymentMethod) {
-            Text("Efectivo").tag(PaymentMethod.cash)
-            Text("Transferencia").tag(PaymentMethod.transfer)
-            ForEach(cards) { card in
-                Text(card.alias)
-                    .tag(card.kind == .credit ? PaymentMethod.credit(cardID: card.id) : .debit(cardID: card.id))
-            }
+    /// "Hoy", "Ayer" o "14 de septiembre" — siempre en español.
+    static func dateLabel(for date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        if calendar.isDate(date, inSameDayAs: now) {
+            return "Hoy"
         }
-        .lanaFont(.body)
-        .foregroundStyle(lana.ink)
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(date, inSameDayAs: yesterday) {
+            return "Ayer"
+        }
+        let day = calendar.component(.day, from: date)
+        return "\(day) de \(LanaDateFormat.monthNameLowercased(date, calendar: calendar))"
+    }
+
+    private var datePickerSheet: some View {
+        VStack(spacing: Space.md.rawValue) {
+            DatePicker("Fecha", selection: $draft.date, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .tint(lana.accentFill)
+            Button("Listo") { showsDatePicker = false }
+                .buttonStyle(.lana(size: .large, isExpanded: true))
+        }
+        .padding(Space.md.rawValue)
+        .background(lana.surface)
+        .presentationDetents([.medium])
+    }
+
+    /// Una opción por tarjeta, no dos: el tipo (crédito/débito) ya es fijo en
+    /// `Card.kind`, no algo que se elija por movimiento.
+    private var paymentChip: some View {
+        Menu {
+            Button("Efectivo") { draft.paymentMethod = .cash }
+            Button("Transferencia") { draft.paymentMethod = .transfer }
+            ForEach(cards) { card in
+                Button(card.alias) {
+                    draft.paymentMethod = card.kind == .credit
+                        ? .credit(cardID: card.id)
+                        : .debit(cardID: card.id)
+                }
+            }
+        } label: {
+            Chip(paymentLabel)
+        }
+        .accessibilityLabel("Forma de pago: \(paymentLabel)")
+    }
+
+    private var paymentLabel: String {
+        switch draft.paymentMethod {
+        case .cash: "Efectivo"
+        case .transfer: "Transferencia"
+        case let .credit(cardID): cardAlias(cardID, kind: "Crédito")
+        case let .debit(cardID): cardAlias(cardID, kind: "Débito")
+        }
+    }
+
+    private func cardAlias(_ cardID: CardID, kind: String) -> String {
+        guard let card = cards.first(where: { $0.id == cardID }) else { return kind }
+        return "\(kind) \(card.alias)"
     }
 }
 
 #Preview {
     ScrollView {
-        VStack(spacing: Space.md.rawValue) {
+        VStack(spacing: Space.p12.rawValue) {
             ForEach(LanaTheme.allCases) { theme in
                 DraftCard(
                     draft: .constant(DraftTransaction(
-                        amount: 131,
-                        concept: "Dulces",
+                        amount: 300,
+                        concept: "Súper",
                         category: "despensa",
+                        subcategory: "súper",
                         needsReview: true)),
                     cards: [])
+                    .padding(LanaMetrics.screenMargin)
+                    .background(LanaColors(theme: theme, colorScheme: .dark).surface)
                     .lanaTheme(theme)
             }
         }
-        .padding(Space.md.rawValue)
     }
 }
