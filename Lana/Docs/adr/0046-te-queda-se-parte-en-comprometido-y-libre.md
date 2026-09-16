@@ -59,6 +59,17 @@ descuido, el desglose junta las tarjetas en **un solo renglón** ("Tarjetas
 · $3,200") y el detalle por tarjeta se queda donde ya estaba, en la sección que
 lleva a Tarjetas.
 
+## Enmienda 3 (2026-09-16): el mes de una tarjeta lo decide cuándo cierra su ciclo
+
+La enmienda 2 mandaba al "mes que entra" todo lo del ciclo abierto. Con la app
+en la mano salió mal: el día 16, con corte de Bancomer el 23, sus $8,687 decían
+"para el mes que entra", cuando ese ciclo **cierra este mes** y se paga este mes.
+
+La regla correcta es la del dueño de la app: **si el corte de este mes todavía
+no llega, lo acumulado es de este mes; si ya pasó, lo gastado después es del
+siguiente.** Se decide viendo en qué mes cae el cierre del ciclo abierto. Lo ya
+facturado y sin pagar sigue siendo de este mes, como antes.
+
 ## Enmienda 2 (2026-09-16): las tarjetas salen de lo comprometido
 
 Al ver el bloque en el dispositivo, el dueño de la app corrigió el modelo. Lo

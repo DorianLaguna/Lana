@@ -49,13 +49,13 @@ public struct MonthCommitments: Sendable, Equatable {
         /// El día de corte, que es lo que explica por qué una cifra es de este
         /// mes y la otra del siguiente.
         public let cutoffDay: Int?
-        /// Lo ya facturado en el último corte y todavía sin pagar. **Se paga
-        /// este mes**, aunque su día límite ya haya pasado: seguir debiéndolo
-        /// no deja de ser deuda porque se venció la fecha.
+        /// Lo que se paga **este mes**: lo ya facturado y sin pagar —aunque su
+        /// día límite haya pasado— y, si el corte de este mes todavía no llega,
+        /// también lo que se lleva acumulado para ese corte.
         public let dueThisMonth: Money
-        /// Lo que se lleva acumulado en el ciclo abierto. Se factura en el
-        /// próximo corte, así que **se paga el mes que entra** y no se resta de
-        /// este. Va a crecer mientras se siga usando la tarjeta.
+        /// Lo acumulado en un ciclo que **cierra el mes que entra** porque el
+        /// corte de este mes ya pasó. No se resta de este mes. Va a crecer
+        /// mientras se siga usando la tarjeta.
         public let nextMonth: Money
 
         public init(card: String, cutoffDay: Int?, dueThisMonth: Money, nextMonth: Money) {
@@ -116,11 +116,17 @@ public struct MonthCommitments: Sendable, Equatable {
         return MonthCommitments(
             currency: currency,
             recurring: Self.outflows(recurring, in: currency),
-            cards: Self.balances(in: inputs, currency: currency, asOf: asOf, calendar: calendar),
+            cards: Self.balances(in: inputs, month: interval, currency: currency, asOf: asOf, calendar: calendar),
             justAfter: Self.outflows(after, in: currency))
     }
 
     /// Lo que hay que decir de cada tarjeta de crédito.
+    ///
+    /// **El mes lo decide el corte.** Si el corte de este mes todavía no llega,
+    /// lo que se lleva acumulado cierra este mes y se paga este mes; si ya
+    /// pasó, lo gastado después cierra en el corte del mes que entra. Así lo
+    /// explicó el dueño de la app: con corte el 23 y hoy día 16, lo de Bancomer
+    /// es de este mes; con corte el 7, lo de Banamex ya es del siguiente.
     ///
     /// **No se filtra por día límite.** El código anterior exigía que la fecha
     /// límite no hubiera pasado todavía, así que una tarjeta que se seguía
@@ -128,20 +134,26 @@ public struct MonthCommitments: Sendable, Equatable {
     /// más importa verla.
     private static func balances(
         in inputs: Inputs,
+        month: DateInterval,
         currency: Currency,
         asOf: Date,
         calendar: Calendar) -> [CardBalance] {
         inputs.cards
             .compactMap { card -> CardBalance? in
                 guard card.kind == .credit else { return nil }
-                let due = inputs.ledger.outstandingStatementBalance(for: card, asOf: asOf, calendar: calendar)
-                let next = inputs.ledger.currentCycleBalance(for: card, asOf: asOf, calendar: calendar)
-                guard due.currency == currency || next.currency == currency else { return nil }
-                let balance = CardBalance(
-                    card: card.alias,
-                    cutoffDay: card.cutoffDay,
-                    dueThisMonth: due,
-                    nextMonth: next)
+                let billed = inputs.ledger.outstandingStatementBalance(for: card, asOf: asOf, calendar: calendar)
+                let open = inputs.ledger.currentCycleBalance(for: card, asOf: asOf, calendar: calendar)
+                guard billed.currency == currency else { return nil }
+
+                let balance = if Self.openCycleClosesThisMonth(card, month: month, asOf: asOf, calendar: calendar) {
+                    CardBalance(
+                        card: card.alias,
+                        cutoffDay: card.cutoffDay,
+                        dueThisMonth: Money(amount: billed.amount + open.amount, currency: currency),
+                        nextMonth: Money(amount: 0, currency: currency))
+                } else {
+                    CardBalance(card: card.alias, cutoffDay: card.cutoffDay, dueThisMonth: billed, nextMonth: open)
+                }
                 return balance.hasSomethingToSay ? balance : nil
             }
             .sorted { first, second in
@@ -149,6 +161,21 @@ public struct MonthCommitments: Sendable, Equatable {
                     ? first.card < second.card
                     : first.dueThisMonth.amount > second.dueThisMonth.amount
             }
+    }
+
+    /// `true` si el ciclo que está abierto hoy cierra dentro del mes que se ve.
+    ///
+    /// Se compara por mes de calendario y no con `DateInterval.contains`: ese
+    /// incluye el extremo final, y un corte el día 1 del mes siguiente caería
+    /// como si fuera de este.
+    private static func openCycleClosesThisMonth(
+        _ card: Card,
+        month: DateInterval,
+        asOf: Date,
+        calendar: Calendar) -> Bool {
+        guard let cutoffDay = card.cutoffDay else { return false }
+        let cycle = StatementCycle.containing(asOf, cutoffDay: cutoffDay, calendar: calendar)
+        return calendar.isDate(cycle.end, equalTo: month.start, toGranularity: .month)
     }
 
     /// Solo lo que sale, y solo en esta moneda. Un ingreso por venir se queda

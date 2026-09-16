@@ -188,6 +188,22 @@ struct MonthCommitmentsTests {
         #expect(result.cardsDueThisMonth == 0)
     }
 
+    @Test("Si el corte de este mes todavía no llega, lo que llevas se paga este mes")
+    func antesDelCorteSePagaEsteMes() throws {
+        // El caso real: hoy es día 16 y el corte de Bancomer es el 23. Lo que se
+        // lleva gastado cierra este mes, así que se paga este mes.
+        let card = try creditCard("Bancomer", cutoffDay: 23, dueDay: 12)
+        let result = resolve(
+            cards: [card],
+            events: [charge(8687, on: date(2026, 9, 10), card: card)],
+            asOf: date(2026, 9, 16))
+
+        let bancomer = try #require(result.cards.first)
+        #expect(bancomer.dueThisMonth == Money(amount: 8687, currency: .mxn))
+        #expect(bancomer.nextMonth.amount == 0)
+        #expect(result.cardsDueThisMonth == 8687)
+    }
+
     @Test("Lo gastado después del corte es del mes que entra y no se resta de este")
     func despuesDelCorteEsDelSiguiente() throws {
         let card = try creditCard("Banamex", cutoffDay: 7, dueDay: 20)
