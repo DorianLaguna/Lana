@@ -135,10 +135,58 @@ public final class SharedListDetailModel {
     /// - Returns: `false` si algún gasto no se pudo corregir; los que sí se
     ///   guardaron se quedan corregidos.
     public func include(_ newcomers: [ParticipantID]) async -> Bool {
+        await correctSplits { $0.including(newcomers) }
+    }
+
+    /// Los gastos de partes iguales de los que saldría `leaving` al quitarlo
+    /// de la lista (ADR-0052).
+    public func expensesToExclude(_ leaving: [ParticipantID]) -> [Expense] {
+        expenses.filter { $0.split?.excluding(leaving) != nil }
+    }
+
+    /// Saca a `leaving` de los gastos de partes iguales en que estaba; se
+    /// dividen entre los demás. Cada uno es una corrección (ADR-0052). Solo
+    /// tiene sentido para quien no tiene `removalBlocker(for:)`.
+    public func exclude(_ leaving: [ParticipantID]) async -> Bool {
+        await correctSplits { $0.excluding(leaving) }
+    }
+
+    /// Por qué no se puede quitar a alguien de la lista sin perder dinero de
+    /// vista, o `nil` si sí se puede (ADR-0052). Quitar solo es seguro cuando
+    /// su única huella son partes de gastos iguales, que se reparten entre
+    /// los demás; lo que pagó o liquidó no tiene a dónde irse.
+    public func removalBlocker(for participant: ParticipantID) -> String? {
+        if participant == viewerParticipantID {
+            return "Eres tú en esta lista."
+        }
+        if expenses.contains(where: { $0.payer == participant }) {
+            return "Pagó gastos en esta lista."
+        }
+        let hasSettlements = events.contains { event in
+            guard case let .settlementRecorded(settlement) = event, settlement.sharedListID == list.id else {
+                return false
+            }
+            return settlement.from == participant || settlement.to == participant
+        }
+        if hasSettlements {
+            return "Tiene pagos registrados en esta lista."
+        }
+        let inOtherSplits = expenses.contains { expense in
+            guard let split = expense.split, split.excluding([participant]) == nil else { return false }
+            return (try? split.portions(of: expense.amount))?[participant] != nil
+        }
+        if inOtherSplits {
+            return "Está en gastos divididos por porcentaje o montos."
+        }
+        return nil
+    }
+
+    /// Corrige la división de cada gasto que `transform` cambie.
+    private func correctSplits(_ transform: (SplitRule) -> SplitRule?) async -> Bool {
         errorMessage = nil
         var succeeded = true
-        for var expense in expensesToInclude(newcomers) {
-            guard let split = expense.split?.including(newcomers) else { continue }
+        for var expense in expenses {
+            guard let split = expense.split.flatMap(transform) else { continue }
             expense.split = split
             do {
                 try await expenseStore.save(expense)

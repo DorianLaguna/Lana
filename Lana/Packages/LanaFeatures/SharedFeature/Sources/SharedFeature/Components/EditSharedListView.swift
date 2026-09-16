@@ -8,6 +8,8 @@ public struct EditSharedListView: View {
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss
     @Bindable private var model: EditSharedListModel
+    /// A quién se está por quitar, mientras se confirma.
+    @State private var pendingRemoval: EditableParticipant?
     private let onDone: () -> Void
 
     public init(model: EditSharedListModel, onDone: @escaping () -> Void) {
@@ -78,6 +80,25 @@ public struct EditSharedListView: View {
             }
         }
         .presentationDragIndicator(.visible)
+        .confirmationDialog(
+            removalTitle,
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: {
+                    if !$0 {
+                        pendingRemoval = nil
+                    }
+                }),
+            titleVisibility: .visible) {
+                Button("Quitar", role: .destructive) {
+                    if let participant = pendingRemoval {
+                        model.remove(participant)
+                    }
+                    pendingRemoval = nil
+                }
+        } message: {
+            Text(removalMessage)
+        }
     }
 }
 
@@ -123,8 +144,67 @@ extension EditSharedListView {
                 #endif
             }
             .frame(minHeight: LanaMetrics.minTouchTarget)
+            rowActions(participant)
         }
         .padding(.vertical, Space.p10.rawValue)
+    }
+
+    /// Sumar a lo ya registrado y quitar. Quitar solo aparece si no deja
+    /// dinero sin dueño; si no, se dice por qué (ADR-0052).
+    @ViewBuilder
+    private func rowActions(_ participant: EditableParticipant) -> some View {
+        let past = model.pastExpenses(for: participant)
+        let blocker = model.blocker(for: participant)
+        HStack(alignment: .firstTextBaseline, spacing: Space.md.rawValue) {
+            if past.includable > 0 {
+                let isOn = model.includeInPast.contains(participant.id)
+                Button {
+                    model.toggleIncludeInPast(participant)
+                } label: {
+                    Label(
+                        past
+                            .includable == 1 ? "Sumar al gasto anterior" :
+                            "Sumar a los \(past.includable) gastos anteriores",
+                        systemImage: isOn ? "checkmark.circle.fill" : "circle")
+                }
+                .lanaFont(.footnote)
+                .foregroundStyle(lana.accent)
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+            }
+            Spacer(minLength: Space.sm.rawValue)
+            if blocker == nil {
+                Button("Quitar") {
+                    pendingRemoval = participant
+                }
+                .lanaFont(.footnote)
+                .foregroundStyle(lana.ink50)
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(minHeight: LanaMetrics.minTouchTarget)
+        if let blocker {
+            Text("No se puede quitar: \(blocker)")
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink42)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var removalTitle: String {
+        let name = pendingRemoval?.name.trimmingCharacters(in: .whitespaces) ?? ""
+        return name.isEmpty ? "¿Quitar a esta persona?" : "¿Quitar a \(name)?"
+    }
+
+    private var removalMessage: String {
+        guard let pendingRemoval else { return "" }
+        let count = model.pastExpenses(for: pendingRemoval).excludable
+        let effect = switch count {
+        case 0: ""
+        case 1: "Sale del gasto en que estaba, que se divide entre los demás. "
+        default: "Sale de los \(count) gastos en que estaba, que se dividen entre los demás. "
+        }
+        return effect + "Se aplica al guardar."
     }
 
     private var viewerChips: some View {
@@ -150,8 +230,7 @@ extension EditSharedListView {
         }
         return """
         Captura el ingreso de todos para que los gastos se dividan proporcional por default (quien gana más \
-        pone más). Sin eso, se dividen en partes iguales. No se puede quitar a alguien que ya tiene gastos \
-        registrados.
+        pone más). Sin eso, se dividen en partes iguales.
         """
     }
 }
@@ -162,7 +241,7 @@ extension EditSharedListView {
     let list = SharedList(name: "Depa", participants: [alice, bob], defaultSplit: .payerOnly)
     ForEach(LanaTheme.allCases) { theme in
         EditSharedListView(
-            model: EditSharedListModel(list: list, viewerID: alice.id, onSave: { _, _ in true }),
+            model: EditSharedListModel(list: list, viewerID: alice.id, onSave: { _ in true }),
             onDone: {})
             .lanaTheme(theme)
     }

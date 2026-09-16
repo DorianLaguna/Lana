@@ -97,18 +97,13 @@ public struct SharedListDetailView: View {
                         editingList = EditSharedListModel(
                             list: model.list,
                             viewerID: model.viewerParticipantID,
-                            onSave: { updated, viewerID in
-                                let previous = Set(model.list.participants.map(\.id))
-                                let saved = await model.updateList(updated)
-                                if saved, let viewerID {
-                                    await model.setViewer(viewerID)
-                                }
-                                if saved {
-                                    let newcomers = updated.participants.map(\.id).filter { !previous.contains($0) }
-                                    pendingNewcomers = model.expensesToInclude(newcomers).isEmpty ? [] : newcomers
-                                }
-                                return saved
-                            })
+                            removalBlocker: { model.removalBlocker(for: $0) },
+                            pastExpenseCounts: { id in
+                                PastExpenseCounts(
+                                    includable: model.expensesToInclude([id]).count,
+                                    excludable: model.expensesToExclude([id]).count)
+                            },
+                            onSave: { edit in await save(edit) })
                     } label: {
                         Label("Editar lista", systemImage: "slider.horizontal.3")
                     }
@@ -182,6 +177,26 @@ public struct SharedListDetailView: View {
                     isPromptingViewer = false
                 }
             }
+    }
+
+    /// Guarda la edición en orden: primero saca a quien se quitó de sus gastos
+    /// —así ningún gasto apunta a alguien que ya no está en la lista—, luego
+    /// la lista, y al final suma a quien se pidió a lo ya registrado.
+    private func save(_ edit: SharedListEdit) async -> Bool {
+        let previous = Set(model.list.participants.map(\.id))
+        if !edit.removed.isEmpty {
+            guard await model.exclude(edit.removed) else { return false }
+        }
+        guard await model.updateList(edit.list) else { return false }
+        if let viewerID = edit.viewerID {
+            await model.setViewer(viewerID)
+        }
+        if !edit.includeInPast.isEmpty {
+            _ = await model.include(edit.includeInPast)
+        }
+        let newcomers = edit.list.participants.map(\.id).filter { !previous.contains($0) }
+        pendingNewcomers = model.expensesToInclude(newcomers).isEmpty ? [] : newcomers
+        return true
     }
 
     /// "¿Sumar a Kin a los 12 gastos que ya están?"

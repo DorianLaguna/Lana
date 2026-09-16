@@ -46,6 +46,15 @@ public extension SplitRule {
         return .equally(among: among + missing)
     }
 
+    /// Esta misma división sin `leaving`, para cuando alguien se quita de una
+    /// lista (ADR-0052). Solo partes iguales; `nil` si la regla es otra, si
+    /// nadie de `leaving` estaba, o si no quedaría nadie.
+    func excluding(_ leaving: [ParticipantID]) -> SplitRule? {
+        guard case let .equally(among) = self, among.contains(where: leaving.contains) else { return nil }
+        let remaining = among.filter { !leaving.contains($0) }
+        return remaining.isEmpty ? nil : .equally(among: remaining)
+    }
+
     /// Cuánto le corresponde a cada participante del monto `total`. La suma
     /// de las partes siempre es exactamente `total`, y ninguna parte se aleja
     /// más de un centavo de la exacta (ver `distribute`).

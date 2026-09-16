@@ -27,6 +27,15 @@ struct SplitRuleTests {
         #expect(receivers.count > 1)
     }
 
+    @Test("excluding quita a alguien de partes iguales y deja las demás reglas")
+    func excludingSoloPartesIguales() {
+        let (ana, bob, eva) = (ParticipantID(), ParticipantID(), ParticipantID())
+        #expect(SplitRule.equally(among: [ana, bob, eva]).excluding([eva]) == .equally(among: [ana, bob]))
+        #expect(SplitRule.equally(among: [ana, bob]).excluding([eva]) == nil)
+        #expect(SplitRule.equally(among: [eva]).excluding([eva]) == nil)
+        #expect(SplitRule.exactAmounts(amounts: [ana: 1, eva: 1]).excluding([eva]) == nil)
+    }
+
     @Test("Iguales entre 7 de $350 da $50 exactos a cada quien, sin centavos de más")
     func igualesEntreSieteSinResiduo() throws {
         let ids = (0 ..< 7).map { _ in ParticipantID() }

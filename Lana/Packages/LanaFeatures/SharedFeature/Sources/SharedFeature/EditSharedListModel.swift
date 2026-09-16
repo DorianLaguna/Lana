@@ -32,12 +32,11 @@ public final class EditableParticipant: Identifiable {
 /// dividir proporcional sin teclear la proporción cada vez) y cuál
 /// participante soy yo (ADR-0028).
 ///
-/// **No deja quitar participantes a propósito.** Un participante puede
-/// tener gastos y liquidaciones ya registrados a su nombre; quitarlo del
-/// roster no borra esos eventos, solo dejaría su saldo sin nombre que
-/// mostrar (`SharedListDetailModel.load` los descarta al no resolver el
-/// `Participant`), que es perder dinero de vista en silencio — justo lo que
-/// Docs/CLAUDE.md prohíbe. Agregar sí es seguro y sí se puede.
+/// **Quitar a alguien solo se permite si no deja dinero sin dueño**
+/// (ADR-0052): si pagó algo, liquidó algo o está en una división que no es de
+/// partes iguales, su saldo quedaría sin nombre que mostrar
+/// (`SharedListDetailModel.load` descarta lo que no resuelve a un
+/// `Participant`). Quien lo decide es `removalBlocker`; esto solo lo respeta.
 @MainActor
 @Observable
 public final class EditSharedListModel: Identifiable {
@@ -48,24 +47,77 @@ public final class EditSharedListModel: Identifiable {
     public private(set) var errorMessage: String?
     public private(set) var isSaving = false
 
+    /// Quienes ya estaban guardados y se quitaron en esta edición.
+    public private(set) var removedIDs: [ParticipantID] = []
+    /// Participantes ya guardados que se sumarán a los gastos anteriores de
+    /// partes iguales al guardar (ADR-0050).
+    public private(set) var includeInPast: Set<ParticipantID> = []
+
     private let original: SharedList
-    private let onSave: (SharedList, ParticipantID?) async -> Bool
+    private let onSave: (SharedListEdit) async -> Bool
+    private let removalBlocker: (ParticipantID) -> String?
+    private let pastExpenseCounts: (ParticipantID) -> PastExpenseCounts
 
     /// - Parameters:
     ///   - list: la lista tal como está guardada hoy.
     ///   - viewerID: cuál participante es "yo" en este dispositivo.
+    ///   - removalBlocker: por qué no se puede quitar a un participante ya
+    ///     guardado, o `nil` si sí (`SharedListDetailModel.removalBlocker(for:)`).
+    ///   - pastExpenseCounts: a cuántos gastos anteriores se podría sumar a
+    ///     alguien, y de cuántos saldría al quitarlo.
     ///   - onSave: quién persiste el resultado — `SharedListDetailView` lo
-    ///     conecta a `SharedListDetailModel.updateList(_:)`/`setViewer(_:)`,
-    ///     para que la pantalla de detrás se refresque sola.
+    ///     conecta a `SharedListDetailModel`, para que la pantalla de detrás
+    ///     se refresque sola.
     public init(
         list: SharedList,
         viewerID: ParticipantID?,
-        onSave: @escaping (SharedList, ParticipantID?) async -> Bool) {
+        removalBlocker: @escaping (ParticipantID) -> String? = { _ in nil },
+        pastExpenseCounts: @escaping (ParticipantID) -> PastExpenseCounts = { _ in PastExpenseCounts() },
+        onSave: @escaping (SharedListEdit) async -> Bool) {
         original = list
         name = list.name
         participants = list.participants.map(EditableParticipant.init)
         self.viewerID = viewerID
+        self.removalBlocker = removalBlocker
+        self.pastExpenseCounts = pastExpenseCounts
         self.onSave = onSave
+    }
+
+    /// Si el participante ya estaba guardado en la lista (y no se acaba de
+    /// agregar en esta edición).
+    public func isSaved(_ participant: EditableParticipant) -> Bool {
+        original.participants.contains { $0.id == participant.id }
+    }
+
+    /// Por qué no se puede quitar, o `nil` si sí. Uno recién agregado siempre
+    /// se puede quitar: todavía no tiene nada.
+    public func blocker(for participant: EditableParticipant) -> String? {
+        isSaved(participant) ? removalBlocker(participant.id) : nil
+    }
+
+    /// De cuántos gastos saldría y a cuántos anteriores se podría sumar.
+    public func pastExpenses(for participant: EditableParticipant) -> PastExpenseCounts {
+        isSaved(participant) ? pastExpenseCounts(participant.id) : PastExpenseCounts()
+    }
+
+    public func remove(_ participant: EditableParticipant) {
+        guard blocker(for: participant) == nil else { return }
+        participants.removeAll { $0.id == participant.id }
+        includeInPast.remove(participant.id)
+        if isSaved(participant) {
+            removedIDs.append(participant.id)
+        }
+        if viewerID == participant.id {
+            viewerID = nil
+        }
+    }
+
+    public func toggleIncludeInPast(_ participant: EditableParticipant) {
+        if includeInPast.contains(participant.id) {
+            includeInPast.remove(participant.id)
+        } else {
+            includeInPast.insert(participant.id)
+        }
     }
 
     public func addParticipant() {
@@ -114,7 +166,11 @@ public final class EditSharedListModel: Identifiable {
             defaultSplit: updated.proportionalSplitFromIncomes ?? updated.defaultSplit)
 
         let viewerStillInRoster = built.participants.contains { $0.id == viewerID }
-        return await onSave(withPreferredDefault, viewerStillInRoster ? viewerID : nil)
+        return await onSave(SharedListEdit(
+            list: withPreferredDefault,
+            viewerID: viewerStillInRoster ? viewerID : nil,
+            removed: removedIDs,
+            includeInPast: Array(includeInPast)))
     }
 
     private func buildParticipants() -> BuiltRoster {
@@ -146,5 +202,30 @@ public final class EditSharedListModel: Identifiable {
             let incomes = participants.compactMap(\.monthlyIncome)
             return incomes.count == participants.count && incomes.reduce(Decimal(0), +) > 0
         }
+    }
+}
+
+/// Lo que produce guardar la edición de una lista.
+public struct SharedListEdit: Sendable {
+    public let list: SharedList
+    public let viewerID: ParticipantID?
+    /// Participantes ya guardados que se quitaron: salen de sus gastos de
+    /// partes iguales antes de guardar la lista (ADR-0052).
+    public let removed: [ParticipantID]
+    /// Participantes ya guardados que se suman a los gastos anteriores de
+    /// partes iguales (ADR-0050).
+    public let includeInPast: [ParticipantID]
+}
+
+/// Cuántos gastos anteriores toca una edición del roster para una persona.
+public struct PastExpenseCounts: Sendable, Equatable {
+    /// A cuántos gastos de partes iguales se le podría sumar.
+    public var includable = 0
+    /// De cuántos gastos de partes iguales saldría al quitarla.
+    public var excludable = 0
+
+    public init(includable: Int = 0, excludable: Int = 0) {
+        self.includable = includable
+        self.excludable = excludable
     }
 }
