@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Los saldos de una lista compartida: cuánto le debe o le deben a cada
 /// quien, con tendencia — no solo el número puntual (ADR-0008). Sin tono de
-/// reclamo: el color nunca usa `critical` aquí, es un hecho, no una alerta.
+/// reclamo: deber no se pinta de alerta, es un hecho (ADR-0044).
 public struct BalancesView: View {
     @Environment(\.lana) private var lana
     private let balances: [ParticipantBalance]
@@ -28,28 +28,28 @@ public struct BalancesView: View {
 
     public var body: some View {
         LanaCard {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+            VStack(alignment: .leading, spacing: Space.p12.rawValue) {
                 Text("Saldos")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink50)
+                    .lanaFont(.minorHeader)
+                    .foregroundStyle(lana.ink42)
+                    .accessibilityAddTraits(.isHeader)
 
                 if balances.isEmpty {
                     Text("Todo saldado — nadie le debe a nadie.")
-                        .lanaFont(.body)
+                        .lanaFont(.explanation)
                         .foregroundStyle(lana.ink50)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(balances) { balance in
                             balanceRow(balance)
                             if balance.id != balances.last?.id {
-                                Divider()
+                                HairlineDivider()
                             }
                         }
                     }
 
                     if !debts.isEmpty {
-                        Divider()
-                        VStack(spacing: Space.xs.rawValue) {
+                        VStack(spacing: Space.sm.rawValue) {
                             ForEach(Array(debts.enumerated()), id: \.offset) { _, debt in
                                 debtRow(debt)
                             }
@@ -63,22 +63,22 @@ public struct BalancesView: View {
     private func balanceRow(_ balance: ParticipantBalance) -> some View {
         HStack(spacing: Space.sm.rawValue) {
             Text(balance.participant.displayName)
-                .lanaFont(.body)
+                .lanaFont(.rowTitle)
                 .foregroundStyle(lana.ink)
 
             trendIcon(balance.trend)
 
-            Spacer()
+            Spacer(minLength: Space.sm.rawValue)
 
             Text(Money(amount: abs(balance.amount), currency: balance.currency).formatted())
-                .lanaFont(.body)
-                .monospacedDigit()
+                .lanaFont(.rowAmount)
                 .foregroundStyle(balance.amount > 0 ? lana.positive : lana.ink)
             Text(balance.amount > 0 ? "le deben" : "debe")
-                .lanaFont(.caption)
+                .lanaFont(.rowSubtitle)
                 .foregroundStyle(lana.ink50)
         }
-        .padding(.vertical, Space.xs.rawValue)
+        .padding(.vertical, Space.p10.rawValue)
+        .accessibilityElement(children: .combine)
     }
 
     private func trendIcon(_ trend: ParticipantBalance.Trend) -> some View {
@@ -87,11 +87,20 @@ public struct BalancesView: View {
         case .shrinking: "arrow.down.right"
         case .stable: "arrow.right"
         }
+        let label = switch trend {
+        case .growing: "va creciendo"
+        case .shrinking: "va bajando"
+        case .stable: "sin cambio"
+        }
         return Image(systemName: systemImage)
-            .font(.system(size: 11, weight: .semibold))
+            .lanaFont(.axisLabel)
+            .fontWeight(.semibold)
             .foregroundStyle(lana.ink50)
+            .accessibilityLabel(label)
     }
 
+    /// Quién le paga a quién, ya simplificado, con la acción al lado: el
+    /// renglón entero abre el detalle y "Liquidar" registra el pago.
     private func debtRow(_ debt: Debt) -> some View {
         HStack(spacing: Space.sm.rawValue) {
             Button {
@@ -99,24 +108,24 @@ public struct BalancesView: View {
             } label: {
                 HStack(spacing: Space.sm.rawValue) {
                     Text("\(participantName(debt.from)) le debe a \(participantName(debt.to))")
-                        .lanaFont(.caption)
+                        .lanaFont(.rowSubtitle)
                         .foregroundStyle(lana.ink50)
-                    Spacer()
+                    Spacer(minLength: Space.xs.rawValue)
                     Text(debt.amount.formatted())
-                        .lanaFont(.caption)
+                        .lanaFont(.rowSubtitle)
                         .monospacedDigit()
                         .foregroundStyle(lana.ink)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
             Button("Liquidar") {
                 onSettle(debt)
             }
-            .lanaFont(.caption)
-            .buttonStyle(.bordered)
-            .tint(lana.accent)
+            .buttonStyle(.lana(.secondary, size: .compact))
         }
+        .frame(minHeight: LanaMetrics.minTouchTarget)
     }
 }
 

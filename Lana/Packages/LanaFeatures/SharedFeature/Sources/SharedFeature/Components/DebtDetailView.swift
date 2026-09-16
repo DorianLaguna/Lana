@@ -25,58 +25,59 @@ public struct DebtDetailView: View {
     public var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                    LanaCard {
-                        HStack {
-                            Text("\(fromName) le debe a \(toName)")
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink)
-                            Spacer()
-                            Text(debt.amount.formatted())
-                                .lanaFont(.title)
-                                .monospacedDigit()
-                                .foregroundStyle(lana.ink)
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 0) {
+                    total
+                        .padding(.bottom, Space.p22.rawValue)
 
                     if contributions.isEmpty {
                         Text("No hay gastos directos entre \(fromName) y \(toName) todavía.")
-                            .lanaFont(.body)
+                            .lanaFont(.explanation)
                             .foregroundStyle(lana.ink50)
+                            .fixedSize(horizontal: false, vertical: true)
                     } else {
+                        SectionHeader("De dónde sale")
+                            .padding(.bottom, Space.p10.rawValue)
                         LanaCard {
-                            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                                Text("De dónde sale")
-                                    .lanaFont(.caption)
-                                    .foregroundStyle(lana.ink50)
-                                VStack(spacing: 0) {
-                                    ForEach(
-                                        Array(runningTotals.enumerated()),
-                                        id: \.element.contribution.id) { index, entry in
-                                            contributionRow(entry.contribution, runningTotal: entry.runningTotal)
-                                            if index != runningTotals.count - 1 {
-                                                Divider()
-                                            }
+                            VStack(spacing: 0) {
+                                ForEach(
+                                    Array(runningTotals.enumerated()),
+                                    id: \.element.contribution.id) { index, entry in
+                                        contributionRow(entry.contribution, runningTotal: entry.runningTotal)
+                                        if index != runningTotals.count - 1 {
+                                            HairlineDivider()
                                         }
-                                }
+                                    }
                             }
                         }
                     }
                 }
-                .padding(Space.md.rawValue)
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.p18.rawValue)
+                .padding(.bottom, Space.p40.rawValue)
             }
             .background(lana.bg)
             .navigationTitle("Detalle del saldo")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Listo") { dismiss() }
-                    }
+            .lanaInlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Listo") { dismiss() }
                 }
+            }
         }
         .presentationDragIndicator(.visible)
+    }
+
+    private var total: some View {
+        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+            Text("\(fromName) le debe a \(toName)")
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink70)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(debt.amount.formatted())
+                .lanaFont(.blockAmount)
+                .foregroundStyle(lana.ink)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var fromName: String {
@@ -105,34 +106,34 @@ public struct DebtDetailView: View {
             "\(toName): \(contribution.toShare.formatted())"
         let runningTotalMoney = Money(amount: abs(runningTotal), currency: contribution.amount.currency)
 
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+            HStack(spacing: Space.p12.rawValue) {
+                VStack(alignment: .leading, spacing: Space.p2.rawValue) {
                     Text(contribution.concept)
-                        .lanaFont(.body)
+                        .lanaFont(.rowTitle)
                         .foregroundStyle(lana.ink)
                     Text(payerLine)
-                        .lanaFont(.caption)
+                        .lanaFont(.rowSubtitle)
                         .foregroundStyle(lana.ink50)
                 }
-                Spacer()
+                Spacer(minLength: Space.sm.rawValue)
                 Text(contribution.amount.formatted())
-                    .lanaFont(.body)
-                    .monospacedDigit()
+                    .lanaFont(.rowAmount)
                     .foregroundStyle(lana.ink)
             }
             HStack(spacing: Space.sm.rawValue) {
                 Text(sharesLine)
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
-                Spacer()
+                Spacer(minLength: Space.xs.rawValue)
                 Text("acumulado \(runningTotalMoney.formatted())")
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .monospacedDigit()
-                    .foregroundStyle(lana.ink50)
+                    .foregroundStyle(lana.ink42)
             }
         }
-        .padding(.vertical, Space.xs.rawValue)
+        .padding(.vertical, Space.p10.rawValue)
+        .accessibilityElement(children: .combine)
     }
 }
 

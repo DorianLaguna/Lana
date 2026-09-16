@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// El campo de entrada base de la app — la captura por texto (Fase 5) y
-/// cualquier formulario lo usan. Un borde de `accent` al enfocar, nunca un
-/// color literal.
+/// El campo de texto de la app: el mismo alto y el mismo borde en toda ella,
+/// con el acento marcando el foco. Es el que usan los formularios que no son
+/// la captura por voz.
 public struct LanaTextField: View {
     @Environment(\.lana) private var lana
     @FocusState private var isFocused: Bool
@@ -17,14 +17,17 @@ public struct LanaTextField: View {
 
     public var body: some View {
         TextField(placeholder, text: $text)
-            .lanaFont(.body)
+            .lanaFont(.rowTitle)
             .foregroundStyle(lana.ink)
-            .padding(Space.sm.rawValue)
-            .background(lana.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Space.xs.rawValue, style: .continuous))
+            .padding(.vertical, Space.p10.rawValue)
+            .padding(.horizontal, Space.p12.rawValue)
+            .frame(minHeight: LanaMetrics.minTouchTarget)
+            .background(lana.surface2, in: RoundedRectangle(cornerRadius: Radius.block.rawValue, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Space.xs.rawValue, style: .continuous)
-                    .strokeBorder(isFocused ? lana.accent : lana.hairlineStrong, lineWidth: isFocused ? 2 : 1))
+                RoundedRectangle(cornerRadius: Radius.block.rawValue, style: .continuous)
+                    .strokeBorder(
+                        isFocused ? lana.accent : lana.hairlineStrong,
+                        lineWidth: isFocused ? LanaMetrics.outline : LanaMetrics.hairline))
             .focused($isFocused)
             .animation(.easeOut(duration: 0.15), value: isFocused)
     }

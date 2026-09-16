@@ -39,6 +39,20 @@ public enum LanaDateFormat {
         return "\(date.formatted(style).capitalizedFirstLetter) \(day)"
     }
 
+    /// "Hoy", "Ayer" o "14 de septiembre" — cómo se nombra una fecha dentro
+    /// de un chip, donde el año sobra y lo que importa es qué tan reciente es.
+    public static func dayLabel(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        if calendar.isDate(date, inSameDayAs: now) {
+            return "Hoy"
+        }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(date, inSameDayAs: yesterday) {
+            return "Ayer"
+        }
+        let day = calendar.component(.day, from: date)
+        return "\(day) de \(monthNameLowercased(date, calendar: calendar))"
+    }
+
     /// "S" — la inicial de un mes bajo una barra de la vista anual.
     public static func monthInitial(_ date: Date, calendar: Calendar = .current) -> String {
         String(monthName(date, calendar: calendar).prefix(1))

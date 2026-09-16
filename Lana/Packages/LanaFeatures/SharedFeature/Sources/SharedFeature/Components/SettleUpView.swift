@@ -8,6 +8,7 @@ import SwiftUI
 public struct SettleUpView: View {
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var isEditingAmount: Bool
     private let model: SharedListDetailModel
     private let debt: Debt
     private let onDone: () -> Void
@@ -26,53 +27,92 @@ public struct SettleUpView: View {
 
     public var body: some View {
         NavigationStack {
-            Form {
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("\(fromName) le paga a \(toName)")
-                        .lanaFont(.body)
+                        .lanaFont(.pushTitle)
                         .foregroundStyle(lana.ink)
-                    HStack {
-                        Text("Monto")
-                        Spacer()
-                        TextField("0", value: $amount, format: .number)
-                            .monospacedDigit()
-                            .multilineTextAlignment(.trailing)
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
-                    }
-                    DatePicker("Fecha", selection: $date, displayedComponents: .date)
-                }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, Space.p18.rawValue)
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.attention)
+                    LanaCard {
+                        VStack(alignment: .leading, spacing: Space.p12.rawValue) {
+                            amountRow
+                            HairlineDivider()
+                            DatePicker("Fecha", selection: $date, displayedComponents: .date)
+                                .lanaFont(.rowTitle)
+                                .foregroundStyle(lana.ink)
+                                .tint(lana.accentFill)
+                        }
+                    }
+
+                    // Liquidar no es un gasto: mueve el saldo entre personas y
+                    // no toca lo gastado del mes (ADR-0005).
+                    Text("Un pago entre ustedes no cuenta como gasto del mes.")
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, Space.p12.rawValue)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(lana.attention)
+                            .padding(.top, Space.p12.rawValue)
+                    }
+                }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.p18.rawValue)
+                .padding(.bottom, Space.p40.rawValue)
+            }
+            .background(lana.bg)
+            .navigationTitle("Liquidar")
+            .lanaInlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        // El `decimalPad` no tiene tecla de retorno: sin soltar
+                        // el foco, el último dígito tecleado puede no haber
+                        // llegado al binding todavía.
+                        isEditingAmount = false
+                        Task { await save() }
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Listo")
+                        }
+                    }
+                    .disabled(isSaving || amount <= 0)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Listo") { isEditingAmount = false }
                 }
             }
-            .navigationTitle("Liquidar")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancelar") { dismiss() }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            Task { await save() }
-                        } label: {
-                            if isSaving {
-                                ProgressView()
-                            } else {
-                                Text("Listo")
-                            }
-                        }
-                        .disabled(isSaving || amount <= 0)
-                    }
-                }
         }
         .presentationDragIndicator(.visible)
+    }
+
+    private var amountRow: some View {
+        HStack(spacing: Space.sm.rawValue) {
+            Text("Monto")
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink50)
+            Spacer(minLength: Space.sm.rawValue)
+            TextField("0", value: $amount, format: .number)
+                .lanaFont(.draftAmount)
+                .foregroundStyle(lana.ink)
+                .multilineTextAlignment(.trailing)
+                .focused($isEditingAmount)
+            #if os(iOS)
+                .keyboardType(.decimalPad)
+            #endif
+        }
+        .frame(minHeight: LanaMetrics.minTouchTarget)
     }
 
     private var fromName: String {

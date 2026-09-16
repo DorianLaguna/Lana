@@ -17,91 +17,126 @@ public struct EditSharedListView: View {
 
     public var body: some View {
         NavigationStack {
-            Form {
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
                     LanaTextField("Nombre de la lista", text: $model.name)
-                }
+                        .padding(.bottom, Space.p22.rawValue)
 
-                Section {
-                    ForEach(model.participants) { participant in
-                        participantRow(participant)
-                    }
-                    Button {
-                        model.addParticipant()
-                    } label: {
-                        Label("Agregar participante", systemImage: "plus")
-                    }
-                } header: {
-                    Text("Participantes e ingresos")
-                } footer: {
+                    SectionHeader("Participantes e ingresos")
+                        .padding(.bottom, Space.p10.rawValue)
+                    participantsCard
+                        .padding(.bottom, Space.sm.rawValue)
                     Text(incomeFooter)
-                }
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, Space.p22.rawValue)
 
-                Section {
-                    Picker("¿Cuál de estos eres tú?", selection: $model.viewerID) {
-                        ForEach(model.participants) { participant in
-                            Text(participant.name.isEmpty ? "Sin nombre" : participant.name)
-                                .tag(Optional(participant.id))
+                    SectionHeader("¿Cuál de estos eres tú?")
+                        .padding(.bottom, Space.p10.rawValue)
+                    viewerChips
+                        .padding(.bottom, Space.sm.rawValue)
+                    Text("Se muestra como «Yo» en esta lista, y decide qué parte de cada gasto va a tu Dashboard.")
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let errorMessage = model.errorMessage {
+                        Text(errorMessage)
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(lana.attention)
+                            .padding(.top, Space.p12.rawValue)
+                    }
+                }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.p18.rawValue)
+                .padding(.bottom, Space.p40.rawValue)
+            }
+            .background(lana.bg)
+            .navigationTitle("Editar lista")
+            .lanaInlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task {
+                            if await model.save() {
+                                onDone()
+                            }
+                        }
+                    } label: {
+                        if model.isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Guardar")
                         }
                     }
-                } footer: {
-                    Text("Se muestra como «Yo» en esta lista, y decide qué parte de cada gasto va a tu Dashboard.")
-                }
-
-                if let errorMessage = model.errorMessage {
-                    Text(errorMessage)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.attention)
+                    .disabled(model.isSaving)
                 }
             }
-            .navigationTitle("Editar lista")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancelar") { dismiss() }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            Task {
-                                if await model.save() {
-                                    onDone()
-                                }
-                            }
-                        } label: {
-                            if model.isSaving {
-                                ProgressView()
-                            } else {
-                                Text("Guardar")
-                            }
-                        }
-                        .disabled(model.isSaving)
-                    }
-                }
         }
         .presentationDragIndicator(.visible)
+    }
+}
+
+extension EditSharedListView {
+    private var participantsCard: some View {
+        LanaCard {
+            VStack(spacing: 0) {
+                ForEach(model.participants) { participant in
+                    participantRow(participant)
+                    HairlineDivider()
+                }
+                Button {
+                    model.addParticipant()
+                } label: {
+                    Label("Agregar participante", systemImage: "plus")
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(minHeight: LanaMetrics.minTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private func participantRow(_ participant: EditableParticipant) -> some View {
         @Bindable var participant = participant
-        return VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+        return VStack(alignment: .leading, spacing: Space.sm.rawValue) {
             LanaTextField("Nombre", text: $participant.name)
-            HStack {
+            HStack(spacing: Space.sm.rawValue) {
                 Text("Ingreso mensual")
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
-                Spacer()
+                Spacer(minLength: Space.sm.rawValue)
                 TextField("Sin capturar", text: $participant.incomeText)
-                    .lanaFont(.body)
+                    .lanaFont(.rowTitle)
                     .monospacedDigit()
                     .multilineTextAlignment(.trailing)
+                    .foregroundStyle(lana.ink)
                 #if os(iOS)
                     .keyboardType(.decimalPad)
                 #endif
             }
+            .frame(minHeight: LanaMetrics.minTouchTarget)
         }
-        .padding(.vertical, Space.xs.rawValue)
+        .padding(.vertical, Space.p10.rawValue)
+    }
+
+    private var viewerChips: some View {
+        FlowLayout {
+            ForEach(model.participants) { participant in
+                let label = participant.name.isEmpty ? "Sin nombre" : participant.name
+                Chip(label, tone: model.viewerID == participant.id ? .neutral : .suggestion) {
+                    model.viewerID = participant.id
+                }
+                .accessibilityAddTraits(model.viewerID == participant.id ? [.isButton, .isSelected] : .isButton)
+            }
+        }
     }
 
     /// Explica el efecto real de capturar los ingresos, en vez de dejar al

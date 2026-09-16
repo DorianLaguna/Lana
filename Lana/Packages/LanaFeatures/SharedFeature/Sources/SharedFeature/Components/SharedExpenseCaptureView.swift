@@ -3,26 +3,13 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// Captura manual de un gasto compartido — pagador + regla de división de
-/// un segmented control con las 5 opciones de `SplitRule`, con
-/// previsualización de cuánto le toca a cada quien vía
-/// `SplitRule.portions(of:)` antes de guardar. Sin lenguaje natural
-/// todavía (v1: el picker manual alcanza para el riesgo de este bloque).
+/// Captura manual de un gasto compartido: la misma tarjeta de borrador que la
+/// captura personal —concepto y monto arriba, lo demás en chips— más la regla
+/// de división, lo único propio de Compartido. Sin lenguaje natural todavía.
 public struct SharedExpenseCaptureView: View {
-    /// `decimalPad` no tiene tecla de retorno — sin resignar el foco a
-    /// mano antes de guardar, un monto recién tecleado puede no haber
-    /// llegado todavía al binding de `Decimal` (los `TextField` con
-    /// `format:` solo confirman el texto al perder el foco, no tecla por
-    /// tecla) y el split truena en silencio ("no se pudo guardar" aunque
-    /// se haya llenado todo bien).
-    private enum FocusedField: Hashable {
-        case amount
-        case share(ParticipantID)
-    }
-
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss
-    @FocusState private var focusedField: FocusedField?
+    @FocusState private var focusedField: SharedCaptureField?
     private let model: SharedListDetailModel
     /// `nil` = capturar uno nuevo. Con valor = editando este — mismo
     /// formulario, `save()` corrige en vez de crear, y aparece "Borrar".
@@ -39,6 +26,8 @@ public struct SharedExpenseCaptureView: View {
     @State private var shares: [ParticipantID: Decimal] = [:]
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showsDatePicker = false
+    @State private var isConfirmingDelete = false
     /// Se cancela y se vuelve a armar en cada tecleo — evita mandar una
     /// sugerencia al modelo por cada letra (Docs/.claude/skills/foundation-models).
     @State private var suggestionTask: Task<Void, Never>?
@@ -72,13 +61,10 @@ public struct SharedExpenseCaptureView: View {
         _shares = State(initialValue: initialShares)
     }
 
-    /// Deriva el `SplitRuleKind` del picker y las `shares` a precargar de un
-    /// `SplitRule` ya guardado — lo opuesto de `splitRule`. Para
-    /// `.proportional`/`.percentage`/`.exactAmounts`, lo que se precarga son
-    /// las fracciones/montos ya resueltos que quedaron en el evento, no los
-    /// números crudos que se hayan escrito originalmente (ADR-0007: el
-    /// split se congela resuelto) — se pueden editar igual, solo que no son
-    /// literalmente lo que se tecleó la primera vez.
+    /// Deriva el `SplitRuleKind` de los chips y las `shares` a precargar de un
+    /// `SplitRule` ya guardado — lo opuesto de `splitRule`. Lo que se precarga
+    /// son las fracciones ya resueltas que quedaron en el evento (ADR-0007: el
+    /// split se congela resuelto), no los números crudos que se teclearon.
     private static func ruleKind(for split: SplitRule?) -> (SplitRuleKind, [ParticipantID: Decimal]) {
         switch split {
         case .equally, nil:
@@ -96,137 +82,198 @@ public struct SharedExpenseCaptureView: View {
 
     public var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Text("Monto")
-                        Spacer()
-                        TextField("0", value: $amount, format: .number)
-                            .monospacedDigit()
-                            .multilineTextAlignment(.trailing)
-                            .focused($focusedField, equals: .amount)
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    headline
+                        .padding(.bottom, Space.p18.rawValue)
+
+                    FlowLayout {
+                        categoryChip
+                        dateChip
+                        payerChip
                     }
-                    LanaTextField("Concepto", text: $concept)
-                        .onChange(of: concept) { _, newValue in
-                            scheduleSuggestion(for: newValue)
-                        }
-                    Picker("Categoría", selection: $category) {
-                        ForEach(SuggestedCategory.allCases) { category in
-                            Text(category.displayName).tag(category)
-                        }
-                    }
+
                     LanaTextField("Subcategoría (opcional)", text: $subcategory)
-                    DatePicker("Fecha", selection: $date, displayedComponents: .date)
-                    Picker("Pagó", selection: $payer) {
-                        ForEach(model.list.participants) { participant in
-                            Text(model.displayName(for: participant.id)).tag(participant.id)
-                        }
-                    }
-                }
+                        .padding(.top, Space.p12.rawValue)
 
-                Section {
-                    // Sin `.pickerStyle(.segmented)` a propósito — con 5
-                    // opciones y nombres parecidos, el segmented control
-                    // truncaba el texto y no se alcanzaba a leer cuál era
-                    // cuál. El estilo default (fila con el valor actual +
-                    // lista completa al tocar) sí muestra el nombre entero.
-                    Picker("División", selection: $ruleKind) {
-                        ForEach(SplitRuleKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
-                        }
-                    }
-                    Text(ruleKind.helpText)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.ink50)
+                    SharedExpenseSplitSection(
+                        focusedField: $focusedField,
+                        ruleKind: $ruleKind,
+                        shares: $shares,
+                        participants: model.list.participants,
+                        displayName: { model.displayName(for: $0) },
+                        splitRule: splitRule,
+                        amount: amount)
+                        .padding(.top, Space.p22.rawValue)
 
-                    if ruleKind.needsPerParticipantInput {
-                        ForEach(model.list.participants) { participant in
-                            HStack {
-                                Text(model.displayName(for: participant.id))
-                                Spacer()
-                                TextField(
-                                    ruleKind.fieldPlaceholder,
-                                    value: shareBinding(for: participant.id),
-                                    format: .number)
-                                    .monospacedDigit()
-                                    .multilineTextAlignment(.trailing)
-                                    .focused($focusedField, equals: .share(participant.id))
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
-                            }
-                        }
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(lana.attention)
+                            .padding(.top, Space.p12.rawValue)
                     }
 
-                    preview
-                }
-
-                if existingExpense != nil {
-                    Section {
-                        // Sacar un gasto de la lista sin borrarlo — el caso
-                        // real que lo hizo necesario: la detección por voz
-                        // mandó gastos personales aquí por error (ADR-0027),
-                        // y borrarlos habría sido perder el gasto, no
-                        // corregirlo. Deja de contar en los saldos entre
-                        // personas y pasa a valer completo en el Dashboard.
-                        Button("Quitar de esta lista") {
-                            Task { await convertToPersonal() }
-                        }
-                        Button("Borrar gasto", role: .destructive) {
-                            Task { await delete() }
-                        }
-                    } footer: {
-                        Text("«Quitar de esta lista» conserva el gasto como personal — no lo borra.")
+                    if existingExpense != nil {
+                        removalSection
+                            .padding(.top, Space.p30.rawValue)
                     }
                 }
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.attention)
-                }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.p18.rawValue)
+                .padding(.bottom, Space.p40.rawValue)
             }
+            .background(lana.bg)
             .navigationTitle(existingExpense == nil ? "Gasto compartido" : "Editar gasto")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancelar") { dismiss() }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            // Sin esto, tocar "Guardar" con el teclado
-                            // numérico todavía abierto puede dejar el
-                            // último dígito tecleado sin confirmar en el
-                            // binding — ver el doc comment de `FocusedField`.
-                            focusedField = nil
-                            Task { await save() }
-                        } label: {
-                            if isSaving {
-                                ProgressView()
-                            } else {
-                                Text("Guardar")
-                            }
-                        }
-                        .disabled(isSaving || splitRule == nil)
-                    }
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Listo") { focusedField = nil }
-                    }
-                }
+            .lanaInlineNavigationTitle()
+            .toolbar { toolbarContent }
         }
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showsDatePicker) { datePickerSheet }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancelar") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button {
+                // Sin esto, tocar "Guardar" con el teclado numérico todavía
+                // abierto puede dejar el último dígito tecleado sin confirmar
+                // en el binding — ver el doc comment de `SharedCaptureField`.
+                focusedField = nil
+                Task { await save() }
+            } label: {
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Text("Guardar")
+                }
+            }
+            .disabled(isSaving || splitRule == nil)
+        }
+        ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button("Listo") { focusedField = nil }
+        }
     }
 }
 
-/// Helpers separados del `body` a propósito — con todo en un solo bloque,
-/// el type-checker/`type_body_length` de swiftlint se ponían al límite
-/// (mismo espíritu que ya documenta `DaySectionListView.row(for:)`).
+// MARK: - Concepto, monto y chips
+
+extension SharedExpenseCaptureView {
+    private var headline: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
+            TextField("Concepto", text: $concept)
+                .lanaFont(.rowTitle)
+                .foregroundStyle(lana.ink)
+                .onChange(of: concept) { _, newValue in
+                    scheduleSuggestion(for: newValue)
+                }
+
+            HStack(alignment: .firstTextBaseline, spacing: Space.p2.rawValue) {
+                Text("$")
+                    .lanaFont(.rowSubtitle)
+                    .foregroundStyle(lana.ink50)
+                TextField("0", value: $amount, format: .number)
+                    .lanaFont(.draftAmount)
+                    .foregroundStyle(lana.ink)
+                    .multilineTextAlignment(.trailing)
+                    .fixedSize()
+                    .focused($focusedField, equals: .amount)
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
+            }
+        }
+    }
+
+    private var categoryChip: some View {
+        Menu {
+            ForEach(SuggestedCategory.allCases) { category in
+                Button(category.displayName) { self.category = category }
+            }
+        } label: {
+            Chip(category.displayName)
+        }
+        .accessibilityLabel("Categoría: \(category.displayName)")
+    }
+
+    private var dateChip: some View {
+        Button {
+            showsDatePicker = true
+        } label: {
+            Chip(LanaDateFormat.dayLabel(date))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Fecha: \(LanaDateFormat.dayLabel(date))")
+    }
+
+    private var payerChip: some View {
+        Menu {
+            ForEach(model.list.participants) { participant in
+                Button(model.displayName(for: participant.id)) { payer = participant.id }
+            }
+        } label: {
+            Chip("Pagó \(model.displayName(for: payer))")
+        }
+        .accessibilityLabel("Pagó \(model.displayName(for: payer))")
+    }
+
+    private var datePickerSheet: some View {
+        VStack(spacing: Space.md.rawValue) {
+            DatePicker("Fecha", selection: $date, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .tint(lana.accentFill)
+            Button("Listo") { showsDatePicker = false }
+                .buttonStyle(.lana(size: .large, isExpanded: true))
+        }
+        .padding(Space.md.rawValue)
+        .background(lana.surface)
+        .presentationDetents([.medium])
+    }
+
+    /// Sacar un gasto de la lista sin borrarlo — el caso real que lo hizo
+    /// necesario: la detección por voz mandó gastos personales aquí por error
+    /// (ADR-0027), y borrarlos habría sido perder el gasto, no corregirlo.
+    /// Deja de contar en los saldos entre personas y pasa a valer completo en
+    /// el Dashboard.
+    private var removalSection: some View {
+        VStack(alignment: .leading, spacing: Space.p12.rawValue) {
+            Button("Quitar de esta lista") {
+                Task { await convertToPersonal() }
+            }
+            .buttonStyle(.lana(.secondary, isExpanded: true))
+            .disabled(isSaving)
+
+            Text("«Quitar de esta lista» conserva el gasto como personal — no lo borra.")
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink42)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // El rojo lo pone el sistema, en el diálogo: la app no lo usa por
+            // su cuenta (ADR-0044).
+            Button("Borrar gasto", role: .destructive) {
+                isConfirmingDelete = true
+            }
+            .lanaFont(.bodyEmphasis)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: LanaMetrics.minTouchTarget)
+            .disabled(isSaving)
+            .confirmationDialog(
+                "¿Borrar este gasto?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible) {
+                    Button("Borrar", role: .destructive) {
+                        Task { await delete() }
+                    }
+            }
+        }
+    }
+}
+
+// MARK: - Guardar, borrar y sugerir
+
 extension SharedExpenseCaptureView {
     /// Sugiere categoría/subcategoría del concepto escrito, con el mismo
     /// parser que la captura personal — nunca bloquea guardar, solo
@@ -246,12 +293,6 @@ extension SharedExpenseCaptureView {
                 subcategory = suggestedSubcategory
             }
         }
-    }
-
-    private func shareBinding(for participant: ParticipantID) -> Binding<Decimal> {
-        Binding(
-            get: { shares[participant] ?? 0 },
-            set: { shares[participant] = $0 })
     }
 
     /// `nil` cuando la regla no valida — `SplitRule.portions(of:)` es la
@@ -274,46 +315,15 @@ extension SharedExpenseCaptureView {
         }
     }
 
-    @ViewBuilder
-    private var preview: some View {
-        if let splitRule, let portions = try? splitRule.portions(of: Money(amount: amount, currency: .mxn)) {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(model.list.participants) { participant in
-                    if let portion = portions[participant.id] {
-                        HStack {
-                            Text(participant.displayName)
-                            Spacer()
-                            Text(portion.formatted())
-                                .monospacedDigit()
-                        }
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.ink50)
-                    }
-                }
-            }
-        } else if let splitRule, amount > 0 {
-            Text(previewError(for: splitRule))
-                .lanaFont(.caption)
-                .foregroundStyle(lana.attention)
-        }
-    }
-
-    private func previewError(for splitRule: SplitRule) -> String {
-        do {
-            _ = try splitRule.portions(of: Money(amount: amount, currency: .mxn))
-            return ""
-        } catch {
-            return error.localizedDescription
-        }
-    }
-
     private func save() async {
         guard let splitRule else { return }
         errorMessage = nil
         isSaving = true
         defer { isSaving = false }
-        guard (try? splitRule.portions(of: Money(amount: amount, currency: .mxn))) != nil else {
-            errorMessage = previewError(for: splitRule)
+        do {
+            _ = try splitRule.portions(of: Money(amount: amount, currency: .mxn))
+        } catch {
+            errorMessage = error.localizedDescription
             return
         }
         let saved: Bool = if let existingExpense {

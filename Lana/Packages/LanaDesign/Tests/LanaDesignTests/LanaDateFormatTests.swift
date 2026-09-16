@@ -34,6 +34,14 @@ struct LanaDateFormatTests {
         #expect(LanaDateFormat.dayHeader(date(2026, 9, 14), calendar: calendar) == "Lunes 14")
     }
 
+    @Test("Una fecha de chip dice Hoy, Ayer o el día con su mes")
+    func etiquetaDeDia() {
+        let hoy = date(2026, 9, 15)
+        #expect(LanaDateFormat.dayLabel(hoy, calendar: calendar, now: hoy) == "Hoy")
+        #expect(LanaDateFormat.dayLabel(date(2026, 9, 14), calendar: calendar, now: hoy) == "Ayer")
+        #expect(LanaDateFormat.dayLabel(date(2026, 9, 3), calendar: calendar, now: hoy) == "3 de septiembre")
+    }
+
     @Test("La inicial del mes")
     func inicialDelMes() {
         #expect(LanaDateFormat.monthInitial(date(2026, 3, 1), calendar: calendar) == "M")

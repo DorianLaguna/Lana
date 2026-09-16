@@ -199,10 +199,10 @@ public struct EditExpenseView: View {
         Button {
             showsDatePicker = true
         } label: {
-            Chip(DraftDateLabel.text(for: model.date))
+            Chip(LanaDateFormat.dayLabel(model.date))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Fecha: \(DraftDateLabel.text(for: model.date))")
+        .accessibilityLabel("Fecha: \(LanaDateFormat.dayLabel(model.date))")
     }
 
     private var datePickerSheet: some View {

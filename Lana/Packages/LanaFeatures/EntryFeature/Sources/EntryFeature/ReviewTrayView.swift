@@ -97,7 +97,7 @@ public struct ReviewTrayView: View {
     static func originLabel(for draft: DraftTransaction, calendar: Calendar = .current, now: Date = Date()) -> String {
         let time = draft.date.formatted(
             Date.FormatStyle(locale: LanaDateFormat.locale, calendar: calendar).hour().minute())
-        return "\(DraftCard.dateLabel(for: draft.date, calendar: calendar, now: now)) · \(time)"
+        return "\(LanaDateFormat.dayLabel(draft.date, calendar: calendar, now: now)) · \(time)"
     }
 }
 

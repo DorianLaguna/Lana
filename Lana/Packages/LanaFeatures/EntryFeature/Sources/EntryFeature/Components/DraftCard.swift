@@ -197,23 +197,10 @@ public struct DraftCard: View {
         Button {
             showsDatePicker = true
         } label: {
-            Chip(Self.dateLabel(for: draft.date))
+            Chip(LanaDateFormat.dayLabel(draft.date))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Fecha: \(Self.dateLabel(for: draft.date))")
-    }
-
-    /// "Hoy", "Ayer" o "14 de septiembre" — siempre en español.
-    static func dateLabel(for date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
-        if calendar.isDate(date, inSameDayAs: now) {
-            return "Hoy"
-        }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
-           calendar.isDate(date, inSameDayAs: yesterday) {
-            return "Ayer"
-        }
-        let day = calendar.component(.day, from: date)
-        return "\(day) de \(LanaDateFormat.monthNameLowercased(date, calendar: calendar))"
+        .accessibilityLabel("Fecha: \(LanaDateFormat.dayLabel(draft.date))")
     }
 
     private var datePickerSheet: some View {
