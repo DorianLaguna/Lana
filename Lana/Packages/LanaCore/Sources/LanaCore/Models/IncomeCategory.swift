@@ -56,19 +56,4 @@ public enum IncomeCategory: String, Sendable, Hashable, CaseIterable, Codable, I
         case .otro: "Lo que no cae en las de arriba"
         }
     }
-
-    /// Un índice fijo y único **dentro de este catálogo**, para que dos
-    /// categorías de ingreso nunca compartan tono en la misma gráfica — la
-    /// misma garantía que `SuggestedCategory.rampIndex` da para los gastos.
-    ///
-    /// Entre catálogos sí puede haber choques y no se pueden evitar: once
-    /// categorías de gasto más ocho de ingreso son diecinueve, y la rampa tiene
-    /// doce tonos. No estorba, porque gastos e ingresos se desglosan en bloques
-    /// separados y nunca en la misma barra. El desfase existe para que al menos
-    /// las dos más frecuentes —"comida" y "sueldo"— no salgan iguales.
-    public var rampIndex: Int {
-        // swiftlint:disable:next force_unwrapping
-        let position = Self.allCases.firstIndex(of: self)!
-        return (SuggestedCategory.allCases.count + position) % 12
-    }
 }

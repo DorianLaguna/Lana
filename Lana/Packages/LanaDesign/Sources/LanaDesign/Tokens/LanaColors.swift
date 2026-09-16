@@ -39,10 +39,6 @@ public struct LanaColors: Sendable, Equatable {
     /// Transición: el fondo al 15 % que usaban los estados activos antes del
     /// rediseño.
     public let accentMuted: Color
-    /// Transición: las pantallas que todavía dibujan una rampa por categoría
-    /// la reciben en gris neutro (`ink28`), que es lo que pide el rediseño.
-    /// Se elimina cuando la última gráfica migra a `ProportionBar`.
-    public let categoryRamp: [Color]
 
     // MARK: Superficies
 
@@ -152,7 +148,6 @@ public struct LanaColors: Sendable, Equatable {
         ink35 = neutrals.ink(.ink35)
         ink30 = neutrals.ink(.ink30)
         ink28 = neutrals.ink(.ink28)
-        categoryRamp = Array(repeating: ink28, count: 12)
         tabBarInactive = neutrals.ink(NeutralPalette.tabBarInactiveInk)
 
         let attentionBase = isDark ? Self.attentionDark : Self.attentionLight

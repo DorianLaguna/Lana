@@ -99,17 +99,4 @@ struct IncomeCategoryCompatibilityTests {
 
         #expect(expenses.first?.category == "sueldo")
     }
-
-    @Test("Dos categorías de ingreso nunca comparten tono en la misma gráfica")
-    func dosCategoriasDeIngresoNuncaCompartenTono() {
-        let indexes = IncomeCategory.allCases.map(\.rampIndex)
-
-        #expect(Set(indexes).count == IncomeCategory.allCases.count)
-        #expect(indexes.allSatisfy { (0 ..< 12).contains($0) })
-    }
-
-    @Test("Las dos categorías más frecuentes, comida y sueldo, no salen del mismo color")
-    func comidaYSueldoNoSalenIguales() {
-        #expect(SuggestedCategory.comida.rampIndex != IncomeCategory.sueldo.rampIndex)
-    }
 }

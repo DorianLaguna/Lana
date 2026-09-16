@@ -30,18 +30,4 @@ public enum SuggestedCategory: String, Sendable, Hashable, CaseIterable, Codable
         default: rawValue.capitalized
         }
     }
-
-    /// Un índice fijo y único por caso (0 en adelante, por orden de
-    /// declaración) — para pintar cada categoría cerrada con un color
-    /// distinto de `LanaDesign.LanaColors.categoryRamp` sin depender de un
-    /// hash, que con más categorías que colores en la rampa garantiza
-    /// choques (dos categorías con el mismo tono, sin forma de
-    /// diferenciarlas en una gráfica). Categorías libres que no coinciden
-    /// con ningún caso — texto escrito a mano al capturar por voz — siguen
-    /// cayendo al hash como respaldo, donde el choque es posible pero no
-    /// garantizado.
-    public var rampIndex: Int {
-        // swiftlint:disable:next force_unwrapping
-        Self.allCases.firstIndex(of: self)!
-    }
 }
