@@ -92,10 +92,10 @@ struct DailyPaceCard: View {
     }
 
     private var isOverspent: Bool {
-        if case .overspent = pace {
-            return true
+        switch pace {
+        case .overspent, .committed: true
+        case .allowance: false
         }
-        return false
     }
 
     private var message: Text {
@@ -104,6 +104,10 @@ struct DailyPaceCard: View {
             Text("Te toca \(emphasized(MoneyDisplay.whole(money))) al día para llegar al \(untilDay) sin pasarte.")
         case let .overspent(money):
             Text("Ya te pasaste por \(emphasized(MoneyDisplay.compact(money))) este mes.")
+        case let .committed(short):
+            // Todavía no se gasta de más: falta para cubrir lo que viene. Se
+            // dice como dato, con la cifra, sin reproche (ADR-0046).
+            Text("Lo que queda ya tiene dueño: faltan \(emphasized(MoneyDisplay.compact(short))) para lo que viene.")
         }
     }
 

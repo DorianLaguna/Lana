@@ -151,9 +151,18 @@ public struct TodayView<Settings: View>: View {
         heroSection
             .padding(.bottom, Space.p28.rawValue)
 
-        if let total = model.monthTotals.first, let pace = model.dailyPace(for: total) {
-            DailyPaceCard(pace: pace)
-                .padding(.bottom, Space.p10.rawValue)
+        if let total = model.monthTotals.first {
+            let commitments = model.monthCommitments(for: total)
+            // Con varias monedas el héroe es un carrusel paginado: un desglose
+            // fijo debajo no correspondería a la página que se está viendo.
+            if model.monthTotals.count == 1, !commitments.isEmpty {
+                CommittedBreakdown(commitments: commitments, remaining: total.remaining)
+                    .padding(.bottom, Space.p20.rawValue)
+            }
+            if let pace = model.dailyPace(for: total, committed: commitments.committed) {
+                DailyPaceCard(pace: pace)
+                    .padding(.bottom, Space.p10.rawValue)
+            }
         }
 
         let reviewCount = model.needsReviewItems.count

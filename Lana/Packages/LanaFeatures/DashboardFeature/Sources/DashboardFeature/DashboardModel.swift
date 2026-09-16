@@ -24,6 +24,15 @@ public final class DashboardModel: ExpenseProviding {
     private let vocabularyStore: any CorrectionVocabularyStore
     private let cardStore: any CardStore
     private let sharedListStore: any SharedListStore
+    /// De dónde salen los compromisos del mes (ADR-0046). Opcionales: sin
+    /// ellos no hay nada comprometido y Hoy se ve como antes de ese ADR.
+    private let recurringItemStore: (any RecurringItemStore)?
+    private let cardPaymentStore: (any CardPaymentStore)?
+    /// Los recurrentes del usuario, para saber qué falta por caer este mes.
+    public private(set) var recurringItems: [RecurringItem] = []
+    /// El ledger con el que se calcula lo que falta de cada corte — la misma
+    /// cifra que ya usa "Esta quincena", no una nueva.
+    public private(set) var cardLedger = CardLedger(events: [])
     /// No `private` — `CategoryDetailModel`/`PaymentMethodDetailModel`
     /// (mismo target) lo necesitan para `daySections` sobre los gastos que
     /// derivan de este mismo modelo, sin guardar su propia copia (ver el
@@ -64,18 +73,26 @@ public final class DashboardModel: ExpenseProviding {
     ///   - sharedListStore: de dónde se lee qué participante de una lista
     ///     compartida es "yo", para sumar la parte real de un gasto
     ///     compartido y no el total (`Expense.personalAmount`).
+    ///   - recurringItemStore: de dónde salen la renta y los pagos fijos que
+    ///     faltan por caer este mes (ADR-0046). `nil` deja el desglose vacío.
+    ///   - cardPaymentStore: los eventos crudos que `CardLedger` necesita para
+    ///     saber cuánto falta de cada corte.
     ///   - referenceDate: qué mes mostrar al aparecer. Por defecto, hoy.
     public init(
         store: any ExpenseStore,
         vocabularyStore: any CorrectionVocabularyStore,
         cardStore: any CardStore,
         sharedListStore: any SharedListStore,
+        recurringItemStore: (any RecurringItemStore)? = nil,
+        cardPaymentStore: (any CardPaymentStore)? = nil,
         referenceDate: Date = Date(),
         calendar: Calendar = .current) {
         self.store = store
         self.vocabularyStore = vocabularyStore
         self.cardStore = cardStore
         self.sharedListStore = sharedListStore
+        self.recurringItemStore = recurringItemStore
+        self.cardPaymentStore = cardPaymentStore
         self.calendar = calendar
         month = calendar.dateInterval(of: .month, for: referenceDate)?.start ?? referenceDate
     }
@@ -192,6 +209,15 @@ public final class DashboardModel: ExpenseProviding {
         if let loadedCards = try? await cardStore.cards() {
             cards = loadedCards
             hasLoadedCards = true
+        }
+        // Que falle una de estas no puede tumbar el mes: sin ellas el desglose
+        // de lo comprometido se queda vacío y la cifra grande sigue siendo
+        // cierta (ADR-0046).
+        if let recurringItemStore {
+            recurringItems = await (try? recurringItemStore.items()) ?? []
+        }
+        if let cardPaymentStore, let events = try? await cardPaymentStore.events() {
+            cardLedger = CardLedger(events: events)
         }
         isLoading = false
     }

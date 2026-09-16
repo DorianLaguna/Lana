@@ -34,7 +34,11 @@ struct DashboardTodayTests {
             paymentMethod: paymentMethod)
     }
 
-    private func loadedModel(_ expenses: [Expense], cards: [Card] = [], month: Date) async throws -> DashboardModel {
+    private func loadedModel(
+        _ expenses: [Expense],
+        cards: [Card] = [],
+        recurringItems: [RecurringItem] = [],
+        month: Date) async throws -> DashboardModel {
         let store = InMemoryExpenseStore()
         for item in expenses {
             try await store.save(item)
@@ -44,6 +48,8 @@ struct DashboardTodayTests {
             vocabularyStore: InMemoryCorrectionVocabularyStore(),
             cardStore: InMemoryCardStore(seed: cards),
             sharedListStore: InMemorySharedListStore(),
+            recurringItemStore: InMemoryRecurringItemStore(seed: recurringItems),
+            cardPaymentStore: InMemoryCardPaymentStore(),
             referenceDate: month,
             calendar: calendar)
         await model.onAppear()
@@ -156,6 +162,61 @@ struct DashboardTodayTests {
         let parts = MoneyDisplay.heroParts(Money(amount: Decimal(string: "2562.87") ?? 0, currency: .mxn))
 
         #expect(parts == MoneyDisplay.HeroParts(symbol: "$", integer: "2,562", fraction: ".87"))
+    }
+
+    @Test("El ritmo reparte lo libre, no lo restante: la renta que falta no se reparte entre los días")
+    func ritmoSobreLoLibre() async throws {
+        let renta = try RecurringItem(
+            name: "Renta",
+            amount: Money(amount: 9000, currency: .mxn),
+            kind: .expense,
+            dayOfMonth: 30)
+        let model = try await loadedModel([
+            expense(kind: .income, amount: 20000, category: nil, date: date(2026, 9, 1)),
+            expense(amount: 8000, date: date(2026, 9, 10))
+        ], recurringItems: [renta], month: date(2026, 9, 15))
+        let total = try #require(model.monthTotals.first)
+        let commitments = model.monthCommitments(for: total, asOf: date(2026, 9, 15))
+
+        // Quedan 12,000, pero 9,000 son de la renta del 30: se reparten 3,000
+        // entre los 16 días del 15 al 30.
+        #expect(commitments.committed == 9000)
+        #expect(model.dailyPace(
+            for: total,
+            committed: commitments.committed,
+            asOf: date(2026, 9, 15)) == .allowance(Money(amount: 187.5, currency: .mxn), untilDay: 30))
+    }
+
+    @Test("Si lo que queda no alcanza para lo que viene, el ritmo lo dice sin decir que se pasó")
+    func ritmoComprometido() async throws {
+        let renta = try RecurringItem(
+            name: "Renta",
+            amount: Money(amount: 9000, currency: .mxn),
+            kind: .expense,
+            dayOfMonth: 30)
+        let model = try await loadedModel([
+            expense(kind: .income, amount: 12000, category: nil, date: date(2026, 9, 1)),
+            expense(amount: 7000, date: date(2026, 9, 10))
+        ], recurringItems: [renta], month: date(2026, 9, 15))
+        let total = try #require(model.monthTotals.first)
+        let commitments = model.monthCommitments(for: total, asOf: date(2026, 9, 15))
+
+        // Quedan 5,000 contra 9,000 comprometidos: faltan 4,000.
+        #expect(model.dailyPace(
+            for: total,
+            committed: commitments.committed,
+            asOf: date(2026, 9, 15)) == .committed(short: Money(amount: 4000, currency: .mxn)))
+    }
+
+    @Test("Sin recurrentes ni tarjetas no hay nada comprometido y el ritmo es el de siempre")
+    func sinCompromisos() async throws {
+        let model = try await loadedModel([
+            expense(kind: .income, amount: 12000, category: nil, date: date(2026, 9, 1)),
+            expense(amount: 9440, date: date(2026, 9, 10))
+        ], month: date(2026, 9, 15))
+        let total = try #require(model.monthTotals.first)
+
+        #expect(model.monthCommitments(for: total, asOf: date(2026, 9, 15)).isEmpty)
     }
 
     @Test("Un recurrente vencido y sin registrar cuenta como pendiente")

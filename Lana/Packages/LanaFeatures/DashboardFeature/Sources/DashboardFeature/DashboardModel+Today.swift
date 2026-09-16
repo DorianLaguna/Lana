@@ -3,10 +3,15 @@ import LanaCore
 
 /// Cuánto toca gastar al día para llegar a fin de mes (Hoy, sección 3).
 public enum DailyPace: Equatable, Sendable {
-    /// Lo que queda repartido entre los días que faltan, contando hoy.
+    /// Lo **libre** repartido entre los días que faltan, contando hoy — no lo
+    /// restante a secas: repartir dinero que ya tiene dueño sería mentir
+    /// (ADR-0046).
     case allowance(Money, untilDay: Int)
     /// Se gastó más de lo que entró; cuánto de más.
     case overspent(Money)
+    /// Lo que queda del mes no alcanza para lo que ya tiene dueño, y falta
+    /// tanto. No es lo mismo que haberse pasado: todavía no se gasta de más.
+    case committed(short: Money)
 }
 
 /// Qué día del mes visible es hoy.
@@ -49,17 +54,43 @@ public extension DashboardModel {
         return DayProgress(day: calendar.component(.day, from: date), daysInMonth: days.count)
     }
 
-    /// Lo restante del mes entre los días que faltan, contando hoy. `nil` sin
+    /// Lo libre del mes entre los días que faltan, contando hoy. `nil` sin
     /// ingreso (no hay contra qué comparar) o fuera del mes en curso.
-    func dailyPace(for total: PeriodTotal, asOf date: Date = Date()) -> DailyPace? {
+    ///
+    /// - Parameter committed: lo que ya tiene dueño y no se puede repartir
+    ///   (ADR-0046). En cero, es el ritmo de antes de ese ADR.
+    func dailyPace(for total: PeriodTotal, committed: Decimal = 0, asOf date: Date = Date()) -> DailyPace? {
         guard total.income > 0, let progress = dayProgress(asOf: date) else { return nil }
         guard total.remaining >= 0 else {
             return .overspent(Money(amount: -total.remaining, currency: total.currency))
         }
+        let free = total.remaining - committed
+        guard free >= 0 else {
+            return .committed(short: Money(amount: -free, currency: total.currency))
+        }
         let daysLeft = max(progress.daysInMonth - progress.day + 1, 1)
         return .allowance(
-            Money(amount: total.remaining / Decimal(daysLeft), currency: total.currency),
+            Money(amount: free / Decimal(daysLeft), currency: total.currency),
             untilDay: progress.daysInMonth)
+    }
+
+    /// Lo que ya tiene dueño de aquí a fin de mes, en la moneda de `total`
+    /// (ADR-0046).
+    ///
+    /// Mirando un mes pasado sale vacío solo: los constructores de compromisos
+    /// filtran por fecha posterior a `asOf`, así que agosto no tiene pendientes
+    /// en septiembre. No hace falta un caso especial.
+    func monthCommitments(for total: PeriodTotal, asOf date: Date = Date()) -> MonthCommitments {
+        MonthCommitments.resolve(
+            month: month,
+            currency: total.currency,
+            from: MonthCommitments.Inputs(
+                recurringItems: recurringItems,
+                expenses: expenses,
+                cards: cards,
+                ledger: cardLedger),
+            asOf: date,
+            calendar: calendar)
     }
 
     /// Los movimientos de hoy o, si no hubo, los del último día con actividad

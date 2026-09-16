@@ -101,7 +101,9 @@ struct MainTabView: View {
             store: dependencies.store,
             vocabularyStore: dependencies.vocabularyStore,
             cardStore: dependencies.cardStore,
-            sharedListStore: dependencies.sharedListStore))
+            sharedListStore: dependencies.sharedListStore,
+            recurringItemStore: dependencies.recurringItemStore,
+            cardPaymentStore: dependencies.cardPaymentStore))
         _yearModel = State(initialValue: YearModel(
             store: dependencies.store,
             cardStore: dependencies.cardStore,
