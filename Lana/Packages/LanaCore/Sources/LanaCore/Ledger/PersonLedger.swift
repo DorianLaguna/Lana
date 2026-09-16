@@ -67,6 +67,61 @@ public struct PersonLedger: Sendable {
         return Self.simplify(balances, currency: currency)
     }
 
+    /// Quién le debe a quién **directamente**: cada participante a cada
+    /// persona que pagó algo que compartió con él, neto entre los dos y
+    /// descontando lo que ya se liquidaron (ADR-0051).
+    ///
+    /// Es lo que muestra la lista. `simplifiedDebts` da menos transferencias,
+    /// pero empareja deudores con acreedores con los que no compartieron
+    /// nada: "Fernando te debe $128" cuando también le debía a Iori. Cada
+    /// deuda de aquí coincide con la suma de `contributions(between:and:in:)`
+    /// de ese par, así que su detalle siempre cuadra.
+    public func directDebts(in sharedListID: SharedListID, currency: Currency) -> [Debt] {
+        struct Pair: Hashable {
+            let low: ParticipantID
+            let high: ParticipantID
+        }
+        // Positivo: `low` le debe a `high`.
+        var net: [Pair: Decimal] = [:]
+        func owes(_ debtor: ParticipantID, _ creditor: ParticipantID, _ amount: Decimal) {
+            guard debtor != creditor else { return }
+            if debtor < creditor {
+                net[Pair(low: debtor, high: creditor), default: 0] += amount
+            } else {
+                net[Pair(low: creditor, high: debtor), default: 0] -= amount
+            }
+        }
+
+        for transaction in LedgerFold.resolve(events).values {
+            guard transaction.kind == .expense,
+                  !transaction.isVoided,
+                  transaction.sharedListID == sharedListID,
+                  transaction.amount.currency == currency,
+                  let payer = transaction.payer,
+                  let portions = try? transaction.split?.portions(of: transaction.amount)
+            else { continue }
+            for (participant, share) in portions {
+                owes(participant, payer, share.amount)
+            }
+        }
+        for event in events {
+            guard case let .settlementRecorded(settlement) = event,
+                  settlement.sharedListID == sharedListID,
+                  settlement.amount.currency == currency
+            else { continue }
+            owes(settlement.from, settlement.to, -settlement.amount.amount)
+        }
+
+        return net
+            .compactMap { pair, amount -> Debt? in
+                guard amount != 0 else { return nil }
+                return amount > 0
+                    ? Debt(from: pair.low, to: pair.high, amount: Money(amount: amount, currency: currency))
+                    : Debt(from: pair.high, to: pair.low, amount: Money(amount: -amount, currency: currency))
+            }
+            .sorted { ($0.from, $0.to) < ($1.from, $1.to) }
+    }
+
     /// El detalle, gasto por gasto, de la relación directa entre `from` y
     /// `to` en `sharedListID` — el "por qué" detrás de un `Debt`. A
     /// diferencia de `simplifiedDebts`, que con 3+ participantes puede

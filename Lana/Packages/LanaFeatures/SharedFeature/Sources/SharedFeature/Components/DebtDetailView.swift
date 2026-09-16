@@ -4,11 +4,9 @@ import SwiftUI
 
 /// El "por qué" detrás de una fila de `BalancesView`: gasto por gasto, cómo
 /// se dividió y cuánto le tocó a cada quien, con la suma llegando a la
-/// misma cifra que ya se veía (ADR-0024). Con exactamente dos participantes
-/// en la lista, ambas cifras siempre coinciden; con 3+, esto es la relación
-/// directa entre estos dos, que puede diferir de la deuda ya simplificada
-/// si un tercer participante quedó de por medio (ver doc comment de
-/// `PersonLedger.contributions(between:and:in:)`).
+/// misma cifra que ya se veía (ADR-0024). Desde ADR-0051 las deudas de la
+/// lista son directas, así que coinciden con esta suma salvo por lo que ya
+/// se liquidaron entre los dos, que aquí no aparece.
 public struct DebtDetailView: View {
     @Environment(\.lana) private var lana
     @Environment(\.dismiss) private var dismiss

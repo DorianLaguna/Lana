@@ -19,7 +19,7 @@ public final class SharedListDetailModel {
     public private(set) var viewerParticipantID: ParticipantID?
     /// El saldo de cada participante, con tendencia (ADR-0008).
     public private(set) var balances: [ParticipantBalance] = []
-    /// Las transferencias mínimas que saldarían los saldos vigentes.
+    /// Quién le debe a quién directamente, neto por par (ADR-0051).
     public private(set) var debts: [Debt] = []
     /// Los gastos de esta lista, más reciente primero.
     public private(set) var expenses: [Expense] = []
@@ -331,10 +331,8 @@ public final class SharedListDetailModel {
 
     /// El detalle, gasto por gasto, de la relación directa entre
     /// `debt.from` y `debt.to` — el "por qué" detrás de la cifra que ya se
-    /// ve en `BalancesView` (ADR-0024). Con exactamente dos participantes
-    /// en la lista, la suma siempre coincide con `debt.amount`; con 3+, es
-    /// la historia directa entre ambos, que puede no ser idéntica a la
-    /// cifra ya simplificada (`PersonLedger.contributions(between:and:in:)`).
+    /// ve en `BalancesView` (ADR-0024). Suma `debt.amount` más lo que ya se
+    /// liquidaron entre los dos (ADR-0051).
     public func contributions(for debt: Debt) -> [DebtContribution] {
         PersonLedger(events: events).contributions(between: debt.from, and: debt.to, in: list.id)
     }
@@ -376,7 +374,7 @@ public final class SharedListDetailModel {
                 }
             }.sorted { $0.participant.displayName < $1.participant.displayName }
 
-            debts = currentByCurrency.keys.flatMap { currentLedger.simplifiedDebts(in: list.id, currency: $0) }
+            debts = currentByCurrency.keys.flatMap { currentLedger.directDebts(in: list.id, currency: $0) }
 
             let wideRange = DateInterval(
                 start: calendar.date(byAdding: .year, value: -5, to: date) ?? .distantPast,

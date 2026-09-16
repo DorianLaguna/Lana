@@ -34,7 +34,7 @@ public extension LedgerToolbox {
 
         let names = Dictionary(uniqueKeysWithValues: list.participants.map { ($0.id, $0.displayName) })
         let lines = balances.keys.sorted { $0.rawValue < $1.rawValue }.flatMap { currency in
-            ledger.simplifiedDebts(in: list.id, currency: currency).map { debt in
+            ledger.directDebts(in: list.id, currency: currency).map { debt in
                 let from = names[debt.from] ?? "alguien"
                 let to = names[debt.to] ?? "alguien"
                 return "  \(from) le debe \(debt.amount.formatted()) a \(to)"

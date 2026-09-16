@@ -115,7 +115,7 @@ public struct BalancesView: View {
             .accessibilityLabel(label)
     }
 
-    /// Quién le paga a quién, ya simplificado, con la acción al lado: el
+    /// Quién le paga a quién, directo (ADR-0051), con la acción al lado: el
     /// renglón entero abre el detalle y "Liquidar" registra el pago.
     private func debtRow(_ debt: Debt) -> some View {
         HStack(spacing: Space.sm.rawValue) {
@@ -169,7 +169,7 @@ func debtPhrase(_ debt: Debt, viewer: ParticipantID?, name: (ParticipantID) -> S
 
 /// Lo que toca a quien mira va primero —lo que le deben, luego lo que debe—
 /// y después lo de los demás, cada grupo de mayor a menor. Antes salían en el
-/// orden en que la simplificación las iba encontrando.
+/// orden en que salían del cálculo.
 func orderedDebts(_ debts: [Debt], viewer: ParticipantID?) -> [Debt] {
     func group(_ debt: Debt) -> Int {
         if debt.to == viewer {
