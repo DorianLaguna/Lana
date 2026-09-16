@@ -119,10 +119,15 @@ public struct SettingsView: View {
 
     /// Elegir tema ya no requiere entrar a otra pantalla: los ocho caben aquí
     /// y se aplican al instante.
+    ///
+    /// Los ocho se reparten el ancho de la tarjeta, sin espacio fijo entre
+    /// ellos: con un área de 44 pt cada uno más separación, la fila medía
+    /// 415 pt, más que la pantalla, y empujaba todo Ajustes hacia la izquierda
+    /// — se comía la primera letra de "TEMA" y "LANA".
     private var themeCard: some View {
         LanaCard(padding: .md, radius: .cardLarge) {
             VStack(alignment: .leading, spacing: Space.p12.rawValue) {
-                HStack(spacing: Space.p9.rawValue) {
+                HStack(spacing: 0) {
                     ForEach(LanaTheme.allCases) { theme in
                         ThemeSwatch(theme: theme, isSelected: theme == model.selectedTheme) {
                             withAnimation(.easeInOut(duration: 0.25)) { model.selectTheme(theme) }
@@ -274,8 +279,11 @@ private struct ThemeSwatch: View {
                         Circle().strokeBorder(lana.ink, lineWidth: LanaMetrics.outline)
                     }
                 }
-                .frame(width: LanaMetrics.minTouchTarget, height: LanaMetrics.minTouchTarget)
-                .contentShape(Circle())
+                // Cada swatch toma su parte del ancho: 41 pt en un iPhone de
+                // 402 pt, 38 en uno de 375. Las áreas quedan pegadas, así que
+                // todo el ancho de la fila es tocable.
+                .frame(maxWidth: .infinity, minHeight: LanaMetrics.minTouchTarget)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(theme.displayName)
