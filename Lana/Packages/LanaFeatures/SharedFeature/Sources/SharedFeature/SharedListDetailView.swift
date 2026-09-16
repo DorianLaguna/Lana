@@ -28,7 +28,7 @@ public struct SharedListDetailView: View {
             VStack(spacing: Space.md.rawValue) {
                 if let shareErrorMessage = model.shareErrorMessage {
                     Text(shareErrorMessage)
-                        .lanaFont(.caption)
+                        .lanaFont(.rowSubtitle)
                         .foregroundStyle(lana.ink50)
                 }
 
@@ -43,8 +43,9 @@ public struct SharedListDetailView: View {
                     LanaCard {
                         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                             Text("Gastos")
-                                .lanaFont(.caption)
+                                .lanaFont(.sectionHeader)
                                 .foregroundStyle(lana.ink50)
+                                .accessibilityAddTraits(.isHeader)
                             VStack(spacing: 0) {
                                 ForEach(model.expenses) { expense in
                                     Button {

@@ -7,8 +7,8 @@ import SwiftUI
 /// propia pantalla, pero la lógica es la misma — refleja `SettingsModel` y
 /// llama a sus métodos, sin estado de negocio propio.
 ///
-/// Conserva todo lo que ya existía: conteo `×N`, categoría con su color del
-/// ramp, borrado individual y "Borrar todo". El botón de regresar lo da el
+/// Conserva todo lo que ya existía: conteo de usos, categoría, borrado
+/// individual y "Borrar todo". El botón de regresar lo da el
 /// `NavigationStack` de `SettingsView`.
 struct LanaLearningView: View {
     @Environment(\.lana) private var lana
@@ -24,19 +24,22 @@ struct LanaLearningView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.md.rawValue) {
                 Text("Lana aprende de las correcciones que haces al registrar tus gastos.")
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink50)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink60)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if !model.vocabulary.isEmpty {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         Text(wordCountText)
-                            .lanaFont(.caption)
+                            .lanaFont(.sectionHeader)
                             .foregroundStyle(lana.ink50)
-                        Spacer()
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer(minLength: Space.sm.rawValue)
                         Button("Borrar todo", role: .destructive) {
                             isConfirmingDeleteAll = true
                         }
-                        .lanaFont(.caption)
+                        .lanaFont(.footnote)
+                        .frame(minHeight: LanaMetrics.minTouchTarget)
                     }
                 }
 

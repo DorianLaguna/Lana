@@ -75,8 +75,7 @@ lana.positive    // ingresos, saldos a favor
 `lanaFont(_:)` con un rol de `LanaTextStyle`: `heroAmount`, `screenAmount`,
 `rowTitle`, `rowSubtitle`, `sectionHeader`, `explanation`… Tamaños del handoff,
 escalados con Dynamic Type; las cifras llevan dígitos tabulares desde el estilo y
-las héroe se limitan a XXL. Los estilos de transición (`largeAmount`, `body`,
-`caption`…) desaparecen cuando migre la última vista.
+las héroe se limitan a XXL.
 
 ## Espaciado, radios y medidas
 

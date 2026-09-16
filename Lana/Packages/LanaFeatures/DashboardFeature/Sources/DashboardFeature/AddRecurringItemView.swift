@@ -178,7 +178,7 @@ public struct AddRecurringItemView: View {
 
                 if let errorMessage = model.errorMessage {
                     Text(errorMessage)
-                        .lanaFont(.caption)
+                        .lanaFont(.rowSubtitle)
                         .foregroundStyle(lana.attention)
                 }
             }

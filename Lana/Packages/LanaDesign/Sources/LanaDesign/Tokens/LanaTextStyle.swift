@@ -76,16 +76,6 @@ public enum LanaTextStyle: Sendable, CaseIterable {
     /// 10.5 pt medium — la etiqueta de una pestaña.
     case tabLabel
 
-    // MARK: Transición
-
-    /// Estilos anteriores al rediseño, ligados a `Font.TextStyle`. Se borran
-    /// cuando la última vista migre.
-    case largeAmount
-    case title
-    case headline
-    case body
-    case caption
-
     struct Spec {
         let size: CGFloat
         let weight: Font.Weight
@@ -166,11 +156,6 @@ public enum LanaTextStyle: Sendable, CaseIterable {
         case .caption2: Spec(12, .regular)
         case .axisLabel: Spec(11, .regular)
         case .tabLabel: Spec(10.5, .medium)
-        case .largeAmount: Spec(34, .bold, numeric: true)
-        case .title: Spec(22, .semibold)
-        case .headline: Spec(17, .semibold)
-        case .body: Spec(17, .regular)
-        case .caption: Spec(12, .regular)
         }
     }
 

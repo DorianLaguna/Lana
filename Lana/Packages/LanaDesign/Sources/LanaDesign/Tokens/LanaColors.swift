@@ -36,9 +36,6 @@ public struct LanaColors: Sendable, Equatable {
     public let accentShadow: Color
     /// El segundo tono de los degradados decorativos. Nunca texto.
     public let highlight: Color
-    /// Transición: el fondo al 15 % que usaban los estados activos antes del
-    /// rediseño.
-    public let accentMuted: Color
 
     // MARK: Superficies
 
@@ -124,7 +121,6 @@ public struct LanaColors: Sendable, Equatable {
         accentHighlight = palette.fill.color.opacity(0.12)
         accentShadow = palette.fill.color.opacity(0.45)
         highlight = palette.gradientEnd.color
-        accentMuted = palette.fill.color.opacity(0.15)
 
         bg = neutrals.bg.color
         surface = neutrals.surface.color
