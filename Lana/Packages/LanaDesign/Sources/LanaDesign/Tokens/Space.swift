@@ -115,6 +115,9 @@ public enum LanaMetrics {
     public static let yearBarEmptyFraction: CGFloat = 0.08
     /// Onda de voz: alto máximo.
     public static let waveformHeight: CGFloat = 44
+    /// Cuatro renglones de la transcripción en vivo (26 pt × 1.4); al pasarse,
+    /// hace scroll manteniendo visible el final.
+    public static let transcriptMaxHeight: CGFloat = 146
     /// Onda de voz: ancho de barra.
     public static let waveformBarWidth: CGFloat = 4
     /// Botón circular de enviar en el campo de pregunta.

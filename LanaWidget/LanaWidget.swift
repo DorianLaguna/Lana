@@ -31,13 +31,16 @@ struct CaptureProvider: TimelineProvider {
 /// El botón de captura rápida: tocarlo abre Lana directo en modo escucha
 /// (ADR-0018), vía `lana://capture`.
 struct LanaCaptureWidgetView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Link(destination: captureURL) {
             Image(systemName: "mic.fill")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.system(size: LanaMetrics.stopGlyph * 1.3, weight: .semibold))
+                .foregroundStyle(LanaColors(theme: .cobalto, colorScheme: colorScheme).onAccent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .accessibilityLabel("Dictar un movimiento")
     }
 
     private var captureURL: URL {
@@ -62,11 +65,9 @@ private struct LanaCaptureWidgetBackground: View {
         LanaColors(theme: .cobalto, colorScheme: colorScheme)
     }
 
+    /// El micrófono sobre el color del tema, plano — como en la barra de la app.
     var body: some View {
-        LinearGradient(
-            colors: [lana.accent, lana.highlight],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing)
+        lana.accentFill
     }
 }
 

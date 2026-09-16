@@ -2,183 +2,227 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// El micrófono escuchando, con el transcript en vivo (`Escuchando.dc.html`
-/// del mockup aprobado). Parada manual — el botón que empieza a escuchar es
-/// el mismo que termina (ADR-0015).
+/// "Escuchando" (rediseño, sección 07). Empieza a escuchar de inmediato y la
+/// persona decide cuándo termina: no hay corte por silencio (ADR-0015).
 public struct ListeningView: View {
     @Environment(\.lana) private var lana
+    @State private var showsSuggestions = false
 
     private let transcript: String
+    private let finalizedTranscript: String
+    private let level: Float
     private let preview: [DraftTransaction]
     private let onStop: () -> Void
     private let onClear: () -> Void
 
-    /// - Parameter preview: lo que el parser ya entendió mientras se sigue
-    ///   dictando (ADR-0043) — vacío hasta la primera pausa.
+    private static let suggestions = [
+        "300 de súper y 120 en uber",
+        "pagué 250 de gasolina con la Nu",
+        "me llegó el sueldo"
+    ]
+
+    /// Cuánto silencio espera antes de sugerir qué decir.
+    private static var suggestionDelay: Duration {
+        .seconds(3)
+    }
+
+    /// Cada cuánto rota la sugerencia.
+    private static var suggestionInterval: TimeInterval {
+        4
+    }
+
+    /// - Parameters:
+    ///   - transcript: todo lo oído hasta ahora.
+    ///   - finalizedTranscript: el prefijo que ya no va a cambiar; lo demás es
+    ///     la palabra en curso y se dibuja apagada.
+    ///   - level: el volumen del micrófono, de 0 a 1.
+    ///   - preview: lo que el parser ya entendió mientras se sigue dictando
+    ///     (ADR-0043) — vacío hasta la primera pausa.
     public init(
         transcript: String,
+        finalizedTranscript: String = "",
+        level: Float = 0,
         preview: [DraftTransaction] = [],
         onStop: @escaping () -> Void,
         onClear: @escaping () -> Void) {
         self.transcript = transcript
+        self.finalizedTranscript = finalizedTranscript
+        self.level = level
         self.preview = preview
         self.onStop = onStop
         self.onClear = onClear
     }
 
     public var body: some View {
-        VStack(spacing: Space.lg.rawValue) {
+        VStack(spacing: 0) {
             Text("Escuchando")
-                .lanaFont(.caption)
+                .lanaFont(.minorHeader)
                 .foregroundStyle(lana.attention)
-                .textCase(.uppercase)
-
-            Button(action: onStop) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.white)
-                    .frame(width: 76, height: 76)
-                    .background(
-                        LinearGradient(
-                            colors: [lana.accent, lana.highlight],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing),
-                        in: Circle())
-                    // El mismo halo inteligente del dashboard, ahora en
-                    // estado `.listening`: se abre y respira con más vida
-                    // que en reposo, acompañando al waveform de abajo. El
-                    // mic se queda sólido; nada de `.symbolEffect(.pulse)`,
-                    // que lo hacía parpadear como "apagándose".
-                    .background(IntelligenceHalo(state: .listening))
-            }
-            .buttonStyle(.plain)
-
-            // Las ondas de voz en movimiento: la señal de "te estoy
-            // escuchando" que un mic estático no da. Van justo bajo el
-            // micrófono, como el sonido saliendo de él hacia el transcript.
-            VoiceWaveformView()
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, Space.p38.rawValue)
 
             transcriptView
+                .padding(.bottom, Space.p26.rawValue)
+
+            VoiceWaveformView(level: level)
+                .padding(.bottom, Space.md.rawValue)
+
+            suggestionArea
+                .padding(.bottom, Space.p28.rawValue)
 
             if !preview.isEmpty {
                 previewView
+                    .padding(.bottom, Space.lg.rawValue)
                     .transition(.opacity)
             }
 
-            // Detiene y reinicia la misma sesión de escucha (no hay forma
-            // confiable de resetear a medias una en curso) — pedido
-            // explícito del usuario para no tener que cerrar todo si se
-            // equivocó a la mitad de dictar.
+            stopButton
+                .padding(.bottom, Space.p18.rawValue)
+
             if !transcript.isEmpty {
                 Button("Borrar y seguir escuchando", action: onClear)
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.accent)
+                    .buttonStyle(.lana(.secondary, size: .medium))
+                    .padding(.bottom, Space.p18.rawValue)
+                    .transition(.opacity)
             }
 
-            Text("Toca el micrófono para terminar")
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
+            Text("Toca para terminar · todo en tu teléfono")
+                .lanaFont(.detail)
+                .foregroundStyle(lana.ink42)
+                .multilineTextAlignment(.center)
         }
-        .padding(Space.lg.rawValue)
+        .padding(.horizontal, Space.p28.rawValue)
+        .padding(.vertical, Space.p40.rawValue)
+        .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.25), value: preview)
+        .animation(.easeInOut(duration: 0.25), value: transcript.isEmpty)
+        .task(id: transcript.isEmpty) {
+            showsSuggestions = false
+            guard transcript.isEmpty else { return }
+            try? await Task.sleep(for: Self.suggestionDelay)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) { showsSuggestions = true }
+        }
     }
 
-    /// Lo que se va entendiendo, sin esperar a que se toque el micrófono:
-    /// si el monto o el concepto salen mal, se nota mientras todavía se
-    /// puede decir otra vez. Solo lectura — editar es en la revisión.
+    // MARK: - Transcripción
+
+    /// Hasta cuatro renglones; al pasarse hace scroll anclado al final, para
+    /// que lo visible sea siempre lo que se acaba de decir.
+    private var transcriptView: some View {
+        ScrollView {
+            styledTranscript
+                .lanaFont(.transcript)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .defaultScrollAnchor(.bottom)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxHeight: LanaMetrics.transcriptMaxHeight)
+        .fixedSize(horizontal: false, vertical: true)
+        // VoiceOver lee frases completas, no palabra por palabra.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(finalizedTranscript.isEmpty ? "Escuchando" : finalizedTranscript)
+    }
+
+    private var styledTranscript: Text {
+        guard !transcript.isEmpty else {
+            return Text("…").foregroundStyle(lana.ink30)
+        }
+        let finalized = transcript.hasPrefix(finalizedTranscript) ? finalizedTranscript : ""
+        let partial = String(transcript.dropFirst(finalized.count))
+        let settled = Text(finalized).foregroundStyle(lana.ink)
+        guard !partial.trimmingCharacters(in: .whitespaces).isEmpty else { return settled }
+        let pending = Text("\(partial)…").foregroundStyle(lana.ink30)
+        return Text("\(settled)\(pending)")
+    }
+
+    // MARK: - Sugerencias
+
+    @ViewBuilder
+    private var suggestionArea: some View {
+        if transcript.isEmpty, showsSuggestions {
+            TimelineView(.periodic(from: .now, by: Self.suggestionInterval)) { context in
+                let index = Int(context.date.timeIntervalSinceReferenceDate / Self.suggestionInterval)
+                    % Self.suggestions.count
+                Text("Prueba a decir: \(Self.suggestions[index])")
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink42)
+                    .multilineTextAlignment(.center)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.25), value: index)
+            }
+            .transition(.opacity)
+        }
+    }
+
+    // MARK: - Lo que llevo
+
+    /// Lo que se va entendiendo antes de terminar (ADR-0043): si el monto sale
+    /// mal, se nota mientras todavía se puede decir otra vez. Solo lectura.
     private var previewView: some View {
-        LanaCard {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                Text("Lo que llevo")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink50)
-                ForEach(preview) { draft in
-                    HStack(spacing: Space.sm.rawValue) {
-                        Text(Self.title(for: draft))
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.ink)
-                            .lineLimit(1)
-                        Spacer(minLength: Space.sm.rawValue)
-                        Text(Self.amount(for: draft))
-                            .lanaFont(.body)
-                            .monospacedDigit()
-                            .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
-                    }
+        VStack(spacing: Space.sm.rawValue) {
+            ForEach(preview) { draft in
+                HStack(spacing: Space.sm.rawValue) {
+                    Text(Self.title(for: draft))
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink70)
+                        .lineLimit(1)
+                    Spacer(minLength: Space.sm.rawValue)
+                    Text(Self.amount(for: draft))
+                        .lanaFont(.rowAmount)
+                        .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, Space.p12.rawValue)
+        .padding(.horizontal, Space.md.rawValue)
+        .background(lana.bg, in: RoundedRectangle(cornerRadius: Radius.inner.rawValue, style: .continuous))
     }
 
     private static func title(for draft: DraftTransaction) -> String {
         if !draft.concept.isEmpty {
             return draft.concept
         }
-        if !draft.category.isEmpty {
-            return draft.category
-        }
-        return "Sin concepto"
+        return draft.category.isEmpty ? "Sin concepto" : draft.category
     }
 
-    /// Un ingreso lleva su signo además del color — el color nunca es el
-    /// único portador de información (skill de theming).
+    /// Un ingreso lleva su signo además del color.
     private static func amount(for draft: DraftTransaction) -> String {
         let formatted = Money(amount: draft.amount, currency: draft.currency).formatted()
         return draft.kind == .income ? "+\(formatted)" : formatted
     }
 
-    /// El transcript crece con lo que se va diciendo, hasta donde dé la
-    /// hoja, y de ahí se desplaza. Antes era un `Text` suelto: al no caber
-    /// en el alto fijo de la hoja, SwiftUI lo cortaba en dos renglones y
-    /// puntos suspensivos, así que a media frase larga ya no había forma de
-    /// saber si lo que se dictó era lo correcto — que es justo para lo que
-    /// existe esta pantalla. `bottomID` ancla el final: cada palabra nueva
-    /// desplaza al último renglón, para que lo que se ve sea siempre lo que
-    /// se acaba de decir y no el principio de la frase.
-    private var transcriptView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    Text(transcript.isEmpty ? "…" : transcript)
-                        .lanaFont(.title)
-                        .foregroundStyle(lana.ink)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                    Color.clear
-                        .frame(height: 1)
-                        .id(Self.bottomID)
-                }
-            }
-            .frame(minHeight: 60, maxHeight: .infinity)
-            .scrollBounceBehavior(.basedOnSize)
-            .onChange(of: transcript) {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo(Self.bottomID, anchor: .bottom)
-                }
-            }
-        }
-    }
+    // MARK: - Terminar
 
-    private static let bottomID = "transcript-bottom"
+    private var stopButton: some View {
+        Button(action: onStop) {
+            RoundedRectangle(cornerRadius: Radius.swatch.rawValue, style: .continuous)
+                .fill(lana.bg)
+                .frame(width: LanaMetrics.stopGlyph, height: LanaMetrics.stopGlyph)
+                .frame(width: LanaMetrics.stopButton, height: LanaMetrics.stopButton)
+                .background(lana.ink, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Terminar de dictar")
+        .accessibilityHint("Toca para terminar")
+    }
 }
 
 #Preview {
     ScrollView {
         VStack(spacing: Space.md.rawValue) {
             ForEach(LanaTheme.allCases) { theme in
-                LanaCard {
-                    ListeningView(
-                        transcript: "gasté 300 en el súper y cobré la quincena",
-                        preview: [
-                            DraftTransaction(amount: 300, concept: "súper", category: "despensa"),
-                            DraftTransaction(kind: .income, amount: 12000, concept: "quincena")
-                        ],
-                        onStop: {},
-                        onClear: {})
-                }
-                .lanaTheme(theme)
+                ListeningView(
+                    transcript: "300 de súper y 120 en ub",
+                    finalizedTranscript: "300 de súper",
+                    level: 0.6,
+                    preview: [DraftTransaction(amount: 300, concept: "súper", category: "despensa")],
+                    onStop: {},
+                    onClear: {})
+                    .background(LanaColors(theme: theme, colorScheme: .dark).surface)
+                    .lanaTheme(theme)
             }
         }
-        .padding(Space.md.rawValue)
     }
 }

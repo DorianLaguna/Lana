@@ -107,6 +107,9 @@ public struct LanaColors: Sendable, Equatable {
     public let attentionBorder: Color
     /// Ingresos, saldos a favor, estados correctos.
     public let positive: Color
+    /// Las seis barras de la onda de voz, de izquierda a derecha: del acento a
+    /// `attention` pasando por dos violetas. Decorativo, nunca texto.
+    public let voiceWave: [Color]
 
     public init(theme: LanaTheme, colorScheme: ColorScheme) {
         let palette = theme.palette
@@ -155,7 +158,18 @@ public struct LanaColors: Sendable, Equatable {
         attentionSofter = Self.attentionDark.color.opacity(0.10)
         attentionBorder = Self.attentionDark.color.opacity(0.25)
         positive = (isDark ? Self.positiveDark : Self.positiveLight).color
+        voiceWave = [
+            accentFill,
+            accentFill,
+            Self.waveViolet.color,
+            Self.waveMagenta.color,
+            attention,
+            attention
+        ]
     }
+
+    static let waveViolet = RGBColor(hex: "#7B6CF5")
+    static let waveMagenta = RGBColor(hex: "#A55FE0")
 
     static let attentionDark = RGBColor(hex: "#F08A4B")
     static let attentionLight = RGBColor(hex: "#B24D0F")

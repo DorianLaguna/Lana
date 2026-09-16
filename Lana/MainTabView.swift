@@ -47,10 +47,14 @@ struct MainTabView: View {
     @State private var isInsightsPresented = false
     @State private var settingsModel: SettingsModel
     @State private var isCapturePresented = false
-    /// `CardsFeature` no puede construir esto (vive en `DashboardFeature`, y
-    /// las features no se importan entre sí): la app resuelve el toque desde
-    /// el detalle de una tarjeta.
-    @State private var cardsEditExpenseModel: EditExpenseModel?
+    /// El formulario de un movimiento que la app presenta por encima de las
+    /// pestañas: el toque desde el detalle de una tarjeta (`CardsFeature` no
+    /// puede construirlo) y "Agregar a mano" desde la captura.
+    @State private var appEditExpenseModel: EditExpenseModel?
+    /// "Agregar a mano" cierra la captura y abre el formulario en blanco; el
+    /// formulario se presenta cuando la hoja terminó de irse, porque dos hojas
+    /// no pueden presentarse a la vez desde la misma vista.
+    @State private var opensManualEntryAfterCapture = false
     /// El entorno real de Apple Pay, para reabrir la guía en `Mode.standalone`.
     private let environment: any ApplePayEnvironmentProbing
     /// Dispara la hoja de la guía de Apple Pay desde Tarjetas (R1.4).
@@ -58,11 +62,11 @@ struct MainTabView: View {
     /// El alto vigente de la hoja de captura.
     @State private var captureDetent: PresentationDetent = MainTabView.compactCaptureDetent
 
-    /// El alto de arranque de la hoja de captura: lo justo para "escuchando".
-    private static let compactCaptureDetent: PresentationDetent = .height(360)
+    /// El alto de arranque de la hoja de captura: un movimiento (sección 07).
+    private static let compactCaptureDetent: PresentationDetent = .height(340)
 
     /// Un escalón intermedio para que la hoja crezca acompañando al dictado.
-    private static let mediumCaptureDetent: PresentationDetent = .height(560)
+    private static let mediumCaptureDetent: PresentationDetent = .medium
 
     private func captureDetent(for height: CaptureHeight) -> PresentationDetent {
         switch height {
@@ -165,7 +169,7 @@ struct MainTabView: View {
 
             CardsView(
                 model: cardsModel,
-                onExpenseTap: { expense in cardsEditExpenseModel = dashboardModel.makeEditExpenseModel(for: expense) },
+                onExpenseTap: { expense in appEditExpenseModel = dashboardModel.makeEditExpenseModel(for: expense) },
                 onConfigureApplePay: makeConfigureApplePayHandler())
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .tag(MainTab.tarjetas)
@@ -209,6 +213,10 @@ struct MainTabView: View {
             // próxima captura arranca compacta.
             Task { await entryModel.cancel() }
             captureDetent = Self.compactCaptureDetent
+            if opensManualEntryAfterCapture {
+                opensManualEntryAfterCapture = false
+                appEditExpenseModel = dashboardModel.makeNewExpenseModel()
+            }
         }, content: {
             EntryView(
                 model: entryModel,
@@ -216,6 +224,10 @@ struct MainTabView: View {
                 onDone: {
                     isCapturePresented = false
                     Task { await refreshAfterExpenseChange() }
+                },
+                onManualEntry: {
+                    opensManualEntryAfterCapture = true
+                    isCapturePresented = false
                 },
                 // Tocar el micrófono ya ES "quiero dictar" (ADR-0018).
                 autoStartListening: true)
@@ -249,9 +261,9 @@ struct MainTabView: View {
                     .lanaTheme(settingsModel.selectedTheme)
                     .preferredColorScheme(preferredScheme)
             })
-        .sheet(item: $cardsEditExpenseModel) { editModel in
+        .sheet(item: $appEditExpenseModel) { editModel in
             EditExpenseView(model: editModel, onDone: {
-                cardsEditExpenseModel = nil
+                appEditExpenseModel = nil
                 Task { await refreshAfterExpenseChange() }
             })
             .lanaTheme(settingsModel.selectedTheme)

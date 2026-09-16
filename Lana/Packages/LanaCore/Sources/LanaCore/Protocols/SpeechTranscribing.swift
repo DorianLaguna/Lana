@@ -55,6 +55,18 @@ public protocol SpeechTranscribing: Sendable {
     /// todo el texto finalizado.
     func transcribe() -> AsyncThrowingStream<TranscriptSnapshot, Error>
     func stopTranscribing() async
+    /// Qué tan fuerte llega la voz, de 0 a 1, mientras hay una sesión de
+    /// escucha abierta. Solo es para la onda de la captura: no toca el texto
+    /// ni el parseo.
+    func audioLevels() -> AsyncStream<Float>
+}
+
+public extension SpeechTranscribing {
+    /// Sin micrófono real (tests, previews) no hay nivel que reportar: la
+    /// onda se queda en reposo.
+    func audioLevels() -> AsyncStream<Float> {
+        AsyncStream { $0.finish() }
+    }
 }
 
 /// Implementación en memoria para tests y `#Preview` — emite un transcript

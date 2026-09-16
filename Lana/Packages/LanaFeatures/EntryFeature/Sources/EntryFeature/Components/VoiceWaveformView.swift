@@ -1,76 +1,65 @@
 import LanaDesign
 import SwiftUI
 
-/// Las ondas de voz que se mueven mientras la app escucha — la señal de que
-/// hay una IA "oyendo" en vivo, no solo un micrófono encendido. Un mic que
-/// solo pulsa (como estaba `ListeningView` antes) no transmite que del otro
-/// lado hay algo procesando lo que dices; una barra de ondas en movimiento
-/// sí, es el lenguaje visual que Siri y el dictado del sistema ya enseñaron
-/// al usuario a leer como "te estoy escuchando".
-///
-/// El nivel de audio real no está expuesto por `EntryModel` (haría falta
-/// bajar hasta la capa de `LanaSpeech`), así que las alturas son un patrón
-/// orgánico generado con senoidales desfasadas contra el reloj de `TimelineView`
-/// — no reacciona a tu voz palabra por palabra, pero sí da la sensación de
-/// escucha activa y continua, que es lo que faltaba. Si más adelante se
-/// expone el nivel real, basta con alimentar `level` en `barHeight`.
+/// La onda de voz mientras la app escucha (rediseño, sección 07): seis barras
+/// que oscilan desfasadas, cada una con su ritmo, y cuya altura máxima la
+/// marca el volumen real del micrófono. Callado, la onda casi se aplana;
+/// hablando, crece — no es decorativa.
 struct VoiceWaveformView: View {
     @Environment(\.lana) private var lana
+    /// El nivel del micrófono, de 0 a 1.
+    let level: Float
 
-    /// Número de barras. Impar a propósito: la del centro es la más alta en
-    /// reposo, así el conjunto lee como un pico central y no como una fila
-    /// plana.
-    private let barCount = 7
-    private let barWidth: CGFloat = 5
-    private let spacing: CGFloat = 5
-    private let minHeight: CGFloat = 8
-    private let maxHeight: CGFloat = 40
+    /// Qué fracción del alto máximo alcanza cada barra en su pico.
+    private static let peakFractions: [Double] = [0.32, 0.62, 1, 0.8, 0.54, 0.4]
+    /// Segundos por oscilación, distintos por barra para que no suban juntas.
+    private static let periods: [Double] = [0.8, 1.05, 0.9, 1.2, 0.95, 1.1]
+    /// Lo más bajo que queda una barra dentro de su oscilación.
+    private static let minimumScale = 0.35
+    /// Cuánto se ve la onda aunque no llegue voz: casi plana, pero viva.
+    private static let restingAmplitude = 0.22
 
     var body: some View {
-        // `TimelineView(.animation)` avanza cada frame — el movimiento es
-        // continuo y fluido sin tener que manejar `@State` ni disparar
-        // animaciones a mano.
         TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: spacing) {
-                ForEach(0 ..< barCount, id: \.self) { index in
+            let time = context.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .center, spacing: Space.p5.rawValue) {
+                ForEach(Self.peakFractions.indices, id: \.self) { index in
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [lana.accent, lana.highlight],
-                                startPoint: .top,
-                                endPoint: .bottom))
-                        .frame(width: barWidth, height: barHeight(index: index, time: t))
+                        .fill(color(at: index))
+                        .frame(width: LanaMetrics.waveformBarWidth, height: barHeight(index: index, time: time))
                 }
             }
-            .frame(height: maxHeight)
+            .frame(height: LanaMetrics.waveformHeight)
         }
+        .animation(.easeOut(duration: 0.12), value: level)
         .accessibilityHidden(true)
     }
 
-    /// La altura de cada barra: dos senoidales de distinta frecuencia
-    /// sumadas y desfasadas por índice, para que las barras no suban y bajen
-    /// todas juntas (eso se vería mecánico) sino en un vaivén que parece
-    /// responder a una voz. Una envolvente en campana (`centerFalloff`) baja
-    /// las barras de los extremos, dejando el pico al centro.
+    private func color(at index: Int) -> Color {
+        lana.voiceWave.indices.contains(index) ? lana.voiceWave[index] : lana.accentFill
+    }
+
     private func barHeight(index: Int, time: TimeInterval) -> CGFloat {
-        let phase = Double(index) * 0.7
-        let wave = sin(time * 3.0 + phase) * 0.5 + sin(time * 5.3 + phase * 1.7) * 0.5
-        let normalized = (wave + 1) / 2 // 0…1
-
-        let center = Double(barCount - 1) / 2
-        let distance = abs(Double(index) - center) / center
-        let centerFalloff = 1 - distance * 0.45
-
-        return minHeight + (maxHeight - minHeight) * normalized * centerFalloff
+        let phase = Double(index) * 0.9
+        let wave = 0.5 + 0.5 * sin(time * 2 * .pi / Self.periods[index] + phase)
+        let oscillation = Self.minimumScale + (1 - Self.minimumScale) * wave
+        let clampedLevel = Double(min(max(level, 0), 1))
+        let amplitude = Self.restingAmplitude + (1 - Self.restingAmplitude) * clampedLevel
+        let height = LanaMetrics.waveformHeight * Self.peakFractions[index] * oscillation * amplitude
+        return max(LanaMetrics.waveformBarWidth, height)
     }
 }
 
 #Preview {
-    ForEach(LanaTheme.allCases) { theme in
-        VoiceWaveformView()
+    VStack(spacing: Space.lg.rawValue) {
+        ForEach(LanaTheme.allCases) { theme in
+            HStack(spacing: Space.xl.rawValue) {
+                VoiceWaveformView(level: 0)
+                VoiceWaveformView(level: 0.8)
+            }
             .padding()
-            .background(LanaColors(theme: theme, colorScheme: .dark).bg)
+            .background(LanaColors(theme: theme, colorScheme: .dark).surface)
             .lanaTheme(theme)
+        }
     }
 }

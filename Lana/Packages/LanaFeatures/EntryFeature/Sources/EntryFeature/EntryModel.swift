@@ -56,13 +56,22 @@ public final class EntryModel {
     public private(set) var allSubcategories: [String: [String]] = [:]
     /// El último error, si algo falló al escuchar, parsear o guardar.
     public private(set) var errorMessage: String?
+    /// Qué tan fuerte llega la voz, de 0 a 1, mientras se escucha. Mueve la
+    /// onda: tiene que responder al micrófono real, no ser decorativa
+    /// (rediseño, sección 07). Vuelve a 0 al terminar. `internal(set)`: lo
+    /// escribe `EntryModelAudioLevel.swift`, igual que `liveDrafts`.
+    public internal(set) var audioLevel: Float = 0
+    /// La parte de `inputText` que el reconocedor ya no va a reescribir. Lo
+    /// que sigue después es la palabra en curso, que se dibuja apagada.
+    public private(set) var finalizedTranscript = ""
 
     /// Interno y no privado, igual que el estado de escucha de abajo: lo usa
     /// el parseo en vivo, que vive en `EntryModelLivePreview.swift`.
     let parser: any ExpenseParsing
     private let store: any ExpenseStore
     private let cardStore: any CardStore
-    private let speech: any SpeechTranscribing
+    /// No `private`: `EntryModelAudioLevel.swift` abre su stream de niveles.
+    let speech: any SpeechTranscribing
     private let vocabularyStore: any CorrectionVocabularyStore
     private let sharedListStore: any SharedListStore
     /// Las listas compartidas del usuario — para resolver
@@ -94,6 +103,9 @@ public final class EntryModel {
     /// el de la frase completa. Mientras corre uno, los pedidos nuevos solo
     /// actualizan `latestLiveRequest` y el loop toma el último al terminar.
     var liveParseTask: Task<Void, Never>?
+    /// Lee el nivel del micrófono mientras dura la sesión de escucha. No
+    /// `private`: lo maneja `EntryModelAudioLevel.swift`.
+    var levelTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - parser: cómo se convierte el texto en transacciones candidatas.
@@ -176,8 +188,10 @@ public final class EntryModel {
 
         errorMessage = nil
         inputText = ""
+        finalizedTranscript = ""
         resetLivePreview()
         stage = .listening
+        startLevelMonitoring()
         do {
             for try await snapshot in speech.transcribe() {
                 // `clearTranscript()` pudo haber invalidado esta sesión y
@@ -187,10 +201,12 @@ public final class EntryModel {
                 // usuario ya había borrado.
                 guard generation == listeningGeneration else { return }
                 inputText = snapshot.text
+                finalizedTranscript = snapshot.finalizedText
                 requestLiveParse(of: snapshot.finalizedText, generation: generation)
             }
         } catch {
             guard generation == listeningGeneration else { return }
+            stopLevelMonitoring()
             errorMessage = error.localizedDescription
             resetLivePreview()
             stage = .composing
@@ -198,6 +214,7 @@ public final class EntryModel {
         }
 
         guard generation == listeningGeneration else { return }
+        stopLevelMonitoring()
         await finishListening(generation: generation)
     }
 
@@ -326,42 +343,6 @@ public final class EntryModel {
         }
     }
 
-    /// Cuánto alto pide la hoja de captura ahora mismo. Vive aquí y no en
-    /// la vista por la misma razón que `stage`: es una consecuencia de en
-    /// qué punto va la captura, no una decisión de presentación.
-    ///
-    /// Antes esto era binario (compacta o pantalla completa) y el salto se
-    /// sentía brusco: a la palabra 50 la hoja pegaba un brinco a ocupar toda
-    /// la pantalla. Ahora crece por escalones, acompañando lo que se va
-    /// diciendo:
-    ///
-    /// - **Revisando**: los campos de `DraftCard` no caben; toda la pantalla.
-    /// - **Escuchando**: sube de compacta a media cuando el transcript pasa
-    ///   de dos renglones (~50 caracteres a `.title` centrado), y de media a
-    ///   completa solo cuando de verdad ya es una frase larga. El umbral es
-    ///   por número de caracteres, no por renglones medidos.
-    public var captureHeight: CaptureHeight {
-        switch stage {
-        case .reviewing, .saving:
-            .full
-        case .listening:
-            switch inputText.count {
-            case ...Self.transcriptLengthForMediumSheet:
-                // El preview en vivo no cabe en la hoja compacta.
-                liveDrafts.isEmpty ? .compact : .medium
-            case ...Self.transcriptLengthForFullSheet:
-                .medium
-            default:
-                .full
-            }
-        case .checkingAvailability, .unavailable, .composing, .parsing, .saved:
-            .compact
-        }
-    }
-
-    private static let transcriptLengthForMediumSheet = 50
-    private static let transcriptLengthForFullSheet = 140
-
     /// La hoja de captura se cerró sin confirmar — arrastrándola hacia
     /// abajo, o después de guardar. Corta el dictado en curso y deja el
     /// modelo listo para la próxima vez.
@@ -374,6 +355,7 @@ public final class EntryModel {
     /// sin tocar nada.
     public func cancel() async {
         listeningGeneration += 1
+        stopLevelMonitoring()
         await speech.stopTranscribing()
         startOver()
     }

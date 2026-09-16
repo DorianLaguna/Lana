@@ -154,11 +154,15 @@ struct EntryModelSheetHeightTests {
         }
         #expect(model.captureHeight == .medium)
 
-        // Solo una frase de verdad larga pide toda la pantalla.
+        // Solo una frase de verdad larga pide toda la pantalla: lo que mide
+        // este dictado son sus caracteres, y tiene que pasar de
+        // `transcriptLengthForFullSheet` (140). La versión anterior se quedaba
+        // en 133 y el `while` de abajo no podía terminar nunca.
         await speech.yield(
             """
             gasté 300 en el súper y 150 en la gasolina y otros 200 en la farmacia \
-            de la esquina y luego 500 en la cena con los amigos del trabajo
+            de la esquina y luego 500 en la cena con los amigos del trabajo y otros \
+            120 en el uber de regreso
             """)
         while model.captureHeight != .full {
             await Task.yield()
@@ -204,6 +208,33 @@ actor ControllableSpeechTranscribing: SpeechTranscribing {
     private var continuation: AsyncThrowingStream<TranscriptSnapshot, Error>.Continuation?
     /// Lo dictado antes de que la continuation llegue al actor — ver `yield`.
     private var pending: [TranscriptSnapshot] = []
+    private var levelContinuation: AsyncStream<Float>.Continuation?
+    /// El último nivel enviado antes de que alguien escuchara — misma ventana
+    /// que `pending`.
+    private var pendingLevel: Float?
+
+    nonisolated func audioLevels() -> AsyncStream<Float> {
+        AsyncStream { continuation in
+            Task { await self.storeLevels(continuation) }
+        }
+    }
+
+    private func storeLevels(_ continuation: AsyncStream<Float>.Continuation) {
+        levelContinuation = continuation
+        if let pendingLevel {
+            continuation.yield(pendingLevel)
+            self.pendingLevel = nil
+        }
+    }
+
+    /// Simula el micrófono oyendo voz a cierto volumen.
+    func sendLevel(_ level: Float) {
+        guard let levelContinuation else {
+            pendingLevel = level
+            return
+        }
+        levelContinuation.yield(level)
+    }
 
     func requestPermission() async -> SpeechAvailability {
         .available

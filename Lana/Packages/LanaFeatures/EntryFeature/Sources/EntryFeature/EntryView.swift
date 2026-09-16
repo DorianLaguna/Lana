@@ -2,43 +2,62 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// La pantalla de captura. Sin lógica propia — refleja `EntryModel.stage` y
-/// llama a sus métodos (Docs/ARCHITECTURE.md). Tres pasos: abrir, escribir,
-/// confirmar (Docs/PLAN.md → Fase 5).
+/// La hoja de captura (rediseño, secciones 07 y 08). Sin lógica propia —
+/// refleja `EntryModel.stage` y llama a sus métodos.
 public struct EntryView: View {
     @Environment(\.lana) private var lana
     @Bindable private var model: EntryModel
     private let onOpenSettings: () -> Void
     private let onDone: () -> Void
-    /// Arranca a escuchar en cuanto la pantalla aparece, sin esperar a que
-    /// el usuario toque el micrófono de adentro. La app lo pasa siempre en
-    /// `true` — se llegue por el micrófono flotante o por el widget
-    /// (ADR-0018), quien abrió esta hoja ya dijo que quiere dictar. Sigue
-    /// siendo un parámetro para los `#Preview`, que no quieren pedir
-    /// permiso de micrófono al renderizarse.
+    private let onManualEntry: () -> Void
+    /// Arranca a escuchar en cuanto la hoja aparece: se llegue por el
+    /// micrófono de la barra o por el widget (ADR-0018), quien la abrió ya
+    /// dijo que quiere dictar. Parámetro solo para los `#Preview`, que no
+    /// quieren pedir permiso de micrófono.
     private let autoStartListening: Bool
 
+    /// - Parameters:
+    ///   - onOpenSettings: abre los Ajustes del sistema (permiso de micrófono,
+    ///     Apple Intelligence).
+    ///   - onDone: se guardó; la app cierra la hoja y refresca.
+    ///   - onManualEntry: "Agregar a mano" — el mismo formulario en blanco, sin
+    ///     IA. La salida cuando no se puede hablar o dictar no está disponible.
     public init(
         model: EntryModel,
         onOpenSettings: @escaping () -> Void,
         onDone: @escaping () -> Void,
+        onManualEntry: @escaping () -> Void = {},
         autoStartListening: Bool = false) {
         self.model = model
         self.onOpenSettings = onOpenSettings
         self.onDone = onDone
+        self.onManualEntry = onManualEntry
         self.autoStartListening = autoStartListening
     }
 
     public var body: some View {
-        VStack(spacing: Space.md.rawValue) {
+        VStack(spacing: 0) {
+            if showsManualEntryShortcut {
+                HStack {
+                    Spacer()
+                    Button("Agregar a mano", action: onManualEntry)
+                        .lanaFont(.callout)
+                        .foregroundStyle(lana.accent)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: LanaMetrics.minTouchTarget)
+                }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.sm.rawValue)
+            }
             content
+                .frame(maxHeight: .infinity, alignment: .top)
         }
-        .padding(Space.md.rawValue)
-        // Llena toda la hoja, no solo lo que el contenido necesita — si no,
-        // el resto de la hoja se queda con el blanco propio de iOS en vez
-        // del de `LanaDesign`, y se nota la costura entre los dos.
+        // Llena toda la hoja: si no, el resto se queda con el fondo propio de
+        // iOS y se nota la costura.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(lana.bg)
+        .background(lana.surface)
+        .animation(.spring(response: 0.4, dampingFraction: 0.82), value: model.stage)
+        .sensoryFeedback(.success, trigger: model.stage) { _, stage in stage == .saved }
         .task { await model.onAppear(startListening: autoStartListening) }
         .onChange(of: model.stage) {
             if model.stage == .saved {
@@ -47,21 +66,35 @@ public struct EntryView: View {
         }
     }
 
+    /// Mientras se revisa, la salida manual ya no hace falta: hay borradores.
+    private var showsManualEntryShortcut: Bool {
+        switch model.stage {
+        case .composing, .listening, .parsing: true
+        case .checkingAvailability, .unavailable, .reviewing, .saving, .saved: false
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         switch model.stage {
         case .checkingAvailability:
             ProgressView()
+                .padding(.top, Space.p40.rawValue)
         case let .unavailable(availability):
             AvailabilityOnboardingView(
                 availability: availability,
                 onOpenSettings: onOpenSettings,
-                onRetry: { await model.retryAvailability() })
-        case .composing, .parsing:
+                onRetry: { await model.retryAvailability() },
+                onManualEntry: onManualEntry)
+        case .composing:
             composingView
+        case .parsing:
+            ParsingIndicatorView()
         case .listening:
             ListeningView(
                 transcript: model.inputText,
+                finalizedTranscript: model.finalizedTranscript,
+                level: model.audioLevel,
                 preview: model.liveDrafts,
                 onStop: { Task { await model.stopListening() } },
                 onClear: { Task { await model.clearTranscript() } })
@@ -72,90 +105,71 @@ public struct EntryView: View {
         }
     }
 
+    // MARK: - Sin escuchar
+
+    /// Aquí se llega si el dictado no arrancó (sin permiso, sin soporte) o si
+    /// terminó sin entender nada.
+    @ViewBuilder
     private var composingView: some View {
-        VStack(spacing: Space.lg.rawValue) {
-            if model.stage == .parsing {
-                ParsingIndicatorView()
-            } else {
-                Button {
-                    Task { await model.startListening() }
-                } label: {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white)
-                        .frame(width: 68, height: 68)
-                        .background(
-                            LinearGradient(
-                                colors: [lana.accent, lana.highlight],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing),
-                            in: Circle())
-                }
-                .buttonStyle(.plain)
-            }
+        switch model.speechAvailability {
+        case .permissionDenied, .restricted:
+            EmptyStateView(
+                systemImage: "mic.slash",
+                title: "Lana no puede oírte",
+                message: "Dale acceso al micrófono para dictar tus movimientos.",
+                actionTitle: "Abrir Ajustes",
+                action: onOpenSettings,
+                secondaryActionTitle: "Agregar a mano",
+                secondaryAction: onManualEntry)
+        case .unavailable:
+            EmptyStateView(
+                systemImage: "mic.slash",
+                title: "Este iPhone no puede dictar en español",
+                message: "Puedes registrar tus movimientos a mano; todo lo demás funciona igual.",
+                actionTitle: "Agregar a mano",
+                action: onManualEntry)
+        case .available, .permissionNotDetermined:
+            idleView
+        }
+    }
 
-            if let speechUnavailableMessage {
-                VStack(spacing: Space.xs.rawValue) {
-                    Text(speechUnavailableMessage)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.ink50)
-                        .multilineTextAlignment(.center)
-                    if model.speechAvailability == .permissionDenied || model.speechAvailability == .restricted {
-                        Button("Abrir Ajustes", action: onOpenSettings)
-                    }
-                }
-            } else if model.stage == .composing {
-                suggestionText
-            }
-
+    private var idleView: some View {
+        VStack(spacing: Space.p18.rawValue) {
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.attention)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink70)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: LanaMetrics.emptyStateMaxWidth)
             }
+
+            Button {
+                Task { await model.startListening() }
+            } label: {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: LanaMetrics.stopGlyph, weight: .semibold))
+                    .foregroundStyle(lana.onAccent)
+                    .frame(width: LanaMetrics.stopButton, height: LanaMetrics.stopButton)
+                    .background(lana.accentFill, in: Circle())
+                    .shadow(color: lana.accentShadow, radius: Space.p9.rawValue, y: Space.p6.rawValue)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dictar un movimiento")
+
+            Text("Toca para dictar · todo en tu teléfono")
+                .lanaFont(.detail)
+                .foregroundStyle(lana.ink42)
         }
+        .padding(.top, Space.p40.rawValue)
+        .padding(.horizontal, Space.p28.rawValue)
     }
 
-    private static let suggestionExamples = [
-        "gasté 300 en súper",
-        "Uber 150",
-        "cobré la quincena",
-        "300 en gasolina con la Nu"
-    ]
-
-    /// Rota cada 5 segundos con un fundido, no un salto — el mismo espíritu
-    /// del placeholder rotativo del mockup aprobado, y responde a "no veo
-    /// dónde meter mis ingresos" mostrando un ejemplo de cobro, no solo de
-    /// gasto.
-    private var suggestionText: some View {
-        TimelineView(.periodic(from: .now, by: 5)) { context in
-            let index = Int(context.date.timeIntervalSinceReferenceDate / 5) % Self.suggestionExamples.count
-            Text("Prueba a decir: \"\(Self.suggestionExamples[index])\"")
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
-                .multilineTextAlignment(.center)
-                .contentTransition(.opacity)
-                .animation(.easeInOut(duration: 0.6), value: index)
-        }
-    }
-
-    private var speechUnavailableMessage: String? {
-        switch model.speechAvailability {
-        case .permissionDenied:
-            "Activa el micrófono y el dictado en Ajustes para hablar en vez de escribir."
-        case .restricted:
-            "La captura por voz está restringida en este dispositivo."
-        case .unavailable:
-            "Este dispositivo no puede transcribir voz en el idioma actual sin conexión."
-        case .permissionNotDetermined, .available:
-            nil
-        }
-    }
+    // MARK: - Revisar
 
     private var reviewingView: some View {
         VStack(spacing: Space.md.rawValue) {
             ScrollView {
-                VStack(spacing: Space.sm.rawValue) {
+                VStack(spacing: Space.p12.rawValue) {
                     ForEach($model.drafts) { $draft in
                         DraftCard(
                             draft: $draft,
@@ -166,11 +180,13 @@ public struct EntryView: View {
                             onDelete: model.drafts.count > 1 ? { model.removeDraft(id: draft.id) } : nil)
                     }
                 }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.p14.rawValue)
             }
 
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.attention)
             }
 
@@ -179,11 +195,15 @@ public struct EntryView: View {
             } label: {
                 if model.stage == .saving {
                     ProgressView()
+                        .tint(lana.onAccent)
                 } else {
-                    Text("Confirmar")
+                    Text(model.drafts.count > 1 ? "Guardar los \(model.drafts.count)" : "Guardar")
                 }
             }
+            .buttonStyle(.lana(size: .large, isExpanded: true))
             .disabled(model.stage == .saving)
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.bottom, Space.p40.rawValue)
         }
     }
 }

@@ -39,6 +39,8 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
     /// acababa de abrir. También invalida un arranque que sigue esperando
     /// (bajar el modelo del idioma tarda) si alguien detiene a la mitad.
     private var currentSession: UUID?
+    /// El nivel del micrófono sale del hilo de audio, no de este actor.
+    private let levels = AudioLevelBroadcaster()
 
     public init(locale: Locale = Locale(identifier: "es-MX")) {
         self.locale = locale
@@ -104,6 +106,12 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         await stop(session: session)
     }
 
+    /// Se mide en el mismo tap que alimenta al analizador: la onda responde a
+    /// la voz real sin abrir un segundo camino de audio.
+    public nonisolated func audioLevels() -> AsyncStream<Float> {
+        levels.stream()
+    }
+
     private func start(
         session: UUID,
         continuation: AsyncThrowingStream<TranscriptSnapshot, Error>.Continuation) async {
@@ -156,7 +164,11 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
             self.audioInput = audioInput
             try await analyzer.start(inputSequence: inputSequence)
             guard currentSession == session else { return }
-            try Self.startAudio(engine: audioEngine, analyzerFormat: analyzerFormat, feeding: audioInput)
+            try Self.startAudio(
+                engine: audioEngine,
+                analyzerFormat: analyzerFormat,
+                feeding: audioInput,
+                levels: levels)
         } catch {
             await fail(session: session, error: error)
         }
@@ -171,6 +183,7 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         currentSession = nil
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        levels.send(0)
         audioInput?.finish()
         audioInput = nil
         if let analyzer {
@@ -185,6 +198,7 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         currentSession = nil
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        levels.send(0)
         audioInput?.finish()
         audioInput = nil
         await analyzer?.cancelAndFinishNow()
@@ -216,7 +230,8 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
     private nonisolated static func startAudio(
         engine: AVAudioEngine,
         analyzerFormat: AVAudioFormat,
-        feeding audioInput: AsyncStream<AnalyzerInput>.Continuation) throws {
+        feeding audioInput: AsyncStream<AnalyzerInput>.Continuation,
+        levels: AudioLevelBroadcaster) throws {
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         guard let converter = BufferConverter(from: inputFormat, to: analyzerFormat) else {
@@ -224,6 +239,7 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         }
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { buffer, _ in
+            levels.send(AudioLevelBroadcaster.level(of: buffer))
             guard let converted = converter.convert(buffer) else { return }
             audioInput.yield(AnalyzerInput(buffer: converted))
         }
@@ -248,6 +264,43 @@ public actor AppleSpeechTranscribing: SpeechTranscribing {
         @unknown default:
             .unavailable
         }
+    }
+}
+
+/// Reparte el nivel del micrófono desde el hilo de audio a quien lo escuche
+/// (la onda de voz de la captura). Un solo oyente a la vez: abrir la captura
+/// otra vez reemplaza al anterior. `@unchecked Sendable` porque todo acceso
+/// pasa por el candado.
+private final class AudioLevelBroadcaster: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: AsyncStream<Float>.Continuation?
+
+    func stream() -> AsyncStream<Float> {
+        let (stream, continuation) = AsyncStream.makeStream(of: Float.self, bufferingPolicy: .bufferingNewest(1))
+        lock.withLock {
+            self.continuation?.finish()
+            self.continuation = continuation
+        }
+        return stream
+    }
+
+    func send(_ level: Float) {
+        let continuation = lock.withLock { self.continuation }
+        continuation?.yield(level)
+    }
+
+    /// El RMS del buffer en una escala de 0 a 1: de −50 dB (silencio de
+    /// cuarto) a 0 dB. Lineal en decibeles porque así se oye la voz.
+    static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        let count = Int(buffer.frameLength)
+        var sum: Float = 0
+        for index in 0 ..< count {
+            sum += channel[index] * channel[index]
+        }
+        let rms = (sum / Float(count)).squareRoot()
+        let decibels = 20 * log10(max(rms, 0.000_01))
+        return min(max((decibels + 50) / 50, 0), 1)
     }
 }
 
