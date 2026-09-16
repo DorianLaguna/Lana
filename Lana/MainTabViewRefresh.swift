@@ -1,5 +1,6 @@
 import CardsFeature
 import DashboardFeature
+import EntryFeature
 import LanaCore
 import SharedFeature
 import SwiftUI
@@ -52,6 +53,18 @@ extension MainTabView {
         await cardsModel.refreshCurrentCardDetail()
         // El gasto puede ser compartido.
         await sharedListModel.refreshCurrentDetail()
+    }
+
+    /// La bandeja se arma con lo que el mes visible ya marcó por revisar y con
+    /// los catálogos que la captura ya cargó (tarjetas, subcategorías, listas),
+    /// para que sus chips digan "Crédito Nu" y no solo "Crédito".
+    func makeReviewTrayModel() -> ReviewTrayModel {
+        ReviewTrayModel(
+            expenses: dashboardModel.needsReviewItems,
+            store: store,
+            cards: dashboardModel.cards,
+            allSubcategories: entryModel.allSubcategories,
+            sharedLists: entryModel.sharedLists)
     }
 
     func openSettings() {

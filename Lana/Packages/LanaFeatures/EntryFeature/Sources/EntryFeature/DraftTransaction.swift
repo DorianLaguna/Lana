@@ -31,6 +31,10 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
     public var payer: ParticipantID?
     public var split: SplitRule?
     public var needsReview: Bool
+    /// De qué recurrente salió el movimiento, si salió de uno. Viaja con el
+    /// borrador para que confirmarlo desde la bandeja no lo desligue: el
+    /// recurrente se da por registrado justamente por este enlace (ADR-0042).
+    public var recurringItemID: RecurringItemID?
 
     public init(
         id: ExpenseID = ExpenseID(),
@@ -45,7 +49,9 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         sharedListID: SharedListID? = nil,
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
-        needsReview: Bool = false) {
+        needsReview: Bool = false,
+        recurringItemID: RecurringItemID? = nil) {
+        self.recurringItemID = recurringItemID
         self.id = id
         self.kind = kind
         self.amount = amount
@@ -62,8 +68,31 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         self.needsReview = needsReview
     }
 
+    /// Un movimiento ya guardado que vuelve a revisión (la bandeja de "Por
+    /// revisar", rediseño sección 08). Conserva su `id` y todo lo que el
+    /// borrador no edita, para que confirmarlo emita una corrección del mismo
+    /// movimiento y no cree uno nuevo.
+    public init(expense: Expense) {
+        id = expense.id
+        kind = expense.kind
+        amount = expense.amount.amount
+        currency = expense.amount.currency
+        concept = expense.concept
+        category = expense.category ?? ""
+        originalCategory = expense.category ?? ""
+        subcategory = expense.subcategory ?? ""
+        date = expense.date
+        paymentMethod = expense.paymentMethod ?? .cash
+        sharedListID = expense.sharedListID
+        payer = expense.payer
+        split = expense.split
+        needsReview = expense.needsReview
+        recurringItemID = expense.recurringItemID
+    }
+
     public init(result: ParseResult, fallbackDate: Date) {
         id = ExpenseID()
+        recurringItemID = nil
         kind = result.kind
         amount = result.amount?.amount ?? 0
         currency = result.amount?.currency ?? .mxn
@@ -103,6 +132,7 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
             needsReview: needsReview,
             sharedListID: sharedListID,
             payer: payer,
-            split: split)
+            split: split,
+            recurringItemID: recurringItemID)
     }
 }

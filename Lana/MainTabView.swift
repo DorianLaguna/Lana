@@ -34,7 +34,10 @@ struct MainTabView: View {
     /// Cambia cada vez que se vuelve a Hoy, para regresar su scroll arriba.
     @State private var todayScrollTrigger = 0
     @State private var chrome = LanaChrome()
-    @State private var entryModel: EntryModel
+    /// `internal`, como los modelos de abajo: `MainTabViewRefresh.swift` arma
+    /// la bandeja con los catálogos que la captura ya cargó, y `private` no
+    /// cruza de archivo.
+    @State var entryModel: EntryModel
     /// Los modelos que refresca `MainTabViewRefresh.swift` son `internal`:
     /// `private` no cruza de archivo.
     @State var dashboardModel: DashboardModel
@@ -55,6 +58,13 @@ struct MainTabView: View {
     /// formulario se presenta cuando la hoja terminó de irse, porque dos hojas
     /// no pueden presentarse a la vez desde la misma vista.
     @State private var opensManualEntryAfterCapture = false
+    /// La bandeja "Por revisar", que se abre desde Hoy. Vive en
+    /// `EntryFeature` —es la misma hoja de revisión de la captura— y
+    /// `DashboardFeature` no puede importarla, así que la presenta la app.
+    @State private var reviewTrayModel: IdentifiedModel<ReviewTrayModel>?
+    /// De dónde salen los movimientos que la bandeja confirma. `internal` por
+    /// lo mismo que `entryModel`.
+    let store: any ExpenseStore
     /// El entorno real de Apple Pay, para reabrir la guía en `Mode.standalone`.
     private let environment: any ApplePayEnvironmentProbing
     /// Dispara la hoja de la guía de Apple Pay desde Tarjetas (R1.4).
@@ -78,6 +88,7 @@ struct MainTabView: View {
 
     init(dependencies: AppDependencies, environment: any ApplePayEnvironmentProbing) {
         self.environment = environment
+        store = dependencies.store
         _guidePresenter = State(initialValue: ApplePayGuidePresenter())
         _entryModel = State(initialValue: EntryModel(
             parser: dependencies.parser,
@@ -147,6 +158,7 @@ struct MainTabView: View {
                 onRefresh: refreshDashboard,
                 onOpenMonth: { selectedTab = .mes },
                 onOpenCards: { selectedTab = .tarjetas },
+                onOpenReview: { reviewTrayModel = IdentifiedModel(makeReviewTrayModel()) },
                 onExpenseChanged: { Task { await refreshAfterExpenseChange() } },
                 settings: {
                     SettingsView(
@@ -264,6 +276,15 @@ struct MainTabView: View {
                     .lanaTheme(settingsModel.selectedTheme)
                     .preferredColorScheme(preferredScheme)
             })
+        .sheet(item: $reviewTrayModel) { identified in
+            ReviewTrayView(model: identified.value, onDone: {
+                reviewTrayModel = nil
+                Task { await refreshAfterExpenseChange() }
+            })
+            .presentationDragIndicator(.visible)
+            .lanaTheme(settingsModel.selectedTheme)
+            .preferredColorScheme(preferredScheme)
+        }
         .sheet(item: $appEditExpenseModel) { editModel in
             EditExpenseView(model: editModel, onDone: {
                 appEditExpenseModel = nil

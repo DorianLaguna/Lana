@@ -2,10 +2,11 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// A dónde se navega desde Hoy.
+/// A dónde se navega desde Hoy. La bandeja "Por revisar" no está aquí: es una
+/// hoja de `EntryFeature`, que esta feature no puede importar, así que la
+/// presenta la app.
 private enum TodayDestination: Hashable {
     case settings
-    case review
 }
 
 /// Hoy: responde una sola pregunta — cuánto me queda y cuánto puedo gastar
@@ -22,6 +23,7 @@ public struct TodayView<Settings: View>: View {
     private let onRefresh: () async -> Void
     private let onOpenMonth: () -> Void
     private let onOpenCards: () -> Void
+    private let onOpenReview: () -> Void
     private let onExpenseChanged: () -> Void
     private let settings: () -> Settings
 
@@ -36,6 +38,7 @@ public struct TodayView<Settings: View>: View {
     ///     la app.
     ///   - onOpenMonth: cambia a la pestaña Mes.
     ///   - onOpenCards: cambia a la pestaña Tarjetas.
+    ///   - onOpenReview: abre la bandeja de lo que quedó por revisar.
     ///   - onExpenseChanged: se editó o borró un movimiento desde aquí.
     ///   - settings: Ajustes vive en otra feature; la app lo construye y Hoy
     ///     lo empuja desde el avatar.
@@ -46,6 +49,7 @@ public struct TodayView<Settings: View>: View {
         onRefresh: @escaping () async -> Void = {},
         onOpenMonth: @escaping () -> Void = {},
         onOpenCards: @escaping () -> Void = {},
+        onOpenReview: @escaping () -> Void = {},
         onExpenseChanged: @escaping () -> Void = {},
         @ViewBuilder settings: @escaping () -> Settings) {
         self.model = model
@@ -54,6 +58,7 @@ public struct TodayView<Settings: View>: View {
         self.onRefresh = onRefresh
         self.onOpenMonth = onOpenMonth
         self.onOpenCards = onOpenCards
+        self.onOpenReview = onOpenReview
         self.onExpenseChanged = onExpenseChanged
         self.settings = settings
     }
@@ -87,8 +92,6 @@ public struct TodayView<Settings: View>: View {
                 switch destination {
                 case .settings:
                     settings()
-                case .review:
-                    reviewScreen
                 }
             }
             .sheet(item: $editExpenseModel) { editModel in
@@ -155,7 +158,7 @@ public struct TodayView<Settings: View>: View {
 
         let reviewCount = model.needsReviewItems.count
         if reviewCount > 0 {
-            ReviewPromptRow(count: reviewCount) { path.append(.review) }
+            ReviewPromptRow(count: reviewCount, action: onOpenReview)
                 .padding(.bottom, Space.p28.rawValue)
         } else {
             Spacer()
@@ -211,23 +214,6 @@ public struct TodayView<Settings: View>: View {
             title: "Aún no registras nada de \(LanaDateFormat.monthNameLowercased(model.month))",
             message: "Toca el micrófono y di, por ejemplo, 300 de súper.")
             .padding(.top, Space.xxl.rawValue)
-    }
-
-    // MARK: - Por revisar
-
-    /// La bandeja provisional: la hoja de revisión del rediseño (sección 08,
-    /// modo bandeja) la reemplaza.
-    private var reviewScreen: some View {
-        ScrollView {
-            MovementRows(expenses: model.needsReviewItems, model: model) { expense in
-                editExpenseModel = model.makeEditExpenseModel(for: expense)
-            }
-            .padding(.horizontal, LanaMetrics.screenMargin)
-            .tabBarClearance()
-        }
-        .background(lana.bg)
-        .navigationTitle("Por revisar")
-        .lanaInlineNavigationTitle()
     }
 }
 
