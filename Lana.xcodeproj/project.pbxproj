@@ -15,7 +15,6 @@
 		11A74AAB303F8B80007CE1D5 /* LanaDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AAA303F8B80007CE1D5 /* LanaDesign */; };
 		11A74AAE303F8BE1007CE1D5 /* EntryFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AAD303F8BE1007CE1D5 /* EntryFeature */; };
 		11A74AB1303F8BF2007CE1D5 /* DashboardFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB0303F8BF2007CE1D5 /* DashboardFeature */; };
-		11A74AB4303F8C07007CE1D5 /* BudgetsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB3303F8C07007CE1D5 /* BudgetsFeature */; };
 		11A74AB7303F8C23007CE1D5 /* SharedFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB6303F8C23007CE1D5 /* SharedFeature */; };
 		11A74ABA303F8C36007CE1D5 /* CardsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74AB9303F8C36007CE1D5 /* CardsFeature */; };
 		11A74ABD303F8C45007CE1D5 /* InsightsFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 11A74ABC303F8C45007CE1D5 /* InsightsFeature */; };
@@ -135,7 +134,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				11A74AB4303F8C07007CE1D5 /* BudgetsFeature in Frameworks */,
 				11A74AAB303F8B80007CE1D5 /* LanaDesign in Frameworks */,
 				11A74ABD303F8C45007CE1D5 /* InsightsFeature in Frameworks */,
 				11A74AD330406A6C007CE1D5 /* LanaSpeech in Frameworks */,
@@ -257,7 +255,6 @@
 				11A74AAA303F8B80007CE1D5 /* LanaDesign */,
 				11A74AAD303F8BE1007CE1D5 /* EntryFeature */,
 				11A74AB0303F8BF2007CE1D5 /* DashboardFeature */,
-				11A74AB3303F8C07007CE1D5 /* BudgetsFeature */,
 				11A74AB6303F8C23007CE1D5 /* SharedFeature */,
 				11A74AB9303F8C36007CE1D5 /* CardsFeature */,
 				11A74ABC303F8C45007CE1D5 /* InsightsFeature */,
@@ -333,7 +330,6 @@
 				11A74AA9303F8B80007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaDesign" */,
 				11A74AAC303F8BE1007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/EntryFeature" */,
 				11A74AAF303F8BF2007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/DashboardFeature" */,
-				11A74AB2303F8C07007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/BudgetsFeature" */,
 				11A74AB5303F8C23007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SharedFeature" */,
 				11A74AB8303F8C36007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/CardsFeature" */,
 				11A74ABB303F8C45007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/InsightsFeature" */,
@@ -766,10 +762,6 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Lana/Packages/LanaFeatures/DashboardFeature;
 		};
-		11A74AB2303F8C07007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/BudgetsFeature" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Lana/Packages/LanaFeatures/BudgetsFeature;
-		};
 		11A74AB5303F8C23007CE1D5 /* XCLocalSwiftPackageReference "Lana/Packages/LanaFeatures/SharedFeature" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Lana/Packages/LanaFeatures/SharedFeature;
@@ -828,10 +820,6 @@
 		11A74AB0303F8BF2007CE1D5 /* DashboardFeature */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DashboardFeature;
-		};
-		11A74AB3303F8C07007CE1D5 /* BudgetsFeature */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = BudgetsFeature;
 		};
 		11A74AB6303F8C23007CE1D5 /* SharedFeature */ = {
 			isa = XCSwiftPackageProductDependency;

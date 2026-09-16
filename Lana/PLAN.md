@@ -37,6 +37,7 @@ Cada decisión de diseño se mide contra eso.
 | Consultas | Seis tools deterministas; el modelo elige y narra, no calcula | 0038 |
 | Disponible | Periodo anclado al sueldo; saldo derivado de lo registrado | 0039 |
 | Categorías de ingreso | Catálogo propio de ocho, asignadas a mano, no por el parser | 0040 |
+| Presupuesto por categoría | Sección de Mes en `DashboardFeature`, sin paquete propio | 0048 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
 
@@ -104,10 +105,10 @@ Lana/
 │   └── LanaFeatures/
 │       ├── EntryFeature/
 │       ├── DashboardFeature/
-│       ├── BudgetsFeature/
 │       ├── SharedFeature/
 │       ├── CardsFeature/
 │       ├── InsightsFeature/
+│       ├── OnboardingFeature/
 │       └── SettingsFeature/
 ├── Docs/
 ├── Tests/Fixtures/
@@ -412,9 +413,11 @@ pagos) también quedó resuelto aquí vía `CardPaymentStore`/
 - [ ] CRUD mensual por categoría, con avance
 - [ ] Presentación como dato, sin tono de regaño
 
-**Estado (auditoría 2026-08-27):** `BudgetsFeature` sigue siendo un
-scaffold puro (`enum BudgetsFeature { static let moduleName }`), sin
-importar en la app real. Nada hecho todavía.
+**Estado (2026-09-16):** nada hecho todavía. Se borró `BudgetsFeature`, que
+era un scaffold vacío sin importar en la app: el presupuesto por categoría
+vivirá en `DashboardFeature`, como sección de Mes, y el modelo compartido que
+necesite baja a `LanaCore` (ADR-0048). No confundir con la regla 50/30/20, que
+ya existe y es una sección del Análisis (ADR-0037).
 
 ### Fase 7.5 — Tarjetas y proyección · 5-7 días ← el diferenciador real
 - [x] CRUD de tarjetas con corte y fecha límite — hecho en Fase 6.5

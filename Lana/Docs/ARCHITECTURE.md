@@ -15,31 +15,28 @@ Esto no es ceremonia. Tiene tres consecuencias concretas:
 ## Grafo de dependencias
 
 ```
-                    ┌──────────┐
-                    │   App    │
-                    └────┬─────┘
-                         │ conoce a todos, los ensambla
-     ┌───────────┬───────┼────────┬─────────────┐
-     ▼           ▼       ▼        ▼             ▼
- ┌────────┐ ┌────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐
- │ Entry  │ │Dashboard│ │  Budgets  │ │  Cards   │ │LanaDesign│
- │Feature │ │ Feature │ │  Feature  │ │ Shared   │ │          │
- │        │ │         │ │           │ │ Insights │ │          │
- │        │ │         │ │           │ │ Settings │ │          │
- └───┬────┘ └───┬────┘ └─────┬──────┘ └────┬─────┘ └────┬─────┘
-     └──────────┴────────────┴─────────────┘            │
-                         │                              │
-                         ▼                              │
-                   ┌───────────┐ ◄──────────────────────┘
-                   │ LanaCore  │
-                   └─────▲─────┘
-                         │ implementan sus protocolos
-     ┌───────────────────┼──────────────────┐
-     ▼             ▼            ▼            ▼           ▼
-┌──────────┐ ┌───────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────┐
-│LanaParsing│ │LanaInsights│ │LanaPersistence│ │LanaSpeech│ │LanaPur- │
-│          │ │           │ │              │ │          │ │chases   │
-└──────────┘ └───────────┘ └──────────────┘ └──────────┘ └─────────┘
+                     ┌──────────┐
+                     │   App    │
+                     └────┬─────┘
+                          │ conoce a todos, los ensambla
+                    ┌─────┴────────────────────────┐
+                    ▼                              ▼
+ ┌─────────────────────────────────────┐     ┌────────────┐
+ │               Features              │     │ LanaDesign │
+ │  Entry · Dashboard · Cards · Shared │     └─────▲──────┘
+ │   Insights · Settings · Onboarding  │           │
+ └──────────────────┬─────────────┬────┘           │
+                    │             └────────────────┘
+                    ▼
+              ┌───────────┐
+              │  LanaCore │
+              └─────▲─────┘
+                    │ implementan sus protocolos
+       ┌────────────┴───┬─────────────────┬─────────────────┬───────────────┐
+       ▼                ▼                 ▼                 ▼               ▼
+┌─────────────┐ ┌──────────────┐ ┌─────────────────┐ ┌────────────┐ ┌───────────────┐
+│ LanaParsing │ │ LanaInsights │ │ LanaPersistence │ │ LanaSpeech │ │ LanaPurchases │
+└─────────────┘ └──────────────┘ └─────────────────┘ └────────────┘ └───────────────┘
 ```
 
 **Reglas:**
@@ -53,6 +50,10 @@ Esto no es ceremonia. Tiene tres consecuencias concretas:
   feature tenga que importar `FoundationModels`.
 - Las features importan `LanaCore` y `LanaDesign`. **Nunca** una implementación
   concreta, y **nunca** otra feature.
+- `LanaDesign` no importa nada del proyecto, ni siquiera `LanaCore` (ADR-0047).
+- Un paquete existe cuando tiene una pantalla o una implementación propia, no
+  por adelantado: el presupuesto por categoría vivirá en `DashboardFeature`,
+  como sección de Mes (ADR-0048).
 - Solo `App` conoce las implementaciones concretas, y solo para inyectarlas.
 
 Si te descubres queriendo romper una de estas, casi siempre significa que algo
