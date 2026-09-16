@@ -61,11 +61,9 @@ public struct BalancesView: View {
                                 .foregroundStyle(lana.ink42)
                                 .accessibilityAddTraits(.isHeader)
                                 .padding(.top, Space.md.rawValue)
-                            ForEach(
-                                Array(orderedDebts(debts, viewer: viewerID).enumerated()),
-                                id: \.offset) { _, debt in
-                                    debtRow(debt)
-                                }
+                            ForEach(debtGroups(debts, viewer: viewerID)) { group in
+                                debtGroup(group)
+                            }
                         }
                     }
                 }
@@ -115,29 +113,66 @@ public struct BalancesView: View {
             .accessibilityLabel(label)
     }
 
-    /// Quién le paga a quién según el plan de pagos (ADR-0053), con la acción al lado: el
-    /// renglón entero abre el detalle y "Liquidar" registra el pago.
-    private func debtRow(_ debt: Debt) -> some View {
-        HStack(spacing: Space.sm.rawValue) {
+    /// Una persona que debe, con su total, y debajo a quién le paga y cuánto
+    /// (ADR-0053). Cada fila abre el detalle; "Ya pagó" registra el pago.
+    private func debtGroup(_ group: DebtGroup) -> some View {
+        let isViewer = group.debtor == viewerID
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
+                Text(isViewer ? "Tú debes" : "\(participantName(group.debtor)) debe")
+                    .lanaFont(.rowTitle)
+                    .foregroundStyle(lana.ink)
+                Spacer(minLength: Space.sm.rawValue)
+                Text(group.total.formatted())
+                    .lanaFont(.rowAmount)
+                    .foregroundStyle(lana.ink)
+            }
+            .padding(.bottom, Space.xs.rawValue)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            ForEach(group.debts, id: \.to) { debt in
+                debtRow(debt, debtorIsViewer: isViewer)
+            }
+        }
+        .padding(.vertical, Space.p10.rawValue)
+    }
+
+    private func debtRow(_ debt: Debt, debtorIsViewer: Bool) -> some View {
+        let creditorIsViewer = debt.to == viewerID
+        let creditor = creditorIsViewer ? "ti" : participantName(debt.to)
+        let paidLabel = debtorIsViewer ? "Ya pagué" : (creditorIsViewer ? "Ya me pagó" : "Ya pagó")
+        return HStack(spacing: Space.sm.rawValue) {
             Button {
                 onSelectDebt(debt)
             } label: {
                 HStack(spacing: Space.sm.rawValue) {
-                    Text(debtPhrase(debt, viewer: viewerID, name: participantName))
-                        .lanaFont(.rowSubtitle)
-                        .foregroundStyle(lana.ink50)
+                    Text("a \(creditor)")
+                        .lanaFont(.label)
+                        .foregroundStyle(lana.ink70)
                     Spacer(minLength: Space.xs.rawValue)
                     Text(debt.amount.formatted())
-                        .lanaFont(.rowSubtitle)
+                        .lanaFont(.label)
                         .monospacedDigit()
                         .foregroundStyle(lana.ink)
                 }
+                .padding(.leading, Space.md.rawValue)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(
+                "\(debtPhrase(debt, viewer: viewerID, name: participantName)) \(debt.amount.formatted())")
+            .accessibilityHint("Ver de dónde sale")
 
-            Button("Liquidar") {
+            Button {
                 onSettle(debt)
+            } label: {
+                // Mismo ancho para las tres etiquetas, para que los montos
+                // queden alineados de grupo en grupo.
+                ZStack {
+                    Text("Ya me pagó").hidden()
+                    Text(paidLabel)
+                }
             }
             .buttonStyle(.lana(.secondary, size: .compact))
         }
@@ -167,30 +202,42 @@ func debtPhrase(_ debt: Debt, viewer: ParticipantID?, name: (ParticipantID) -> S
     return "\(name(debt.from)) le debe a \(name(debt.to))"
 }
 
-/// Lo que toca a quien mira va primero —lo que le deben, luego lo que debe—
-/// y después lo de los demás, cada grupo de mayor a menor. Antes salían en el
-/// orden en que salían del cálculo.
-func orderedDebts(_ debts: [Debt], viewer: ParticipantID?) -> [Debt] {
-    func group(_ debt: Debt) -> Int {
-        if debt.to == viewer {
-            return 0
-        }
-        if debt.from == viewer {
-            return 1
-        }
-        return 2
+/// Las deudas de una persona, juntas: "Bruno debe $122.21 — a Iori $66.83,
+/// a Liz $55.38".
+struct DebtGroup: Identifiable {
+    let debtor: ParticipantID
+    let debts: [Debt]
+
+    var id: ParticipantID {
+        debtor
     }
-    return debts.enumerated().sorted { lhs, rhs in
-        let (left, right) = (lhs.element, rhs.element)
-        if group(left) != group(right) {
-            return group(left) < group(right)
-        }
-        if left.amount.amount != right.amount.amount {
-            return left.amount.amount > right.amount.amount
-        }
-        return lhs.offset < rhs.offset
+
+    var total: Money {
+        let currency = debts.first?.amount.currency ?? .mxn
+        return Money(amount: debts.reduce(Decimal(0)) { $0 + $1.amount.amount }, currency: currency)
     }
-    .map(\.element)
+}
+
+/// Agrupa por quien debe. Primero quien mira, si debe; luego los demás de
+/// mayor a menor. Dentro de cada grupo, primero lo que te pagan a ti y luego
+/// de mayor a menor.
+func debtGroups(_ debts: [Debt], viewer: ParticipantID?) -> [DebtGroup] {
+    Dictionary(grouping: debts, by: \.from)
+        .map { debtor, owed in
+            DebtGroup(debtor: debtor, debts: owed.sorted { lhs, rhs in
+                if (lhs.to == viewer) != (rhs.to == viewer) {
+                    return lhs.to == viewer
+                }
+                return lhs.amount.amount == rhs.amount.amount ? lhs.to < rhs.to : lhs.amount.amount > rhs.amount.amount
+            })
+        }
+        .sorted { lhs, rhs in
+            if (lhs.debtor == viewer) != (rhs.debtor == viewer) {
+                return lhs.debtor == viewer
+            }
+            let (left, right) = (lhs.total.amount, rhs.total.amount)
+            return left == right ? lhs.debtor < rhs.debtor : left > right
+        }
 }
 
 #Preview {

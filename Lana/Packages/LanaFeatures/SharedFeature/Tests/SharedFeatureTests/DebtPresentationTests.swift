@@ -32,15 +32,19 @@ struct DebtPresentationTests {
         #expect(balanceLabel(isOwed: false, isViewer: false) == "debe")
     }
 
-    @Test("Primero lo que te deben, luego lo que debes, luego lo de los demás")
-    func ordenaPorQuienMira() {
-        let others = debt(kin, iori, 500)
-        let owedToMe = debt(evan, yo, 20)
-        let iOwe = debt(yo, iori, 100)
-        let owedToMeMore = debt(kin, yo, 90)
+    @Test("Agrupa por quien debe: tú primero, luego de mayor a menor, y a ti primero dentro de cada grupo")
+    func agrupaPorDeudor() {
+        let groups = debtGroups([
+            debt(kin, iori, 60),
+            debt(evan, iori, 70),
+            debt(kin, yo, 50),
+            debt(yo, iori, 10),
+            debt(evan, yo, 5)
+        ], viewer: yo)
 
-        let ordered = orderedDebts([others, owedToMe, iOwe, owedToMeMore], viewer: yo)
-
-        #expect(ordered.map(\.amount.amount) == [90, 20, 100, 500])
+        #expect(groups.map(\.debtor) == [yo, kin, evan])
+        #expect(groups.map(\.total.amount) == [10, 110, 75])
+        #expect(groups[1].debts.map(\.to) == [yo, iori])
+        #expect(groups[2].debts.map(\.to) == [yo, iori])
     }
 }

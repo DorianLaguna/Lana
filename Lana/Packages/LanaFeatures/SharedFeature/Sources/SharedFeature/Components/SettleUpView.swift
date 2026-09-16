@@ -29,7 +29,7 @@ public struct SettleUpView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("\(fromName) le paga a \(toName)")
+                    Text(title)
                         .lanaFont(.pushTitle)
                         .foregroundStyle(lana.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -66,7 +66,7 @@ public struct SettleUpView: View {
                 .padding(.bottom, Space.p40.rawValue)
             }
             .background(lana.bg)
-            .navigationTitle("Liquidar")
+            .navigationTitle("Registrar pago")
             .lanaInlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -115,12 +115,17 @@ public struct SettleUpView: View {
         .frame(minHeight: LanaMetrics.minTouchTarget)
     }
 
-    private var fromName: String {
-        model.participant(debt.from)?.displayName ?? "Alguien"
-    }
-
-    private var toName: String {
-        model.participant(debt.to)?.displayName ?? "Alguien"
+    /// "Le pagaste a Iori", "Kin te pagó", "Kin le pagó a Iori" — con "tú"
+    /// para quien mira, igual que la lista.
+    private var title: String {
+        let viewer = model.viewerParticipantID
+        if debt.from == viewer {
+            return "Le pagaste a \(model.displayName(for: debt.to))"
+        }
+        if debt.to == viewer {
+            return "\(model.displayName(for: debt.from)) te pagó"
+        }
+        return "\(model.displayName(for: debt.from)) le pagó a \(model.displayName(for: debt.to))"
     }
 
     private func save() async {
