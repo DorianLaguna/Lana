@@ -2,30 +2,31 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// La `Guia_ApplePay` (ADR-0009): hospeda la pantalla actual según
-/// `model.currentScreen` y los controles de navegación ("Atrás", "Siguiente",
-/// "Omitir" y, en cierre, "Confirmar"). Sin lógica propia — refleja
-/// `GuiaApplePayModel` y llama a sus métodos y a los handlers inyectados
-/// (Docs/ARCHITECTURE.md, Docs/CONVENTIONS.md).
+/// La guía de Apple Pay (ADR-0009; rediseño, sección 13): cuatro pasos para
+/// armar la automatización de Atajos que registra los pagos por contacto.
 ///
-/// Los handlers `onOpenCardSettings` y `onOpenShortcutsApp` cruzan fronteras de
-/// feature (Ajustes → Tarjetas y la app Atajos), así que `ContentView` los
-/// inyecta: las features nunca se importan entre sí.
+/// Es lo más difícil de la app —pide salir a otra aplicación y conectar
+/// campos— así que el paso difícil se muestra como un mapeo visual y no como
+/// prosa. **Siempre se puede omitir.**
+///
+/// Los cuatro pasos cuentan configuración, no pantallas: el cierre confirma el
+/// último paso. La máquina de estados conserva sus cinco pantallas
+/// (`GuiaApplePayModel.Screen`), que es lo que sus tests fijan.
 public struct GuiaApplePayView: View {
     @Environment(\.lana) private var lana
     @State private var model: GuiaApplePayModel
 
     /// Abre Ajustes → Tarjetas para editar los datos de emparejamiento (R3.4).
     private let onOpenCardSettings: () -> Void
-    /// Abre la app Atajos (best-effort); `nil` cuando el contenedor no lo
-    /// cablea — la guía funciona igual sin él.
+    /// Abre la app Atajos (best-effort); `nil` cuando no se cablea.
     private let onOpenShortcutsApp: (() -> Void)?
 
-    /// - Parameters:
-    ///   - model: la máquina de estados y el contenido de la guía.
-    ///   - onOpenCardSettings: abre Ajustes → Tarjetas (R3.4), inyectado por
-    ///     `ContentView` porque cruza fronteras de feature.
-    ///   - onOpenShortcutsApp: abre la app Atajos, best-effort (opcional).
+    /// Cuántos pasos ve la persona. El cierre no cuenta: es la confirmación
+    /// del último, no un trámite más.
+    private static var totalSteps: Int {
+        4
+    }
+
     public init(
         model: GuiaApplePayModel,
         onOpenCardSettings: @escaping () -> Void,
@@ -35,130 +36,158 @@ public struct GuiaApplePayView: View {
         self.onOpenShortcutsApp = onOpenShortcutsApp
     }
 
-    /// Ancla al inicio del contenido para regresar el scroll arriba al cambiar
-    /// de pantalla — sin esto, avanzar desde el fondo de una pantalla larga (los
-    /// 6 pasos de Atajos) dejaba la siguiente empezando a media página, no en
-    /// su título.
+    /// Ancla al inicio del contenido: avanzar desde el fondo de un paso largo
+    /// dejaba el siguiente empezando a media página.
     private enum ScrollAnchor { case top }
 
     public var body: some View {
         VStack(spacing: 0) {
-            header
             ScrollViewReader { proxy in
                 ScrollView {
-                    currentScreen
-                        .padding(Space.md.rawValue)
+                    stepContent
+                        .padding(.horizontal, LanaMetrics.onboardingMargin)
+                        .padding(.top, LanaMetrics.contentTopWithHeader)
+                        .padding(.bottom, Space.xl.rawValue)
                         .id(ScrollAnchor.top)
                 }
                 .onChange(of: model.currentScreen) { _, _ in
-                    // Al inicio de la nueva pantalla, no donde quedó la anterior.
                     proxy.scrollTo(ScrollAnchor.top, anchor: .top)
                 }
             }
-            navigationBar
+            footer
         }
         .background(lana.bg)
         .onAppear { model.presentFirstScreen() }
     }
 
-    // MARK: - Encabezado
-
-    /// Título y progreso. Son cinco pantallas, una de ellas larga, y la barra
-    /// de abajo solo decía "Siguiente": no había forma de saber si faltaba un
-    /// paso o cuatro. Como hoja (`Mode.standalone`) es además el único título
-    /// que tiene la pantalla. El progreso va en texto, no en puntitos: la
-    /// forma y el color nunca son el único portador (Docs/CONVENTIONS.md).
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-            Text("Configurar Apple Pay")
-                .lanaFont(.headline)
-                .foregroundStyle(lana.ink)
-            Text(progressText)
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Space.md.rawValue)
-        .background(lana.surface)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var progressText: String {
-        "Paso \(model.currentScreen.rawValue + 1) de \(GuiaApplePayModel.Screen.allCases.count)"
-    }
+    // MARK: - Los cuatro pasos
 
     @ViewBuilder
-    private var currentScreen: some View {
+    private var stepContent: some View {
         if let content = model.content {
             switch model.currentScreen {
             case .requirements:
-                RequirementsStepView(
-                    requirement: content.deviceRequirement,
-                    isRunningInSimulator: model.isRunningInSimulator)
+                GuideStepChrome(
+                    step: 1,
+                    totalSteps: Self.totalSteps,
+                    title: "Qué vas a lograr",
+                    message: """
+                    Que tus pagos con Apple Pay se registren solos. Necesitas la app Atajos y \
+                    tus tarjetas dadas de alta en Lana.
+                    """,
+                    onSkip: { model.skip() },
+                    content: {
+                        VStack(alignment: .leading, spacing: Space.md.rawValue) {
+                            RequirementsStepView(
+                                requirement: content.deviceRequirement,
+                                isRunningInSimulator: model.isRunningInSimulator)
+                            Button("Ir a Tarjetas", action: onOpenCardSettings)
+                                .buttonStyle(.lana(.secondary))
+                        }
+                    })
             case .shortcutSteps:
-                // R2.6: si el disparador Wallet o la app Atajos no están
-                // disponibles, no ofrecemos armar la automatización — mostramos
-                // la incompatibilidad y la condición requerida.
-                if model.isAutomationAvailable {
-                    ShortcutStepsView(
-                        steps: content.shortcutSteps,
-                        parameterMappings: content.parameterMappings,
-                        onOpenShortcutsApp: onOpenShortcutsApp)
-                } else {
-                    automationUnavailableState
-                }
+                GuideStepChrome(
+                    step: 2,
+                    totalSteps: Self.totalSteps,
+                    title: "Conecta Wallet con tus tarjetas",
+                    message: """
+                    En la app Atajos vas a crear una automatización. Lana necesita que conectes \
+                    estos campos:
+                    """,
+                    onSkip: { model.skip() },
+                    content: {
+                        mappingStep(content)
+                    })
             case .matching:
-                MatchingStepView(
-                    matching: content.matching,
-                    onOpenCardSettings: onOpenCardSettings)
-            case .limitations:
-                LimitationsStepView(limitations: content.limitations)
-            case .closing:
-                closingScreen
+                GuideStepChrome(
+                    step: 3,
+                    totalSteps: Self.totalSteps,
+                    title: "Crea la automatización",
+                    message: nil,
+                    onSkip: { model.skip() },
+                    content: {
+                        automationStep(content)
+                    })
+            case .limitations, .closing:
+                GuideStepChrome(
+                    step: 4,
+                    totalSteps: Self.totalSteps,
+                    title: "Qué esperar",
+                    message: nil,
+                    onSkip: { model.skip() },
+                    content: {
+                        expectationsStep(content)
+                    })
             }
         } else {
-            // R1.5: no se pudo cargar el contenido — mostramos el error con la
-            // opción de reintentar, sin cambiar de pantalla del onboarding.
-            presentationErrorState
+            // R1.5: no se pudo cargar el contenido.
+            EmptyStateView(
+                systemImage: "exclamationmark.triangle",
+                title: "No se pudo cargar la guía",
+                message: model.presentationError ?? GuiaApplePayError.contentUnavailable.errorDescription,
+                actionTitle: "Reintentar",
+                action: { model.retryPresentation() })
         }
     }
 
-    // MARK: - Estados de error (EmptyStateView de LanaDesign)
+    /// El paso donde más gente se atora: los campos que hay que conectar, como
+    /// correspondencia y no como prosa.
+    private func mappingStep(_ content: GuiaApplePayContent) -> some View {
+        VStack(alignment: .leading, spacing: Space.p10.rawValue) {
+            ForEach(content.parameterMappings) { mapping in
+                MappingRow(walletLabel: mapping.walletLabel, lanaLabel: mapping.intentLabel)
+            }
 
-    /// R1.5 — no se pudo mostrar la primera pantalla. Ofrece "Reintentar" que
-    /// llama `model.retryPresentation()`. El ícono + texto portan la
-    /// información, nunca solo el color (Docs/CONVENTIONS.md).
-    private var presentationErrorState: some View {
-        EmptyStateView(
-            systemImage: "exclamationmark.triangle",
-            title: "No se pudo cargar la guía",
-            message: model.presentationError
-                ?? GuiaApplePayError.contentUnavailable.errorDescription,
-            actionTitle: "Reintentar",
-            action: { model.retryPresentation() })
+            GuideWarning(
+                text: """
+                Funciona solo con pagos por contacto, no con compras en el navegador. Puede tardar \
+                unos segundos y todo lo capturado queda
+                """,
+                emphasis: "por revisar.")
+                .padding(.top, Space.md.rawValue)
+
+            MatchingStepView(matching: content.matching, onOpenCardSettings: onOpenCardSettings)
+                .padding(.top, Space.md.rawValue)
+        }
     }
 
-    /// R2.6 — el dispositivo no puede crear la automatización porque falta la
-    /// app Atajos o el disparador de Wallet. No ofrece armar la automatización;
-    /// solo describe la incompatibilidad y la condición requerida.
-    private var automationUnavailableState: some View {
-        EmptyStateView(
-            systemImage: "square.stack.3d.up.slash",
-            title: "No se puede crear la automatización",
-            message: GuiaApplePayError.automationUnsupported.errorDescription)
+    /// R2.6: si el disparador de Wallet o la app Atajos no están, no se ofrece
+    /// armar nada — se explica por qué y se puede seguir sin Apple Pay.
+    @ViewBuilder
+    private func automationStep(_ content: GuiaApplePayContent) -> some View {
+        if model.isAutomationAvailable {
+            ShortcutStepsView(
+                steps: content.shortcutSteps,
+                parameterMappings: content.parameterMappings,
+                onOpenShortcutsApp: onOpenShortcutsApp)
+        } else {
+            EmptyStateView(
+                systemImage: "square.stack.3d.up.slash",
+                title: "No se puede crear la automatización",
+                message: GuiaApplePayError.automationUnsupported.errorDescription)
+        }
     }
 
-    /// Pantalla de cierre (R6). Muestra el resumen y, si el avance del
-    /// onboarding falló tras confirmar (R6.4), añade el error con "Reintentar"
-    /// → `model.retryAdvance()`, conservando el resumen. El control de confirmar
-    /// vive en `navigationBar` y sigue disponible aun con `summaryUnavailable`
-    /// (R6.2).
-    private var closingScreen: some View {
-        VStack(spacing: Space.md.rawValue) {
-            ClosingStepView(
-                summary: model.completionSummary,
-                summaryUnavailable: model.summaryUnavailable,
-                mode: model.mode)
+    /// Honesto: solo pagos por contacto, puede tardar, a veces se dispara con
+    /// rechazadas, y hay que revisar cada uno.
+    private func expectationsStep(_ content: GuiaApplePayContent) -> some View {
+        VStack(alignment: .leading, spacing: Space.md.rawValue) {
+            LimitationsStepView(limitations: content.limitations)
+
+            LanaCard {
+                VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+                    Text("¿Cómo saber si quedó bien?")
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink)
+                    Text("""
+                    Haz un pago pequeño por contacto y revisa la bandeja "Por revisar" en Hoy. \
+                    Si aparece ahí, la automatización está corriendo.
+                    """)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink70)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
 
             if let advanceError = model.advanceError {
                 EmptyStateView(
@@ -171,56 +200,48 @@ public struct GuiaApplePayView: View {
         }
     }
 
-    // MARK: - Controles de navegación
+    // MARK: - Pie fijo
 
-    private var navigationBar: some View {
-        HStack(spacing: Space.sm.rawValue) {
-            if model.currentScreen != .requirements {
-                Button("Atrás") { model.back() }
-                    .foregroundStyle(lana.ink50)
-            }
-
-            Spacer()
-
-            if model.currentScreen != .closing {
-                Button(skipTitle) { model.skip() }
-                    .foregroundStyle(lana.ink50)
-            }
-
-            if model.currentScreen == .closing {
-                Button(confirmTitle) {
+    /// El botón principal y la salida, siempre a la mano.
+    private var footer: some View {
+        VStack(spacing: Space.p14.rawValue) {
+            Button(primaryTitle) {
+                if isLastStep {
                     Task { await model.confirmCompletion() }
+                } else {
+                    model.next()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(lana.accent)
-            } else {
-                Button("Siguiente") { model.next() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(lana.accent)
             }
+            .buttonStyle(.lana(size: .large, isExpanded: true))
+
+            Button(secondaryTitle) { model.skip() }
+                .lanaFont(.bodyEmphasis)
+                .foregroundStyle(lana.ink50)
+                .buttonStyle(.plain)
+                .frame(minHeight: LanaMetrics.minTouchTarget)
         }
-        .lanaFont(.body)
-        .padding(Space.md.rawValue)
-        .background(lana.surface)
+        .padding(.horizontal, LanaMetrics.screenMargin)
+        .padding(.bottom, Space.p44.rawValue)
+        .padding(.top, Space.md.rawValue)
+        .background(lana.bg)
     }
 
-    /// Salirse de la guía. En onboarding es "Omitir" —hay un flujo del que te
-    /// estás saltando un paso—; reabierta desde Tarjetas no se omite nada, se
-    /// cierra la hoja, y llamarlo "Omitir" describe algo que no pasa.
-    private var skipTitle: String {
-        switch model.mode {
-        case .onboarding: "Omitir"
-        case .standalone: "Cerrar"
-        }
+    /// Límites y cierre son el mismo paso para quien la usa.
+    private var isLastStep: Bool {
+        model.currentScreen == .limitations || model.currentScreen == .closing
     }
 
-    /// Lo mismo en el cierre: en `standalone` `confirmCompletion()` solo cierra
-    /// la hoja, no confirma nada ante nadie.
-    private var confirmTitle: String {
-        switch model.mode {
-        case .onboarding: "Confirmar"
-        case .standalone: "Listo"
+    private var primaryTitle: String {
+        if isLastStep {
+            return model.mode == .onboarding ? "Listo, ya la creé" : "Listo"
         }
+        return model.currentScreen == .matching ? "Abrir la app Atajos" : "Siguiente"
+    }
+
+    /// En onboarding se omite un paso del flujo; reabierta desde Tarjetas no se
+    /// omite nada, se cierra.
+    private var secondaryTitle: String {
+        model.mode == .onboarding ? "Lo hago después" : "Cerrar"
     }
 }
 
@@ -237,28 +258,13 @@ public struct GuiaApplePayView: View {
     }
 }
 
-#Preview("Error de presentación (R1.5)") {
-    ForEach(LanaTheme.allCases) { theme in
-        GuiaApplePayView(
-            model: GuiaApplePayModel(
-                mode: .onboarding,
-                content: nil,
-                environment: InMemoryApplePayEnvironment()),
-            onOpenCardSettings: {},
-            onOpenShortcutsApp: {})
-            .lanaTheme(theme)
-    }
-}
-
 #Preview("Atajos no disponible (R2.6)") {
-    ForEach(LanaTheme.allCases) { theme in
-        GuiaApplePayView(
-            model: GuiaApplePayModel(
-                mode: .onboarding,
-                content: .standard,
-                environment: InMemoryApplePayEnvironment(isShortcutsAutomationAvailable: false)),
-            onOpenCardSettings: {},
-            onOpenShortcutsApp: {})
-            .lanaTheme(theme)
-    }
+    GuiaApplePayView(
+        model: GuiaApplePayModel(
+            mode: .onboarding,
+            content: .standard,
+            environment: InMemoryApplePayEnvironment(isShortcutsAutomationAvailable: false)),
+        onOpenCardSettings: {},
+        onOpenShortcutsApp: {})
+        .lanaTheme(.zafiro)
 }

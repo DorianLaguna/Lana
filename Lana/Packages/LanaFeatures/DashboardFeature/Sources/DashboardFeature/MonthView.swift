@@ -34,6 +34,10 @@ public struct MonthView: View {
     private let onRefresh: () async -> Void
     private let onOpenInsights: () -> Void
     private let onExpenseChanged: () -> Void
+    /// `false` cuando Apple Intelligence no está disponible: la fila del
+    /// Análisis se apaga y explica por qué. Lo resuelve la app, que es quien
+    /// conoce `InsightsFeature`.
+    private let isInsightsAvailable: Bool
 
     /// Cuántas categorías se ven antes de "Ver las N categorías".
     private static var collapsedCategoryCount: Int {
@@ -51,13 +55,15 @@ public struct MonthView: View {
         yearModel: YearModel,
         onRefresh: @escaping () async -> Void = {},
         onOpenInsights: @escaping () -> Void = {},
-        onExpenseChanged: @escaping () -> Void = {}) {
+        onExpenseChanged: @escaping () -> Void = {},
+        isInsightsAvailable: Bool = true) {
         self.model = model
         self.recurringItemsModel = recurringItemsModel
         self.yearModel = yearModel
         self.onRefresh = onRefresh
         self.onOpenInsights = onOpenInsights
         self.onExpenseChanged = onExpenseChanged
+        self.isInsightsAvailable = isInsightsAvailable
     }
 
     public var body: some View {
@@ -209,7 +215,16 @@ public struct MonthView: View {
                     path.append(.recurring)
                 }
                 HairlineDivider()
-                NavRow("Análisis con Lana", value: model.savingsSummary, action: onOpenInsights)
+                // Sin Apple Intelligence la fila se apaga y dice por qué, en
+                // vez de desaparecer: esconderla dejaría al usuario sin saber
+                // que existe (rediseño, sección 14).
+                NavRow(
+                    "Análisis con Lana",
+                    subtitle: isInsightsAvailable ? nil : "Necesita Apple Intelligence",
+                    subtitleTone: .disabled,
+                    value: isInsightsAvailable ? model.savingsSummary : nil,
+                    isDimmed: !isInsightsAvailable,
+                    action: onOpenInsights)
                 HairlineDivider()
                 NavRow("El año", value: yearValue) {
                     path.append(.year)

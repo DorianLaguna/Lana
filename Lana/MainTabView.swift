@@ -175,7 +175,11 @@ struct MainTabView: View {
                 yearModel: yearModel,
                 onRefresh: refreshDashboard,
                 onOpenInsights: { isInsightsPresented = true },
-                onExpenseChanged: { Task { await refreshAfterExpenseChange() } })
+                onExpenseChanged: { Task { await refreshAfterExpenseChange() } },
+                // Sin Apple Intelligence la fila del Análisis se apaga y dice
+                // por qué; al tocarla, la hoja explica el caso y ofrece El año,
+                // que sí funciona sin modelo (rediseño, sección 14).
+                isInsightsAvailable: insightsModel.availability == .available)
                 .toolbarVisibility(.hidden, for: .tabBar)
                 .tag(MainTab.mes)
 

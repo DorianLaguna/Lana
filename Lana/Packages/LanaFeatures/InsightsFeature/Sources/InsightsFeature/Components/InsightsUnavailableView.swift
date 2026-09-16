@@ -2,75 +2,58 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// Qué se ve cuando Apple Intelligence no está disponible.
+/// Qué se ve cuando Apple Intelligence no está disponible (rediseño,
+/// sección 14).
 ///
 /// Cada caso de `ParsingAvailability` se trata distinto porque son problemas
 /// distintos: uno es permanente, otro se arregla en Ajustes y otro solo
 /// necesita tiempo. Ofrecer "reintentar" en un dispositivo que nunca va a
 /// poder es prometer algo que no va a pasar.
 ///
-/// `EntryFeature` resuelve lo mismo para la captura, pero las features no se
-/// importan entre sí (Docs/ARCHITECTURE.md), así que aquí va su propia copia
-/// con copy propia: el análisis es una comodidad, no la captura — perderlo no
-/// deja la app inservible, y el texto lo dice.
+/// Todos ofrecen **"Ver el año"**: las estadísticas puras no dependen del
+/// modelo, así que perder el análisis no deja a nadie sin a dónde ir. El icono
+/// va apagado, nunca en color: esto es una limitación, no una función premium.
 struct InsightsUnavailableView: View {
     @Environment(\.lana) private var lana
 
     let availability: ParsingAvailability
     let onOpenSettings: (() -> Void)?
     let onRetry: () -> Void
+    /// Abre El año, que funciona sin Apple Intelligence. `nil` donde no haya a
+    /// dónde llevar.
+    var onOpenYear: (() -> Void)?
 
     var body: some View {
-        LanaCard {
-            VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                Text(title)
-                    .lanaFont(.headline)
-                    .foregroundStyle(lana.ink)
-                Text(message)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink50)
-                if let action {
-                    Button(action.title, action: action.perform)
-                        .buttonStyle(.borderedProminent)
-                        .tint(lana.accent)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        EmptyStateView(
+            systemImage: "sparkles",
+            title: title,
+            message: message,
+            actionTitle: action?.title,
+            action: action?.perform,
+            secondaryActionTitle: onOpenYear == nil ? nil : "Ver el año",
+            secondaryAction: onOpenYear,
+            showsProgress: availability == .modelNotReady)
     }
 
     private var title: String {
         switch availability {
         case .deviceNotEligible: "Este iPhone no puede hacer el análisis"
-        case .notEnabled: "Apple Intelligence está apagado"
-        case .modelNotReady: "El modelo se está preparando"
-        case .available, .unknown: "El análisis no está disponible"
+        case .notEnabled: "Apple Intelligence está desactivado"
+        case .modelNotReady: "Lana se está preparando"
+        case .available, .unknown: "No pudimos comprobar el análisis"
         }
     }
 
     private var message: String {
         switch availability {
         case .deviceNotEligible:
-            """
-            El resumen escrito necesita Apple Intelligence, que este modelo de \
-            iPhone no soporta. Todo lo demás de Lana funciona igual: la vista \
-            del año, con sus totales y gráficas, está completa.
-            """
+            "El resumen escrito necesita Apple Intelligence. El año, con sus cifras, está completo."
         case .notEnabled:
-            """
-            Se activa desde Ajustes del sistema. Mientras tanto, la vista del \
-            año tiene las mismas cifras sin texto de por medio.
-            """
+            "Actívalo para que Lana te explique tu mes. Lo procesa todo en tu iPhone."
         case .modelNotReady:
-            """
-            El sistema todavía está descargando el modelo. Puede tardar un \
-            rato; vuelve a intentar más tarde.
-            """
+            "El modelo se está descargando. Puede tardar unos minutos."
         case .available, .unknown:
-            """
-            No se pudo consultar el modelo del sistema. La vista del año sigue \
-            disponible con todas las cifras.
-            """
+            "Vuelve a intentarlo en un momento."
         }
     }
 
@@ -81,9 +64,10 @@ struct InsightsUnavailableView: View {
             nil
         case .notEnabled:
             onOpenSettings.map { ("Abrir Ajustes", $0) }
-        case .modelNotReady, .unknown:
-            ("Volver a intentar", onRetry)
-        case .available:
+        case .unknown:
+            ("Reintentar", onRetry)
+        case .modelNotReady, .available:
+            // Se revisa sola mientras se descarga.
             nil
         }
     }
@@ -95,9 +79,13 @@ struct InsightsUnavailableView: View {
             ForEach(
                 [ParsingAvailability.deviceNotEligible, .notEnabled, .modelNotReady, .unknown],
                 id: \.self) { availability in
-                    InsightsUnavailableView(availability: availability, onOpenSettings: {}, onRetry: {})
+                    InsightsUnavailableView(
+                        availability: availability,
+                        onOpenSettings: {},
+                        onRetry: {},
+                        onOpenYear: {})
                 }
         }
-        .padding(Space.md.rawValue)
+        .padding(LanaMetrics.screenMargin)
     }
 }
