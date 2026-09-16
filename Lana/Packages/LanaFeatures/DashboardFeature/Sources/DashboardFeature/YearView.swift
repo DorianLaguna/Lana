@@ -140,7 +140,7 @@ public struct YearView: View {
         guard let rate = model.statistics.period.savingsRate(in: currency), rate > 0 else {
             return "Ingresaste \(income)"
         }
-        let percent = NSDecimalNumber(decimal: rate * 100).intValue
+        let percent = Percentage.rounded(rate, of: 1)
         return "Ingresaste \(income) · ahorraste el \(percent)%"
     }
 
@@ -206,7 +206,7 @@ public struct YearView: View {
         if let delta = model.comparisonWithPreviousMonth?.expenseDelta(in: currency),
            let relative = delta.relative,
            let month = model.latestActiveMonth {
-            let percent = abs(NSDecimalNumber(decimal: relative * 100).intValue)
+            let percent = abs(Percentage.rounded(relative, of: 1))
             let arrow = delta.direction == .down ? "↓" : "↑"
             rows.append(ComparisonRow(
                 id: "contraMesAnterior",

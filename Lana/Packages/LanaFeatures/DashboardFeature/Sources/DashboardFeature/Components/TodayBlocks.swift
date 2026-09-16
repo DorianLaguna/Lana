@@ -26,7 +26,7 @@ struct TodayHero: View {
                 HStack {
                     Text("Gastaste \(spent) de \(income)")
                     Spacer(minLength: Space.sm.rawValue)
-                    Text("\(DashboardModel.percent(total.expenses, of: total.income))%")
+                    Text("\(Percentage.rounded(total.expenses, of: total.income))%")
                         .monospacedDigit()
                 }
                 .lanaFont(.rowSubtitle)

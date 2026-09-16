@@ -144,7 +144,7 @@ public struct CardDetailView: View {
         if let limit = model.card.limit, limit.amount > 0 {
             VStack(alignment: .leading, spacing: Space.sm.rawValue) {
                 HStack {
-                    Text("Llevas \(Int(model.limitFraction * 100))% de tu límite")
+                    Text("Llevas \(model.limitUsage ?? "0%") de tu límite")
                         .lanaFont(.detail)
                         .foregroundStyle(lana.ink70)
                     Spacer(minLength: Space.sm.rawValue)

@@ -131,23 +131,14 @@ public extension DashboardModel {
         let totals = primaryPaymentMethodTotals
         let sum = totals.reduce(Decimal(0)) { $0 + $1.amount }
         guard let top = totals.first, sum > 0 else { return nil }
-        return "\(Self.percent(top.amount, of: sum))% \(top.category)"
+        return "\(Percentage.rounded(top.amount, of: sum))% \(top.category)"
     }
 
     /// "Ahorraste 21%". `nil` sin ingreso registrado.
     var savingsSummary: String? {
         guard let currency = primaryCurrency, let rate = statistics.savingsRate(in: currency) else { return nil }
-        let percent = Self.percent(rate, of: 1)
+        let percent = Percentage.rounded(rate, of: 1)
         return percent >= 0 ? "Ahorraste \(percent)%" : "Gastaste más de lo que entró"
-    }
-
-    /// El porcentaje entero de `part` sobre `whole`, redondeado.
-    static func percent(_ part: Decimal, of whole: Decimal) -> Int {
-        guard whole != 0 else { return 0 }
-        var value = part / whole * 100
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &value, 0, .plain)
-        return NSDecimalNumber(decimal: rounded).intValue
     }
 
     /// Gasto sobre ingreso, para la barra. `nil` sin ingreso.

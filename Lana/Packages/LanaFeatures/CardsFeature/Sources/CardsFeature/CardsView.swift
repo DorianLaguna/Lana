@@ -261,9 +261,11 @@ private struct CardRow: View {
     }
 
     private var limitText: String? {
-        guard let limit = card.limit, limit.amount > 0, let debt else { return nil }
-        let percent = NSDecimalNumber(decimal: debt.amount / limit.amount * 100).intValue
-        return "\(percent)% del límite"
+        guard let limit = card.limit, let debt,
+              let usage = limitUsageText(debt: debt.amount, limit: limit.amount) else {
+            return nil
+        }
+        return "\(usage) del límite"
     }
 }
 

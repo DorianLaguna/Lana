@@ -129,6 +129,13 @@ public final class CardDetailModel {
         return min(1, max(0, fraction.doubleValue))
     }
 
+    /// "63%", o "menos de 1%" — cuánto del límite se debe, para el texto sobre
+    /// la barra. `nil` sin límite registrado.
+    public var limitUsage: String? {
+        guard let limit = card.limit else { return nil }
+        return limitUsageText(debt: totalDebt.amount, limit: limit.amount)
+    }
+
     /// El desglose por categoría de los cargos del ciclo vigente.
     ///
     /// - Important: aquí cuenta el **monto completo** del cargo, no la parte
@@ -146,4 +153,19 @@ public final class CardDetailModel {
     public var daySections: [DaySection] {
         expenses.groupedByDay(calendar: calendar)
     }
+}
+
+/// Cuánto del límite se debe, como texto: "63%", o "menos de 1%" cuando ya hay
+/// deuda pero no llega al 1 % — decir "0%" con cargos encima parecía un error.
+/// `nil` si no hay límite.
+///
+/// Libre y no dentro de una vista: `swift test` truena al tocar miembros de un
+/// tipo `View`.
+func limitUsageText(debt: Decimal, limit: Decimal) -> String? {
+    guard limit > 0 else { return nil }
+    let percent = Percentage.rounded(debt, of: limit)
+    if percent == 0, debt > 0 {
+        return "menos de 1%"
+    }
+    return "\(percent)%"
 }

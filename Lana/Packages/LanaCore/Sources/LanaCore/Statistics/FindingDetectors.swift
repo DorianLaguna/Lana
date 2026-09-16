@@ -239,7 +239,7 @@ extension FindingContext {
         let perWeekday = weekdayTotal / Decimal(weekdayDays.count)
         guard perWeekday > 0, perWeekend > perWeekday else { return nil }
 
-        let percent = Findings.percent(perWeekend - perWeekday, of: perWeekday)
+        let percent = Percentage.rounded(perWeekend - perWeekday, of: perWeekday)
         // Menos de 20% no distingue un hábito del azar de un mes.
         guard percent >= 20 else { return nil }
 
@@ -312,16 +312,5 @@ extension FindingContext {
 extension FindingContext {
     func money(_ amount: Decimal) -> String {
         Money(amount: amount, currency: input.currency).formatted()
-    }
-}
-
-extension Findings {
-    /// El porcentaje entero de `part` sobre `whole`, redondeado.
-    static func percent(_ part: Decimal, of whole: Decimal) -> Int {
-        guard whole != 0 else { return 0 }
-        var value = part / whole * 100
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &value, 0, .plain)
-        return NSDecimalNumber(decimal: rounded).intValue
     }
 }
