@@ -4,16 +4,27 @@ import Testing
 
 @Suite("SplitRule")
 struct SplitRuleTests {
-    @Test("Iguales entre 3 reparte el residuo en el último participante por ID")
+    @Test("Iguales entre 3 reparte el centavo que sobra sin descuadrar el total")
     func igualesConResiduo() throws {
         let ids = [ParticipantID(), ParticipantID(), ParticipantID()].sorted()
         let portions = try SplitRule.equally(among: ids).portions(of: Money(amount: 100, currency: .mxn))
 
-        let sum = portions.values.reduce(Decimal(0)) { $0 + $1.amount }
-        #expect(sum == 100)
-        #expect(portions[ids[0]]?.amount == Decimal(string: "33.33"))
-        #expect(portions[ids[1]]?.amount == Decimal(string: "33.33"))
-        #expect(portions[ids[2]]?.amount == Decimal(string: "33.34"))
+        let amounts = portions.values.map(\.amount).sorted()
+        #expect(amounts.reduce(0, +) == 100)
+        #expect(amounts == [Decimal(string: "33.33"), Decimal(string: "33.33"), Decimal(string: "33.34")])
+    }
+
+    @Test("El centavo que sobra no se lo lleva siempre la misma persona")
+    func elCentavoRota() throws {
+        let ids = [ParticipantID(), ParticipantID(), ParticipantID()].sorted()
+        var receivers: Set<ParticipantID> = []
+        for text in ["100", "100.01", "100.02"] {
+            let total = try #require(Decimal(string: text))
+            let portions = try SplitRule.equally(among: ids).portions(of: Money(amount: total, currency: .mxn))
+            let largest = try #require(portions.max { $0.value.amount < $1.value.amount })
+            receivers.insert(largest.key)
+        }
+        #expect(receivers.count > 1)
     }
 
     @Test("Iguales entre 7 de $350 da $50 exactos a cada quien, sin centavos de más")

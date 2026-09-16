@@ -79,7 +79,9 @@ public extension SplitRule {
     /// Reparte `total` en centavos según `fractionalShares`, por el método
     /// del mayor residuo: cada parte exacta se trunca a centavos y los
     /// centavos que sobran se dan, de uno en uno, a quienes más perdieron al
-    /// truncar. Empates, al que ordena último por `ParticipantID`.
+    /// truncar. En un empate —en partes iguales, siempre— el centavo rota
+    /// según el total, para que no se lo lleve la misma persona en cada gasto
+    /// y se le acumule (128.45 contra 128.48 en una lista de muchos gastos).
     ///
     /// Antes todo el residuo iba al último participante, y como 1/7 no cabe
     /// exacto en un `Decimal`, 350 entre 7 daba 49.99 a seis personas y 50.06
@@ -96,14 +98,18 @@ public extension SplitRule {
 
         let cent = Decimal(string: "0.01") ?? 0
         var amounts: [ParticipantID: Decimal] = [:]
-        var remainders: [(participant: ParticipantID, remainder: Decimal)] = []
-        for participant in fractionalShares.keys.sorted() {
+        var remainders: [(participant: ParticipantID, remainder: Decimal, rank: Int)] = []
+        let ordered = fractionalShares.keys.sorted()
+        // Determinista en todos los dispositivos: sale del monto, no de un hash.
+        let totalCents = NSDecimalNumber(decimal: (total.amount / cent).rounded(scale: 0, mode: .plain)).intValue
+        let rotation = abs(totalCents) % ordered.count
+        for (index, participant) in ordered.enumerated() {
             // Seis decimales primero: una fracción periódica guardada en
             // `Decimal` deja 49.9999…, que truncado a centavos perdería uno.
             let exact = (total.amount * (fractionalShares[participant] ?? 0)).rounded(scale: 6, mode: .plain)
             let truncated = exact.rounded(scale: 2, mode: .down)
             amounts[participant] = truncated
-            remainders.append((participant, exact - truncated))
+            remainders.append((participant, exact - truncated, (index + rotation) % ordered.count))
         }
 
         let distributed = amounts.values.reduce(Decimal(0), +)
@@ -113,14 +119,14 @@ public extension SplitRule {
             .intValue
         if leftoverCents > 0 {
             let byRemainder = remainders.sorted {
-                $0.remainder == $1.remainder ? $0.participant > $1.participant : $0.remainder > $1.remainder
+                $0.remainder == $1.remainder ? $0.rank > $1.rank : $0.remainder > $1.remainder
             }
             for index in 0 ..< leftoverCents {
                 amounts[byRemainder[index % byRemainder.count].participant, default: 0] += cent
             }
         } else if leftoverCents < 0 {
             let bySmallestRemainder = remainders.sorted {
-                $0.remainder == $1.remainder ? $0.participant < $1.participant : $0.remainder < $1.remainder
+                $0.remainder == $1.remainder ? $0.rank < $1.rank : $0.remainder < $1.remainder
             }
             for index in 0 ..< -leftoverCents {
                 amounts[bySmallestRemainder[index % bySmallestRemainder.count].participant, default: 0] -= cent
