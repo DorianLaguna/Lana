@@ -42,6 +42,7 @@ struct DraftSharedBlock: View {
                 }
 
                 HStack(spacing: Space.md.rawValue) {
+                    payerMenu(in: list)
                     splitMenu(in: list)
                     Button("Quitar") {
                         draft.sharedListID = nil
@@ -68,6 +69,30 @@ struct DraftSharedBlock: View {
     /// Lo que le toca a los demás: cuánto te toca a ti ya lo dice el monto.
     private func othersShares(in list: SharedList) -> [SplitShare] {
         draft.splitShares.filter { !$0.isPayer && viewerName($0.participant, list.id) != "Yo" }
+    }
+
+    /// Quién pagó. El dictado lo toma de la frase ("pagó Iori") y si no dice
+    /// nada asume que fuiste tú; sin este menú no había forma de corregirlo
+    /// antes de guardar.
+    private func payerMenu(in list: SharedList) -> some View {
+        Menu {
+            ForEach(list.participants) { participant in
+                Button {
+                    draft.payer = participant.id
+                } label: {
+                    if participant.id == draft.payer {
+                        Label(viewerName(participant.id, list.id), systemImage: "checkmark")
+                    } else {
+                        Text(viewerName(participant.id, list.id))
+                    }
+                }
+            }
+        } label: {
+            Text("Quién pagó")
+                .lanaFont(.footnote)
+                .foregroundStyle(lana.accent)
+        }
+        .accessibilityLabel("Cambiar quién pagó")
     }
 
     /// Cambiar la división la resuelve contra la lista al vuelo; solo se
