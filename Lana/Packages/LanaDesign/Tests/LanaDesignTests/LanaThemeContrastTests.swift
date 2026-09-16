@@ -8,6 +8,10 @@ import Testing
 @Suite("Contraste de temas — ADR-0044")
 struct LanaThemeContrastTests {
     static let textMinimum = 4.5
+    /// Cuánto tiene que separarse un fondo teñido de la superficie que tiene
+    /// abajo para verse sin leer el texto. No es un criterio WCAG: es el piso
+    /// que atrapa un tinte que no pinta (Obsidiana daba 1.01).
+    static let tintSeparation = 1.05
 
     private static func surfaces(_ neutrals: NeutralPalette) -> [(String, RGBColor)] {
         [("bg", neutrals.bg), ("surface", neutrals.surface), ("surface2", neutrals.surface2)]
@@ -73,6 +77,54 @@ struct LanaThemeContrastTests {
             let accent = neutrals.isDark ? theme.palette.textDark : theme.palette.textLight
             let activeRatio = accent.contrastRatio(with: bar)
             #expect(activeRatio >= Self.textMinimum, "\(theme.displayName) \(mode) activa: \(activeRatio)")
+        }
+    }
+
+    /// Lo que va encima de un fondo de `attention`: el texto en `attention` del
+    /// chip de duda y la tinta de apoyo de las tarjetas (`ink60` o más).
+    @Test("El texto sobre los fondos de attention cumple 4.5:1", arguments: [NeutralPalette.dark, .light])
+    func textoSobreFondosDeAttention(neutrals: NeutralPalette) {
+        let attention = neutrals.isDark ? LanaColors.attentionDark : LanaColors.attentionLight
+        let tints = neutrals.isDark ? AttentionTints.dark : AttentionTints.light
+        let mode = neutrals.isDark ? "oscuro" : "claro"
+        for (name, surface) in Self.surfaces(neutrals) {
+            for (tintName, alpha) in [("soft", tints.soft), ("chip", tints.chip), ("softer", tints.softer)] {
+                let tinted = attention.composited(alpha: alpha, over: surface)
+                let attentionRatio = attention.contrastRatio(with: tinted)
+                #expect(
+                    attentionRatio >= Self.textMinimum,
+                    "\(mode) attention / \(tintName) / \(name): \(attentionRatio)")
+
+                let ink60 = neutrals.inkBase.composited(alpha: neutrals.opacity(for: .ink60), over: tinted)
+                let inkRatio = ink60.contrastRatio(with: tinted)
+                #expect(inkRatio >= Self.textMinimum, "\(mode) ink60 / \(tintName) / \(name): \(inkRatio)")
+            }
+        }
+    }
+
+    @Test("Los fondos teñidos se distinguen de la superficie", arguments: LanaTheme.allCases)
+    func fondosTenidosSeDistinguen(theme: LanaTheme) {
+        for neutrals in Self.modes(for: theme) {
+            let mode = neutrals.isDark ? "oscuro" : "claro"
+            let attention = neutrals.isDark ? LanaColors.attentionDark : LanaColors.attentionLight
+            let attentionTints = neutrals.isDark ? AttentionTints.dark : AttentionTints.light
+            let accent = neutrals.isDark ? theme.palette.textDark : theme.palette.textLight
+            let accentTints = neutrals.isDark ? AccentTints.dark : AccentTints.light
+            let tints = [
+                ("attentionSoft", attention, attentionTints.soft),
+                ("attentionSofter", attention, attentionTints.softer),
+                ("accentSoft", accent, accentTints.soft),
+                ("accentSofter", accent, accentTints.softer),
+                ("accentHighlight", accent, accentTints.highlight)
+            ]
+            for (tintName, color, alpha) in tints {
+                for (name, surface) in Self.surfaces(neutrals) {
+                    let ratio = color.composited(alpha: alpha, over: surface).contrastRatio(with: surface)
+                    #expect(
+                        ratio >= Self.tintSeparation,
+                        "\(theme.displayName) \(mode) \(tintName) / \(name): \(ratio)")
+                }
+            }
         }
     }
 

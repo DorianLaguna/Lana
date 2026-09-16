@@ -23,14 +23,14 @@ public struct LanaColors: Sendable, Equatable {
     /// El texto o glifo que va encima de `accentFill`: blanco cuando da 3:1
     /// (los botones son semibold ≥15 pt), `bg` cuando no.
     public let onAccent: Color
-    /// `accentFill` al 10 %: fondo de una entrada que invita (Apple Pay sin
-    /// configurar).
+    /// `accent` al 10 % (12 % en claro): fondo de una entrada que invita
+    /// (Apple Pay sin configurar).
     public let accentSoft: Color
-    /// `accentFill` al 8 %: fondo de las sugerencias del Análisis.
+    /// `accent` al 8 % (10 % en claro): fondo de las sugerencias del Análisis.
     public let accentSofter: Color
-    /// `accentFill` al 30 %: borde de las sugerencias del Análisis.
+    /// `accent` al 30 % (34 % en claro): borde de las sugerencias del Análisis.
     public let accentBorder: Color
-    /// `accentFill` al 12 %: resalte de una fila recién guardada.
+    /// `accent` al 12 % (14 % en claro): resalte de una fila recién guardada.
     public let accentHighlight: Color
     /// `accentFill` al 45 %: sombra del micrófono.
     public let accentShadow: Color
@@ -93,13 +93,15 @@ public struct LanaColors: Sendable, Equatable {
 
     /// Por revisar, pendientes, el mes más caro, la categoría que domina.
     public let attention: Color
-    /// `attention` al 13 %: fondo de "Por revisar" y del ritmo excedido.
+    /// `attention` al 13 % (14 % en claro): fondo de "Por revisar" y del ritmo
+    /// excedido.
     public let attentionSoft: Color
     /// `attention` al 16 %: chip de duda en un borrador.
     public let attentionChip: Color
-    /// `attention` al 10 %: tarjeta de un recurrente pendiente, advertencias.
+    /// `attention` al 10 % (12 % en claro): tarjeta de un recurrente
+    /// pendiente, advertencias.
     public let attentionSofter: Color
-    /// `attention` al 25 %: borde de un recurrente pendiente.
+    /// `attention` al 25 % (34 % en claro): borde de un recurrente pendiente.
     public let attentionBorder: Color
     /// Ingresos, saldos a favor, estados correctos.
     public let positive: Color
@@ -115,10 +117,16 @@ public struct LanaColors: Sendable, Equatable {
         accent = (isDark ? palette.textDark : palette.textLight).color
         accentFill = palette.fill.color
         onAccent = palette.fill.preferredForeground.color
-        accentSoft = palette.fill.color.opacity(0.10)
-        accentSofter = palette.fill.color.opacity(0.08)
-        accentBorder = palette.fill.color.opacity(0.30)
-        accentHighlight = palette.fill.color.opacity(0.12)
+        // Los tintes salen del acento de texto, no del relleno: es el tono que
+        // ya está ajustado a cada modo. Del relleno, Obsidiana (igual a
+        // `surface3`) no se distinguía del fondo en oscuro, y un relleno claro
+        // como Nopal apenas pintaba sobre blanco.
+        let accentTint = isDark ? palette.textDark : palette.textLight
+        let accentOpacities = isDark ? AccentTints.dark : AccentTints.light
+        accentSoft = accentTint.color.opacity(accentOpacities.soft)
+        accentSofter = accentTint.color.opacity(accentOpacities.softer)
+        accentBorder = accentTint.color.opacity(accentOpacities.border)
+        accentHighlight = accentTint.color.opacity(accentOpacities.highlight)
         accentShadow = palette.fill.color.opacity(0.45)
         highlight = palette.gradientEnd.color
 
@@ -148,10 +156,11 @@ public struct LanaColors: Sendable, Equatable {
 
         let attentionBase = isDark ? Self.attentionDark : Self.attentionLight
         attention = attentionBase.color
-        attentionSoft = Self.attentionDark.color.opacity(0.13)
-        attentionChip = Self.attentionDark.color.opacity(0.16)
-        attentionSofter = Self.attentionDark.color.opacity(0.10)
-        attentionBorder = Self.attentionDark.color.opacity(0.25)
+        let attentionOpacities = isDark ? AttentionTints.dark : AttentionTints.light
+        attentionSoft = attentionBase.color.opacity(attentionOpacities.soft)
+        attentionChip = attentionBase.color.opacity(attentionOpacities.chip)
+        attentionSofter = attentionBase.color.opacity(attentionOpacities.softer)
+        attentionBorder = attentionBase.color.opacity(attentionOpacities.border)
         positive = (isDark ? Self.positiveDark : Self.positiveLight).color
         voiceWave = [
             accentFill,
@@ -167,9 +176,36 @@ public struct LanaColors: Sendable, Equatable {
     static let waveMagenta = RGBColor(hex: "#A55FE0")
 
     static let attentionDark = RGBColor(hex: "#F08A4B")
-    static let attentionLight = RGBColor(hex: "#B24D0F")
+    /// Más oscuro que el `#B24D0F` original: con aquel, el texto en
+    /// `attention` sobre su propio chip no llegaba a 4.5:1 en claro.
+    static let attentionLight = RGBColor(hex: "#96410D")
     static let positiveDark = RGBColor(hex: "#4FD08A")
     static let positiveLight = RGBColor(hex: "#217A49")
+}
+
+/// Las opacidades de los fondos teñidos, por modo. En oscuro son las del
+/// handoff. En claro un tinte sobre blanco rinde menos, así que suben hasta
+/// separarse del fondo más o menos lo mismo que en oscuro, sin que el texto
+/// que va encima baje de 4.5:1 (`LanaThemeContrastTests`).
+struct AttentionTints: Sendable {
+    let soft: Double
+    let chip: Double
+    let softer: Double
+    let border: Double
+
+    static let dark = AttentionTints(soft: 0.13, chip: 0.16, softer: 0.10, border: 0.25)
+    static let light = AttentionTints(soft: 0.14, chip: 0.16, softer: 0.12, border: 0.34)
+}
+
+/// Ver `AttentionTints`.
+struct AccentTints: Sendable {
+    let soft: Double
+    let softer: Double
+    let border: Double
+    let highlight: Double
+
+    static let dark = AccentTints(soft: 0.10, softer: 0.08, border: 0.30, highlight: 0.12)
+    static let light = AccentTints(soft: 0.12, softer: 0.10, border: 0.34, highlight: 0.14)
 }
 
 /// Los niveles de tinta con opacidad. Cada uno trae su opacidad en oscuro

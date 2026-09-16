@@ -118,9 +118,11 @@ struct RecurringItemsScreen: View {
                         Text(item.name)
                             .lanaFont(.rowTitle)
                             .foregroundStyle(lana.ink)
+                        // `ink60` y no `ink50`: sobre el fondo teñido, `ink50`
+                        // baja de 4.5:1 en claro.
                         Text(subtitle(for: item))
                             .lanaFont(.rowSubtitle)
-                            .foregroundStyle(lana.ink50)
+                            .foregroundStyle(lana.ink60)
                     }
                     Spacer(minLength: Space.sm.rawValue)
                     Text(amountText(for: item))
