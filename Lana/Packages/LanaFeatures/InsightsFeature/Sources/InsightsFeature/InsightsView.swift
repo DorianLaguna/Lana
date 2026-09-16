@@ -35,16 +35,9 @@ public struct InsightsView: View {
                 header
                     .padding(.bottom, Space.p20.rawValue)
 
-                if model.availability == .available {
-                    periodPicker
-                        .padding(.bottom, Space.p18.rawValue)
-                    content
-                } else {
-                    InsightsUnavailableView(
-                        availability: model.availability,
-                        onOpenSettings: onOpenSettings,
-                        onRetry: { Task { await model.onAppear() } })
-                }
+                periodPicker
+                    .padding(.bottom, Space.p18.rawValue)
+                content
             }
             .padding(.horizontal, LanaMetrics.screenMargin)
             .padding(.top, Space.p18.rawValue)
@@ -108,8 +101,35 @@ public struct InsightsView: View {
         }
     }
 
+    /// Las preguntas van **siempre**, con o sin Apple Intelligence: cada chip
+    /// es un cálculo determinista. Lo único que la falta del modelo se lleva es
+    /// el resumen escrito y la mezcla, que sí dependen del clasificador — no la
+    /// pantalla entera, como antes.
     @ViewBuilder
     private var content: some View {
+        if model.availability == .available {
+            narratedAnalysis
+        } else {
+            InsightsUnavailableView(
+                availability: model.availability,
+                onOpenSettings: onOpenSettings,
+                onRetry: { Task { await model.onAppear() } })
+                .padding(.bottom, Space.p28.rawValue)
+        }
+
+        AskSection(
+            question: $model.question,
+            suggestions: model.quickAnswers,
+            canAskFreeText: model.availability == .available,
+            answer: model.answer,
+            isAnswering: model.isAnswering,
+            onAsk: { Task { await model.ask() } },
+            onAskSuggestion: { suggestion in Task { await model.ask(suggestion) } },
+            onClear: { model.clearQuestion() })
+    }
+
+    @ViewBuilder
+    private var narratedAnalysis: some View {
         if model.isLoading {
             shimmer
         } else if let message = model.errorMessage {
@@ -129,14 +149,6 @@ public struct InsightsView: View {
             patternsSection
             suggestionsSection
             mixSection
-            AskSection(
-                question: $model.question,
-                suggestions: model.suggestedQuestions,
-                answer: model.answer,
-                isAnswering: model.isAnswering,
-                onAsk: { Task { await model.ask() } },
-                onAskSuggestion: { suggestion in Task { await model.ask(suggestion) } },
-                onClear: { model.clearQuestion() })
         }
     }
 

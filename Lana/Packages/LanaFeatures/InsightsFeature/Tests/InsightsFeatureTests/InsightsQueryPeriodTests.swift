@@ -120,15 +120,29 @@ struct InsightsQueryPeriodTests {
         #expect(model.anchor == anchorBefore)
     }
 
-    @Test("Preguntar una sugerida deja esa pregunta en el campo")
+    @Test("Tocar un chip deja su pregunta en el campo y contesta sin consultar al modelo")
     func preguntarUnaSugeridaDejaLaPreguntaEnElCampo() async throws {
         let spy = SpyQuerying()
         let model = try makeModel(spy: spy, referenceDate: date(2026, 9, 15))
 
-        await model.ask("¿Cuánto debo en mis tarjetas?")
+        await model.ask(.deudaDeTarjetas)
 
-        #expect(model.question == "¿Cuánto debo en mis tarjetas?")
-        #expect(model.answer == "respuesta")
+        #expect(model.question == QuickAnswer.deudaDeTarjetas.title)
+        // La cifra sale del cálculo determinista, no de una narración.
+        #expect(model.answer == "No hay tarjetas de crédito registradas.")
+        // Y el modelo nunca se enteró: es lo que distingue un chip de una
+        // pregunta escrita a mano.
+        #expect(await spy.lastPeriod == nil)
+    }
+
+    @Test("Viendo el año no se ofrecen las preguntas que necesitan un mes")
+    func viendoElAnioSoloSeOfrecenLasQueAplican() async throws {
+        let model = try makeModel(spy: SpyQuerying(), referenceDate: date(2026, 9, 15))
+        #expect(model.quickAnswers.count == 6)
+
+        await model.select(.year)
+
+        #expect(model.quickAnswers == [.deudaDeTarjetas, .cuantoQueda])
     }
 
     @Test("Una pregunta en blanco no llega al modelo")

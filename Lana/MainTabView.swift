@@ -113,7 +113,10 @@ struct MainTabView: View {
             sharedListStore: dependencies.sharedListStore,
             classifier: dependencies.classifier,
             narrator: dependencies.narrator,
-            querying: dependencies.querying))
+            querying: dependencies.querying,
+            cardStore: dependencies.cardStore,
+            cardPaymentStore: dependencies.cardPaymentStore,
+            recurringItemStore: dependencies.recurringItemStore))
         _recurringItemsModel = State(initialValue: RecurringItemsModel(
             recurringItemStore: dependencies.recurringItemStore,
             store: dependencies.store,

@@ -40,8 +40,9 @@ public final class InsightsModel {
     public private(set) var availability: ParsingAvailability = .unknown
     /// `true` mientras se clasifica o se redacta.
     public private(set) var isLoading = false
-    /// El último error, si algo falló.
-    public private(set) var errorMessage: String?
+    /// El último error, si algo falló. `internal(set)` por el mismo motivo que
+    /// `answer`: lo escribe la pregunta escrita a mano, en otro archivo.
+    public internal(set) var errorMessage: String?
     /// Lo de abajo es `internal(set)` y no `private(set)`: lo escribe
     /// `InsightsModelCache.swift` —la misma clase, en otro archivo— al aplicar
     /// lo ya analizado. Fuera del módulo siguen siendo de solo lectura.
@@ -61,10 +62,14 @@ public final class InsightsModel {
     public internal(set) var otherCurrencies: [Currency] = []
     /// Lo que el usuario está escribiendo para preguntar.
     public var question = ""
-    /// La última respuesta, ya narrada. `nil` si todavía no ha preguntado.
-    public private(set) var answer: String?
+    /// La última respuesta. `nil` si todavía no ha preguntado.
+    ///
+    /// `internal(set)` y no `private(set)`: la escribe también
+    /// `InsightsModelQuickAnswers.swift` —la misma clase, en otro archivo— y
+    /// `private` no cruza de archivo. Fuera del módulo sigue siendo de lectura.
+    public internal(set) var answer: String?
     /// `true` mientras se contesta una pregunta.
-    public private(set) var isAnswering = false
+    public internal(set) var isAnswering = false
 
     /// Lo ya analizado en esta sesión de la pantalla — ver
     /// `InsightsModel+Cache.swift`.
@@ -74,7 +79,15 @@ public final class InsightsModel {
     private let sharedListStore: any SharedListStore
     private let classifier: any SpendingClassifying
     private let narrator: any InsightNarrating
-    private let querying: any InsightQuerying
+    /// `internal`, no `private`: lo usa la pregunta escrita a mano, que vive en
+    /// `InsightsModelQuickAnswers.swift` —la misma clase, en otro archivo— y
+    /// `private` no cruza de archivo.
+    let querying: any InsightQuerying
+    /// Los cálculos deterministas de los chips. Vive en `LanaCore`, así que
+    /// armarlo aquí no es importar una implementación concreta de otra capa
+    /// (Docs/ARCHITECTURE.md) — es el mismo cálculo que ya usa el modelo por
+    /// el otro camino, sin el modelo de por medio.
+    let toolbox: LedgerToolbox
     private var preference: BudgetRulePreference
     let calendar: Calendar
 
@@ -89,12 +102,18 @@ public final class InsightsModel {
     ///   - preference: dónde vive la regla que eligió el usuario.
     ///   - referenceDate: en qué mes abre el análisis. Por defecto, hoy; de
     ///     ahí el usuario navega a donde quiera.
+    ///   - cardStore, cardPaymentStore, recurringItemStore: lo que necesitan
+    ///     los chips para contestar sin modelo (`LedgerToolbox`). Traen valor
+    ///     por omisión en memoria para `#Preview` y tests que no los ejercen.
     public init(
         store: any ExpenseStore,
         sharedListStore: any SharedListStore,
         classifier: any SpendingClassifying,
         narrator: any InsightNarrating,
         querying: any InsightQuerying = InMemoryInsightQuerying(),
+        cardStore: any CardStore = InMemoryCardStore(),
+        cardPaymentStore: any CardPaymentStore = InMemoryCardPaymentStore(),
+        recurringItemStore: any RecurringItemStore = InMemoryRecurringItemStore(),
         preference: BudgetRulePreference = BudgetRulePreference(),
         referenceDate: Date = Date(),
         calendar: Calendar = .current) {
@@ -103,6 +122,13 @@ public final class InsightsModel {
         self.classifier = classifier
         self.narrator = narrator
         self.querying = querying
+        toolbox = LedgerToolbox(
+            store: store,
+            sharedListStore: sharedListStore,
+            cardStore: cardStore,
+            cardPaymentStore: cardPaymentStore,
+            recurringItemStore: recurringItemStore,
+            calendar: calendar)
         self.preference = preference
         self.calendar = calendar
         anchor = referenceDate
@@ -158,7 +184,10 @@ public final class InsightsModel {
 
     /// El periodo que el usuario tiene en pantalla, para que una pregunta sin
     /// periodo explícito se conteste sobre él y no sobre el mes de hoy.
-    private var queryPeriod: QueryPeriod {
+    /// `internal`, no `private`: lo leen las preguntas de un toque, que viven
+    /// en `InsightsModelQuickAnswers.swift` —la misma clase, en otro archivo—
+    /// y `private` no cruza de archivo.
+    var queryPeriod: QueryPeriod {
         QueryPeriod(
             year: calendar.component(.year, from: anchor),
             month: period == .month ? calendar.component(.month, from: anchor) : nil)
@@ -196,59 +225,6 @@ public final class InsightsModel {
         cache.removeAll()
         question = ""
         answer = nil
-    }
-
-    /// Preguntas para el estado vacío (Docs/PLAN.md → Fase 9).
-    ///
-    /// Fijas y no generadas: son el catálogo de lo que las herramientas
-    /// deterministas sí pueden contestar (`LedgerToolbox.catalog`). Sugerir una
-    /// pregunta que después no se puede responder es peor que no sugerir nada.
-    public let suggestedQuestions = [
-        "¿Cuánto me queda de esta quincena?",
-        "¿En qué se me fue el dinero este mes?",
-        "¿Gasté más que el mes pasado?",
-        "¿Cuáles fueron mis gastos más grandes?",
-        "¿De dónde me vino el dinero?",
-        "¿Cuánto debo en mis tarjetas?"
-    ]
-
-    /// Contesta lo que el usuario escribió.
-    ///
-    /// El modelo no recibe los movimientos: elige qué cálculo determinista
-    /// correr y narra el resultado (`LedgerToolbox`, Docs/CLAUDE.md).
-    public func ask() async {
-        let clean = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, !isAnswering else { return }
-        isAnswering = true
-        answer = nil
-        errorMessage = nil
-        defer { isAnswering = false }
-        do {
-            // La pregunta viaja con el periodo que el usuario tiene enfrente:
-            // "¿cuáles fueron mis gastos más grandes?" mirando agosto se
-            // contestaba sobre septiembre, porque la pregunta no nombra el mes
-            // —ya se está viendo— y el modelo solo tenía la fecha de hoy.
-            answer = try await querying.answer(clean, viewing: queryPeriod)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    /// Borra la pregunta y su respuesta, sin tocar el análisis ni lo ya
-    /// recordado de otros periodos.
-    ///
-    /// Es distinto de `onDismiss()`, que tira toda la caché: aquí solo se
-    /// limpia la conversación para volver a preguntar en blanco.
-    public func clearQuestion() {
-        question = ""
-        answer = nil
-        errorMessage = nil
-    }
-
-    /// Pregunta una de las sugeridas, sin que el usuario tenga que teclearla.
-    public func ask(_ suggested: String) async {
-        question = suggested
-        await ask()
     }
 
     private func load() async {

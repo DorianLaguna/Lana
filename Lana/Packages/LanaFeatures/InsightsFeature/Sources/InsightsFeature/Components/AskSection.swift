@@ -1,3 +1,4 @@
+import LanaCore
 import LanaDesign
 import SwiftUI
 
@@ -7,25 +8,35 @@ import SwiftUI
 /// Los atajos van en chips y no en filas con chevron: una fila con chevron
 /// promete navegación, y esto no navega a ningún lado — contesta ahí mismo.
 ///
-/// Las sugeridas son fijas, no generadas: cada una corresponde a un cálculo
-/// determinista que sí existe. Sugerir algo que después no se puede contestar
-/// sería peor que no sugerir nada.
+/// Un chip **no pasa por el modelo**: cada uno es un cálculo determinista
+/// (`QuickAnswer`), así que contesta al instante y funciona sin Apple
+/// Intelligence. Escribir una pregunta sí lo necesita.
 struct AskSection: View {
     @Environment(\.lana) private var lana
 
     let question: Binding<String>
-    let suggestions: [String]
+    let suggestions: [QuickAnswer]
+    /// `false` sin Apple Intelligence: los chips siguen contestando —son
+    /// aritmética— pero entender una pregunta escrita necesita el modelo.
+    let canAskFreeText: Bool
     let answer: String?
     let isAnswering: Bool
     let onAsk: () -> Void
-    let onAskSuggestion: (String) -> Void
+    let onAskSuggestion: (QuickAnswer) -> Void
     let onClear: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.p14.rawValue) {
             SectionHeader("Pregúntale a Lana", style: .minor)
 
-            field
+            if canAskFreeText {
+                field
+            } else {
+                Text("Escribir tu propia pregunta necesita Apple Intelligence. Los atajos de abajo funcionan igual.")
+                    .lanaFont(.rowSubtitle)
+                    .foregroundStyle(lana.ink42)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if isAnswering {
                 HStack(spacing: Space.sm.rawValue) {
@@ -43,8 +54,8 @@ struct AskSection: View {
             // las demás sin borrar lo escrito.
             if !suggestions.isEmpty, !isAnswering {
                 FlowLayout {
-                    ForEach(suggestions, id: \.self) { suggestion in
-                        Chip(suggestion, tone: .suggestion) { onAskSuggestion(suggestion) }
+                    ForEach(suggestions) { suggestion in
+                        Chip(suggestion.title, tone: .suggestion) { onAskSuggestion(suggestion) }
                     }
                 }
             }
@@ -117,7 +128,8 @@ struct AskSection: View {
         ForEach(LanaTheme.allCases) { theme in
             AskSection(
                 question: $question,
-                suggestions: ["¿Cuánto me queda de esta quincena?", "¿Cuánto debo en mis tarjetas?"],
+                suggestions: [.cuantoQueda, .deudaDeTarjetas],
+                canAskFreeText: true,
                 answer: nil,
                 isAnswering: false,
                 onAsk: {},
