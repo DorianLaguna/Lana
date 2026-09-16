@@ -59,6 +59,28 @@ struct CoreDataExpenseStoreTests {
         #expect(results.first?.subcategory == "gasolina")
     }
 
+    @Test("El origen hace round-trip y una corrección no lo cambia (ADR-0049)")
+    func origenHaceRoundTrip() async throws {
+        let store = try await makeStore()
+        var expense = Expense(
+            kind: .expense,
+            amount: Money(amount: 89, currency: .mxn),
+            concept: "OXXO",
+            date: Date(timeIntervalSince1970: 1_700_000_000),
+            needsReview: true,
+            source: .applePay)
+        try await store.save(expense)
+
+        expense.needsReview = false
+        expense.source = .manual
+        try await store.save(expense)
+        let results = try await store.expenses(in: fullRange())
+
+        #expect(results.count == 1)
+        #expect(results.first?.needsReview == false)
+        #expect(results.first?.source == .applePay)
+    }
+
     @Test("Guardar dos veces el mismo id corrige, no duplica")
     func guardarDosVecesCorrige() async throws {
         let store = try await makeStore()

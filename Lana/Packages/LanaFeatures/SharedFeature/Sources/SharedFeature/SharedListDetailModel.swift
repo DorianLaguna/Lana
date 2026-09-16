@@ -151,7 +151,8 @@ public final class SharedListDetailModel {
                 date: date,
                 sharedListID: list.id,
                 payer: payer,
-                split: split))
+                split: split,
+                source: .manual))
             await load(asOf: Date())
             return true
         } catch {

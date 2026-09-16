@@ -87,8 +87,12 @@ Lo que se guarda es un **evento inmutable**, no un registro mutable (ADR-0005):
 ```
 ExpenseAdded(id, monto, moneda, tasaDelDia, categoría, subcategoría,
              métodoDePago, tarjeta?, fecha, listaCompartida?, pagador?,
-             splitRule?, needsReview)
+             splitRule?, recurrente?, origen?, needsReview)
 ```
+
+`origen` dice por dónde entró —dictado, Apple Pay, formulario o recurrente— y
+ninguna corrección lo cambia. Lo registrado antes de que existiera no lo trae
+(ADR-0049).
 
 - Editar → `ExpenseCorrected(correctsID, …)`
 - Borrar → `ExpenseVoided(voidsID)`

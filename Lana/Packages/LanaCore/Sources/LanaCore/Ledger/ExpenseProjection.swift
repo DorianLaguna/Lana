@@ -24,7 +24,8 @@ public enum ExpenseProjection {
                 sharedListID: transaction.sharedListID,
                 payer: transaction.payer,
                 split: transaction.split,
-                recurringItemID: transaction.recurringItemID)
+                recurringItemID: transaction.recurringItemID,
+                source: transaction.source)
         }
     }
 }

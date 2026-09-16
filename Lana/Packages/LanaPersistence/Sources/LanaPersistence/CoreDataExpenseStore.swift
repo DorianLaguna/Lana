@@ -214,6 +214,7 @@ public actor CoreDataExpenseStore: ExpenseStore {
                     payer: expense.payer,
                     split: expense.split,
                     recurringItemID: expense.recurringItemID,
+                    source: expense.source,
                     needsReview: expense.needsReview))
             case .income:
                 return .incomeAdded(IncomeAdded(
@@ -224,6 +225,7 @@ public actor CoreDataExpenseStore: ExpenseStore {
                     subcategory: expense.subcategory,
                     date: expense.date,
                     recurringItemID: expense.recurringItemID,
+                    source: expense.source,
                     needsReview: expense.needsReview))
             }
         }

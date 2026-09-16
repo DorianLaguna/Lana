@@ -187,7 +187,8 @@ struct AddTransactionIntent: AppIntent {
             subcategory: suggestion?.subcategory,
             date: transactionDate ?? Date(),
             paymentMethod: paymentMethod,
-            needsReview: true)
+            needsReview: true,
+            source: .applePay)
 
         do {
             try await dependencies.store.save(expense)

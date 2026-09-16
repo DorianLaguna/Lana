@@ -35,4 +35,21 @@ struct DraftTransactionTests {
 
         #expect(draft.asExpense().subcategory == "chocolates")
     }
+
+    @Test("Lo dictado sale como dictado, y lo que vuelve a revisión conserva su origen (ADR-0049)")
+    func elOrigenViajaConElBorrador() {
+        let dictated = DraftTransaction(
+            result: ParseResult(amount: Money(amount: 50, currency: .mxn), concept: "tacos"),
+            fallbackDate: .now)
+        #expect(dictated.asExpense().source == .dictation)
+
+        let fromApplePay = Expense(
+            kind: .expense,
+            amount: Money(amount: 89, currency: .mxn),
+            concept: "OXXO",
+            date: .now,
+            needsReview: true,
+            source: .applePay)
+        #expect(DraftTransaction(expense: fromApplePay).asExpense().source == .applePay)
+    }
 }

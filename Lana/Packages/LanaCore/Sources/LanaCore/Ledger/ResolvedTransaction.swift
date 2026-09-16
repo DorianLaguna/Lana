@@ -29,6 +29,9 @@ struct ResolvedTransaction: Sendable {
     /// El recurrente del que salió (ADR-0042). Ninguna corrección lo toca:
     /// editar el monto o la fecha sigue siendo "el sueldo de este mes".
     let recurringItemID: RecurringItemID?
+    /// Por dónde entró (ADR-0049). Como `recurringItemID`, ninguna corrección
+    /// lo toca.
+    let source: CaptureSource?
     let needsReview: Bool
     let isVoided: Bool
 
@@ -46,6 +49,7 @@ struct ResolvedTransaction: Sendable {
         split = added.split
         cardID = nil
         recurringItemID = added.recurringItemID
+        source = added.source
         needsReview = added.needsReview
         isVoided = false
     }
@@ -64,6 +68,7 @@ struct ResolvedTransaction: Sendable {
         split = nil
         cardID = nil
         recurringItemID = added.recurringItemID
+        source = added.source
         needsReview = added.needsReview
         isVoided = false
     }
@@ -82,6 +87,7 @@ struct ResolvedTransaction: Sendable {
         split = nil
         cardID = payment.cardID
         recurringItemID = nil
+        source = nil
         needsReview = false
         isVoided = false
     }
@@ -100,6 +106,7 @@ struct ResolvedTransaction: Sendable {
         split: SplitRule?,
         cardID: CardID?,
         recurringItemID: RecurringItemID?,
+        source: CaptureSource?,
         needsReview: Bool,
         isVoided: Bool) {
         self.id = id
@@ -115,6 +122,7 @@ struct ResolvedTransaction: Sendable {
         self.split = split
         self.cardID = cardID
         self.recurringItemID = recurringItemID
+        self.source = source
         self.needsReview = needsReview
         self.isVoided = isVoided
     }
@@ -142,6 +150,7 @@ struct ResolvedTransaction: Sendable {
             split: resolvedSplit,
             cardID: cardID,
             recurringItemID: recurringItemID,
+            source: source,
             needsReview: correction.needsReview ?? needsReview,
             isVoided: isVoided)
     }
@@ -161,6 +170,7 @@ struct ResolvedTransaction: Sendable {
             split: split,
             cardID: cardID,
             recurringItemID: recurringItemID,
+            source: source,
             needsReview: needsReview,
             isVoided: true)
     }

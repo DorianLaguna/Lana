@@ -19,6 +19,9 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
     /// por compatibilidad: los eventos ya guardados no lo traen y
     /// decodifican como `nil` (mismo razonamiento que `IncomeAdded.category`).
     public let recurringItemID: RecurringItemID?
+    /// Por dónde entró (ADR-0049). Opcional por compatibilidad, igual que
+    /// `recurringItemID`: lo registrado antes no lo trae.
+    public let source: CaptureSource?
     /// Lo capturado automáticamente (Apple Pay, OCR de tickets) entra con
     /// `true` — nunca como dato confirmado (Docs/CLAUDE.md).
     public let needsReview: Bool
@@ -37,6 +40,7 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
         recurringItemID: RecurringItemID? = nil,
+        source: CaptureSource? = nil,
         needsReview: Bool = false,
         recordedAt: Date = Date()) {
         self.id = id
@@ -51,6 +55,7 @@ public struct ExpenseAdded: Sendable, Hashable, Codable, Identifiable {
         self.payer = payer
         self.split = split
         self.recurringItemID = recurringItemID
+        self.source = source
         self.needsReview = needsReview
         self.recordedAt = recordedAt
     }
@@ -80,6 +85,9 @@ public struct IncomeAdded: Sendable, Hashable, Codable, Identifiable {
     /// desde "Recurrentes" (ADR-0042). Mismo razonamiento de compatibilidad
     /// que `category`.
     public let recurringItemID: RecurringItemID?
+    /// Por dónde entró (ADR-0049). Mismo razonamiento de compatibilidad que
+    /// `category`.
+    public let source: CaptureSource?
     public let needsReview: Bool
     public let recordedAt: Date
 
@@ -92,6 +100,7 @@ public struct IncomeAdded: Sendable, Hashable, Codable, Identifiable {
         subcategory: String? = nil,
         date: Date,
         recurringItemID: RecurringItemID? = nil,
+        source: CaptureSource? = nil,
         needsReview: Bool = false,
         recordedAt: Date = Date()) {
         self.id = id
@@ -102,6 +111,7 @@ public struct IncomeAdded: Sendable, Hashable, Codable, Identifiable {
         self.subcategory = subcategory
         self.date = date
         self.recurringItemID = recurringItemID
+        self.source = source
         self.needsReview = needsReview
         self.recordedAt = recordedAt
     }

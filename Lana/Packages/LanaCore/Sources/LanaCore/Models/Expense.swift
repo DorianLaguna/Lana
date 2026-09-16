@@ -36,6 +36,9 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
     /// (`RecurringItem.registration(in:forMonthOf:calendar:)`, ADR-0042): al
     /// borrar el movimiento, el recurrente vuelve a quedar pendiente solo.
     public var recurringItemID: RecurringItemID?
+    /// Por dónde entró: dictado, Apple Pay, el formulario o un recurrente
+    /// (ADR-0049). `nil` en lo registrado antes de que existiera.
+    public var source: CaptureSource?
 
     public init(
         id: ExpenseID = ExpenseID(),
@@ -50,7 +53,8 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         sharedListID: SharedListID? = nil,
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
-        recurringItemID: RecurringItemID? = nil) {
+        recurringItemID: RecurringItemID? = nil,
+        source: CaptureSource? = nil) {
         self.id = id
         self.kind = kind
         self.amount = amount
@@ -64,5 +68,6 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         self.payer = payer
         self.split = split
         self.recurringItemID = recurringItemID
+        self.source = source
     }
 }

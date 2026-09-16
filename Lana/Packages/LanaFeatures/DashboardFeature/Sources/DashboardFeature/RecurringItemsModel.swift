@@ -81,7 +81,8 @@ public final class RecurringItemsModel {
             subcategory: item.subcategory,
             date: date,
             paymentMethod: item.paymentMethod,
-            recurringItemID: item.id))
+            recurringItemID: item.id,
+            source: .recurring))
     }
 
     /// Registra automáticamente lo que ya venció este mes y no se ha

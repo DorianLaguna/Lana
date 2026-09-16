@@ -38,6 +38,7 @@ Cada decisión de diseño se mide contra eso.
 | Disponible | Periodo anclado al sueldo; saldo derivado de lo registrado | 0039 |
 | Categorías de ingreso | Catálogo propio de ocho, asignadas a mano, no por el parser | 0040 |
 | Presupuesto por categoría | Sección de Mes en `DashboardFeature`, sin paquete propio | 0048 |
+| Origen de un movimiento | Campo opcional en el evento raíz; ninguna corrección lo cambia | 0049 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
 

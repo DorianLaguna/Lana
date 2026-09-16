@@ -35,6 +35,9 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
     /// borrador para que confirmarlo desde la bandeja no lo desligue: el
     /// recurrente se da por registrado justamente por este enlace (ADR-0042).
     public var recurringItemID: RecurringItemID?
+    /// Por dónde entró (ADR-0049). Viaja con el borrador por la misma razón
+    /// que `recurringItemID`: confirmar no lo vuelve dictado.
+    public let source: CaptureSource?
 
     public init(
         id: ExpenseID = ExpenseID(),
@@ -50,8 +53,10 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
         needsReview: Bool = false,
-        recurringItemID: RecurringItemID? = nil) {
+        recurringItemID: RecurringItemID? = nil,
+        source: CaptureSource? = nil) {
         self.recurringItemID = recurringItemID
+        self.source = source
         self.id = id
         self.kind = kind
         self.amount = amount
@@ -88,11 +93,13 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         split = expense.split
         needsReview = expense.needsReview
         recurringItemID = expense.recurringItemID
+        source = expense.source
     }
 
     public init(result: ParseResult, fallbackDate: Date) {
         id = ExpenseID()
         recurringItemID = nil
+        source = .dictation
         kind = result.kind
         amount = result.amount?.amount ?? 0
         currency = result.amount?.currency ?? .mxn
@@ -133,6 +140,7 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
             sharedListID: sharedListID,
             payer: payer,
             split: split,
-            recurringItemID: recurringItemID)
+            recurringItemID: recurringItemID,
+            source: source)
     }
 }
