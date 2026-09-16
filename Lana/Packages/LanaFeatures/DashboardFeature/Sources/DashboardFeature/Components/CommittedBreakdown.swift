@@ -2,16 +2,15 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// De qué está hecho "Te queda": cuánto está comprometido y cuánto queda libre
-/// (ADR-0046).
+/// De qué está hecho "Te queda" (ADR-0046).
 ///
-/// Cada tarjeta va con su alias y su día límite, igual que un recurrente: "lo
-/// que voy a pagar" es una pregunta por tarjeta, no un total anónimo.
+/// Tres pisos, en este orden: lo **comprometido** —solo los recurrentes que
+/// faltan por cobrarse—, lo **libre** que queda de ellos, y aparte las
+/// **tarjetas**, porque su dinero no sale igual: lo ya facturado se paga este
+/// mes y lo del ciclo abierto se paga el que entra.
 ///
-/// Lo que se acumuló **después del corte** se muestra abajo y no se suma: esa
-/// factura todavía no cierra, se paga el mes que entra y va a crecer mientras
-/// se siga usando la tarjeta. Es el mismo vocabulario del detalle de tarjeta,
-/// que ya separa "Para el corte" de "Después del corte".
+/// El total de abajo puede salir **negativo**, y ese es el dato: el mes no
+/// cierra sin el ingreso que todavía no cae.
 struct CommittedBreakdown: View {
     @Environment(\.lana) private var lana
     let commitments: MonthCommitments
@@ -20,16 +19,18 @@ struct CommittedBreakdown: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Sin nada comprometido no se parte nada: "Comprometido $0" y un
-            // "Libre" que repite la cifra de arriba serían dos renglones para
-            // no decir nada.
             if commitments.committed > 0 {
                 split
             }
 
-            if !commitments.accruing.isEmpty {
-                accruingBlock
+            if !dueCards.isEmpty {
+                cardsDueBlock
                     .padding(.top, commitments.committed > 0 ? Space.p14.rawValue : 0)
+            }
+
+            if !nextMonthCards.isEmpty {
+                nextMonthBlock
+                    .padding(.top, Space.p14.rawValue)
             }
 
             if !commitments.justAfter.isEmpty {
@@ -39,6 +40,16 @@ struct CommittedBreakdown: View {
         }
         .accessibilityElement(children: .combine)
     }
+
+    private var dueCards: [MonthCommitments.CardBalance] {
+        commitments.cards.filter { $0.dueThisMonth.amount > 0 }
+    }
+
+    private var nextMonthCards: [MonthCommitments.CardBalance] {
+        commitments.cards.filter { $0.nextMonth.amount > 0 }
+    }
+
+    // MARK: - Comprometido y libre
 
     private var split: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -52,12 +63,9 @@ struct CommittedBreakdown: View {
 
             VStack(alignment: .leading, spacing: Space.p6.rawValue) {
                 ForEach(commitments.recurring, id: \.self) { commitment in
-                    detailRow(concept: commitment.concept, date: commitment.date, amount: commitment.amount)
-                }
-                // Tarjeta por tarjeta, con su día límite: es lo que se va a
-                // pagar de cada una este mes.
-                ForEach(commitments.cards, id: \.self) { commitment in
-                    detailRow(concept: commitment.concept, date: commitment.date, amount: commitment.amount)
+                    detailRow(
+                        label: label(commitment.concept, date: commitment.date),
+                        amount: abs(commitment.amount.amount))
                 }
             }
             .padding(.top, Space.p6.rawValue)
@@ -74,29 +82,50 @@ struct CommittedBreakdown: View {
         }
     }
 
-    /// Lo acumulado en el ciclo abierto. Va apagado y fuera de la suma: decirlo
-    /// como si fuera de este mes sería cobrar dos veces lo mismo.
-    private var accruingBlock: some View {
+    // MARK: - Tarjetas
+
+    /// Lo que se le debe a cada tarjeta **este mes**: ya está facturado, así que
+    /// sale del dinero de este mes aunque su día límite ya haya pasado.
+    private var cardsDueBlock: some View {
         VStack(alignment: .leading, spacing: Space.p6.rawValue) {
-            Text("Después del corte · se paga el mes que entra")
+            SectionHeader("Tarjetas", style: .minor)
+
+            ForEach(dueCards) { card in
+                detailRow(label: cardLabel(card), amount: card.dueThisMonth.amount)
+            }
+
+            HairlineDivider()
+                .padding(.vertical, Space.p6.rawValue)
+
+            row(
+                title: "Después de tarjetas",
+                amount: Money(amount: commitments.afterCards(from: remaining), currency: commitments.currency),
+                isStrong: true,
+                isFree: true)
+        }
+    }
+
+    /// Lo del ciclo abierto: se factura en el próximo corte, así que no se resta
+    /// de este mes. Decirlo evita la sorpresa del mes que entra.
+    private var nextMonthBlock: some View {
+        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+            Text("Para el mes que entra")
                 .lanaFont(.rowSubtitle)
                 .foregroundStyle(lana.ink42)
-                .fixedSize(horizontal: false, vertical: true)
-            ForEach(commitments.accruing) { charge in
-                HStack(spacing: Space.sm.rawValue) {
-                    Text(charge.card)
-                        .lanaFont(.rowSubtitle)
-                        .foregroundStyle(lana.ink50)
-                        .lineLimit(1)
-                    Spacer(minLength: Space.xs.rawValue)
-                    Text(MoneyDisplay.compact(charge.amount))
-                        .lanaFont(.rowSubtitle)
-                        .monospacedDigit()
-                        .foregroundStyle(lana.ink50)
-                }
+            ForEach(nextMonthCards) { card in
+                detailRow(label: cardLabel(card), amount: card.nextMonth.amount, isMuted: true)
             }
         }
     }
+
+    /// "Bancomer · corte día 23": el corte es lo que explica por qué una cifra
+    /// es de este mes y la otra del siguiente.
+    private func cardLabel(_ card: MonthCommitments.CardBalance) -> String {
+        guard let cutoffDay = card.cutoffDay else { return card.card }
+        return "\(card.card) · corte día \(cutoffDay)"
+    }
+
+    // MARK: - Piezas
 
     private func row(title: String, amount: Money, isStrong: Bool, isFree: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
@@ -110,28 +139,28 @@ struct CommittedBreakdown: View {
         }
     }
 
-    /// Lo libre en negativo no se pinta de alarma: es un dato, y el mensaje del
-    /// ritmo ya dice qué hacer con él (Docs/CLAUDE.md → Tono).
+    /// Un total en negativo no se pinta de alarma: es un dato, y el ritmo de
+    /// abajo ya dice qué hacer con él (Docs/CLAUDE.md → Tono).
     private func freeColor(_ amount: Money, isFree: Bool) -> Color {
         guard isFree else { return lana.ink70 }
         return amount.amount < 0 ? lana.attention : lana.ink
     }
 
-    private func detailRow(concept: String, date: Date?, amount: Money) -> some View {
+    private func detailRow(label: String, amount: Decimal, isMuted: Bool = false) -> some View {
         HStack(spacing: Space.sm.rawValue) {
-            Text(label(concept: concept, date: date))
+            Text(label)
                 .lanaFont(.rowSubtitle)
-                .foregroundStyle(lana.ink50)
+                .foregroundStyle(isMuted ? lana.ink42 : lana.ink50)
                 .lineLimit(1)
             Spacer(minLength: Space.xs.rawValue)
-            Text(MoneyDisplay.compact(Money(amount: abs(amount.amount), currency: amount.currency)))
+            Text(MoneyDisplay.compact(Money(amount: amount, currency: commitments.currency)))
                 .lanaFont(.rowSubtitle)
                 .monospacedDigit()
-                .foregroundStyle(lana.ink70)
+                .foregroundStyle(isMuted ? lana.ink42 : lana.ink70)
         }
     }
 
-    private func label(concept: String, date: Date?) -> String {
+    private func label(_ concept: String, date: Date?) -> String {
         guard let date else { return concept }
         return "\(concept) · \(LanaDateFormat.dayLabel(date))"
     }

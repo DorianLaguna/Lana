@@ -59,6 +59,37 @@ descuido, el desglose junta las tarjetas en **un solo renglón** ("Tarjetas
 · $3,200") y el detalle por tarjeta se queda donde ya estaba, en la sección que
 lleva a Tarjetas.
 
+## Enmienda 2 (2026-09-16): las tarjetas salen de lo comprometido
+
+Al ver el bloque en el dispositivo, el dueño de la app corrigió el modelo. Lo
+que había era **una sola bolsa**; lo que pidió son tres pisos, porque el dinero
+de un recurrente y el de una tarjeta no salen igual:
+
+1. **Comprometido = solo los recurrentes** que faltan por cobrarse este mes.
+2. **Libre** = lo que queda del mes menos esos recurrentes.
+3. **Tarjetas, aparte**, con dos cifras que nunca se suman entre sí:
+   - Lo **ya facturado y sin pagar**: se paga este mes.
+   - Lo del **ciclo abierto**: se factura en el próximo corte, así que se paga
+     el mes que entra y **no se resta de este**.
+4. **Después de tarjetas**, que **puede ser negativo**. Textual: *"debe estar
+   como que voy negativo, porque le debo pagar aún a Bancomer, pero le pagaré el
+   día 30 que es cuando me pagan del trabajo, y entonces ahí ya se debería
+   equilibrar"*. El negativo es temporal y esperado; decirlo es el punto.
+
+**El día de corte manda, no el día límite de pago.** El criterio que describió
+—"a Bancomer le debo este mes porque su corte es el 23; a Banamex ya le pagué,
+así que lo que gaste ahora es para el siguiente"— se decide con el corte. El
+día límite solo dice *cuándo* dentro del mes.
+
+**Y se corrige un defecto que escondía deuda.** `cardCommitments` exigía que el
+día límite **no hubiera pasado** (`pendingOccurrence(of:after:)`), así que una
+tarjeta que se seguía debiendo desaparecía del bloque justo al vencerse, que es
+cuando más importa verla. Ahora lo facturado y sin pagar se muestra siempre.
+
+**El ritmo diario se calcula sobre lo libre**, sin descontar tarjetas: la
+tarjeta se paga cuando cae el sueldo, y descontarla antes diría que no hay
+dinero todo el mes por algo que ya está resuelto.
+
 ## Enmiendas (2026-09-16)
 
 Al usarlo, el dueño de la app pidió dos cambios. La decisión de fondo no cambia

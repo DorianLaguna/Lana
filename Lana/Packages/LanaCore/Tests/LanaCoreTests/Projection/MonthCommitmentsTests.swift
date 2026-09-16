@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import LanaCore
 
-@Suite("Lo que ya tiene dueño en el mes")
+@Suite("Lo comprometido del mes y lo de cada tarjeta")
 struct MonthCommitmentsTests {
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -46,7 +46,9 @@ struct MonthCommitmentsTests {
             calendar: calendar)
     }
 
-    @Test("Un recurrente que todavía no cae en el mes ya tiene dueño")
+    // MARK: - Comprometido: solo recurrentes
+
+    @Test("Un recurrente que todavía no cae en el mes está comprometido")
     func recurrentePendienteCuenta() throws {
         let result = try resolve(items: [recurring("Renta", 9000, day: 30)], asOf: date(2026, 9, 15))
 
@@ -62,7 +64,7 @@ struct MonthCommitmentsTests {
         #expect(result.committed == 0)
     }
 
-    @Test("Un ingreso por venir no suma: Te queda cuenta lo registrado, no lo prometido")
+    @Test("Un ingreso por venir no suma: cuenta lo registrado, no lo prometido")
     func elIngresoFuturoNoSuma() throws {
         let result = try resolve(
             items: [recurring("Sueldo", 12000, day: 30, kind: .income)],
@@ -72,18 +74,11 @@ struct MonthCommitmentsTests {
         #expect(result.committed == 0)
     }
 
-    @Test("Lo libre es lo que queda del mes menos lo comprometido")
+    @Test("Lo libre es lo que queda del mes menos los recurrentes")
     func loLibre() throws {
         let result = try resolve(items: [recurring("Renta", 9000, day: 30)], asOf: date(2026, 9, 15))
 
         #expect(result.free(after: 12000) == 3000)
-    }
-
-    @Test("Si lo que queda no alcanza para lo que viene, lo libre es negativo")
-    func loLibreNegativo() throws {
-        let result = try resolve(items: [recurring("Renta", 9000, day: 30)], asOf: date(2026, 9, 15))
-
-        #expect(result.free(after: 5000) == -4000)
     }
 
     @Test("Lo que cae justo después del mes se ve, pero no se suma")
@@ -95,7 +90,7 @@ struct MonthCommitmentsTests {
         #expect(result.committed == 0)
     }
 
-    @Test("Un recurrente ya registrado en el mes deja de tener dueño: ya es un gasto real")
+    @Test("Un recurrente ya registrado en el mes deja de contar: ya es un gasto real")
     func yaRegistradoNoCuenta() throws {
         let item = try recurring("Renta", 9000, day: 30)
         let registered = Expense(
@@ -112,7 +107,7 @@ struct MonthCommitmentsTests {
         #expect(result.committed == 0)
     }
 
-    @Test("Sin nada configurado no hay nada comprometido")
+    @Test("Sin nada configurado no hay nada que desglosar")
     func vacio() {
         let result = resolve(asOf: date(2026, 9, 15))
 
@@ -121,19 +116,19 @@ struct MonthCommitmentsTests {
         #expect(result.free(after: 12000) == 12000)
     }
 
-    // MARK: - Después del corte
+    // MARK: - Tarjetas
 
-    private func creditCard(alias: String = "Nu") throws -> Card {
+    private func creditCard(_ alias: String, cutoffDay: Int, dueDay: Int) throws -> Card {
         try Card(
             alias: alias,
             lastFourDigits: "1234",
             limit: Money(amount: 30000, currency: .mxn),
-            cutoffDay: 10,
-            dueDay: 20,
+            cutoffDay: cutoffDay,
+            dueDay: dueDay,
             kind: .credit)
     }
 
-    private func cardCharge(_ amount: Decimal, on date: Date, card: Card) -> ExpenseEvent {
+    private func charge(_ amount: Decimal, on date: Date, card: Card) -> ExpenseEvent {
         ExpenseEvent.expenseAdded(ExpenseAdded(
             amount: Money(amount: amount, currency: .mxn),
             concept: "compra",
@@ -142,31 +137,98 @@ struct MonthCommitmentsTests {
             paymentMethod: .credit(cardID: card.id)))
     }
 
-    @Test("Lo gastado después del corte se ve, pero no se suma a lo comprometido")
-    func despuesDelCorteNoSeSuma() throws {
-        let card = try creditCard()
-        // El corte es el día 10: un cargo del 12 cae en el ciclo abierto.
+    private func payment(_ amount: Decimal, on date: Date, card: Card) -> ExpenseEvent {
+        ExpenseEvent.cardPaymentRecorded(CardPaymentRecorded(
+            cardID: card.id,
+            amount: Money(amount: amount, currency: .mxn),
+            date: date))
+    }
+
+    @Test("Lo facturado y sin pagar se debe este mes, y no entra a lo comprometido")
+    func loFacturadoSeDebeEsteMes() throws {
+        // Corte el 23: lo gastado antes del corte de agosto ya está facturado.
+        let card = try creditCard("Bancomer", cutoffDay: 23, dueDay: 12)
         let result = resolve(
             cards: [card],
-            events: [cardCharge(1450, on: date(2026, 9, 12), card: card)],
-            asOf: date(2026, 9, 15))
+            events: [charge(8687, on: date(2026, 8, 20), card: card)],
+            asOf: date(2026, 9, 16))
 
-        #expect(result.accruing.map(\.card) == ["Nu"])
-        #expect(result.accruing.first?.amount == Money(amount: 1450, currency: .mxn))
-        // No entra en la suma: esa factura todavía no cierra.
+        let bancomer = try #require(result.cards.first)
+        #expect(bancomer.card == "Bancomer")
+        #expect(bancomer.dueThisMonth == Money(amount: 8687, currency: .mxn))
+        // Las tarjetas no son "comprometido": ese renglón es de recurrentes.
         #expect(result.committed == 0)
+        #expect(result.cardsDueThisMonth == 8687)
+    }
+
+    @Test("Una tarjeta que se sigue debiendo aparece aunque su día límite ya haya pasado")
+    func laDeudaNoDesapareceAlVencerse() throws {
+        // Día límite el 5, hoy es 16: ya se venció y sigue sin pagarse.
+        let card = try creditCard("Bancomer", cutoffDay: 23, dueDay: 5)
+        let result = resolve(
+            cards: [card],
+            events: [charge(8687, on: date(2026, 8, 20), card: card)],
+            asOf: date(2026, 9, 16))
+
+        #expect(result.cardsDueThisMonth == 8687)
+    }
+
+    @Test("Si ya se pagó el corte, esa tarjeta no se debe este mes")
+    func siYaSePagoNoSeDebe() throws {
+        // Corte el 7: lo facturado el 7 de septiembre, pagado el 10.
+        let card = try creditCard("Banamex", cutoffDay: 7, dueDay: 20)
+        let result = resolve(
+            cards: [card],
+            events: [
+                charge(3000, on: date(2026, 9, 3), card: card),
+                payment(3000, on: date(2026, 9, 10), card: card)
+            ],
+            asOf: date(2026, 9, 16))
+
+        #expect(result.cardsDueThisMonth == 0)
+    }
+
+    @Test("Lo gastado después del corte es del mes que entra y no se resta de este")
+    func despuesDelCorteEsDelSiguiente() throws {
+        let card = try creditCard("Banamex", cutoffDay: 7, dueDay: 20)
+        let result = resolve(
+            cards: [card],
+            events: [charge(1450, on: date(2026, 9, 12), card: card)],
+            asOf: date(2026, 9, 16))
+
+        let banamex = try #require(result.cards.first)
+        #expect(banamex.nextMonth == Money(amount: 1450, currency: .mxn))
+        #expect(banamex.dueThisMonth.amount == 0)
+        #expect(result.cardsDueThisMonth == 0)
+        // Lo libre no lo resiente: esa factura todavía no cierra.
         #expect(result.free(after: 12000) == 12000)
+        #expect(result.afterCards(from: 12000) == 12000)
     }
 
-    @Test("Una tarjeta sin nada acumulado no aparece")
-    func sinAcumuladoNoAparece() throws {
-        let result = try resolve(cards: [creditCard()], asOf: date(2026, 9, 15))
+    @Test("Después de tarjetas puede salir negativo, y eso es el dato")
+    func despuesDeTarjetasPuedeSerNegativo() throws {
+        let card = try creditCard("Bancomer", cutoffDay: 23, dueDay: 12)
+        let result = try resolve(
+            items: [recurring("Renta", 9000, day: 30)],
+            cards: [card],
+            events: [charge(8687, on: date(2026, 8, 20), card: card)],
+            asOf: date(2026, 9, 16))
 
-        #expect(result.accruing.isEmpty)
+        // Quedan 12,000: menos 9,000 de renta son 3,000 libres, y menos los
+        // 8,687 de Bancomer, el mes no cierra por 5,687.
+        #expect(result.free(after: 12000) == 3000)
+        #expect(result.afterCards(from: 12000) == -5687)
     }
 
-    @Test("Una tarjeta de débito no acumula: no tiene ciclo de corte")
-    func elDebitoNoAcumula() throws {
+    @Test("Una tarjeta sin nada que decir no aparece")
+    func sinNadaQueDecirNoAparece() throws {
+        let result = try resolve(cards: [creditCard("Nu", cutoffDay: 10, dueDay: 20)], asOf: date(2026, 9, 15))
+
+        #expect(result.cards.isEmpty)
+    }
+
+    @Test("Una tarjeta de débito no tiene ciclo de corte: no aparece")
+    func elDebitoNoAparece() throws {
         let debit = try Card(
             alias: "Nómina",
             lastFourDigits: "9999",
@@ -177,9 +239,9 @@ struct MonthCommitmentsTests {
 
         let result = resolve(
             cards: [debit],
-            events: [cardCharge(500, on: date(2026, 9, 12), card: debit)],
-            asOf: date(2026, 9, 15))
+            events: [charge(500, on: date(2026, 9, 12), card: debit)],
+            asOf: date(2026, 9, 16))
 
-        #expect(result.accruing.isEmpty)
+        #expect(result.cards.isEmpty)
     }
 }
