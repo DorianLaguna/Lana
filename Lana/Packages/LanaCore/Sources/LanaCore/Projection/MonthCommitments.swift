@@ -44,6 +44,29 @@ public struct MonthCommitments: Sendable, Equatable {
     /// se gaste la renta del 1 estando a día 28, pero no entran a la suma: el
     /// mes es el mes.
     public let justAfter: [Commitment]
+    /// Lo que lleva acumulado cada tarjeta **después de su último corte**.
+    ///
+    /// **No se suma.** Todavía no se factura: se paga hasta el mes que entra y
+    /// va a crecer mientras se siga usando la tarjeta. Por eso no tiene fecha
+    /// límite — todavía no existe— y se muestra aparte de lo comprometido.
+    public let accruing: [AccruingCharge]
+
+    /// Lo acumulado en el ciclo abierto de una tarjeta. Sin fecha a propósito:
+    /// su fecha de pago es la del corte que aún no cierra.
+    public struct AccruingCharge: Sendable, Hashable, Identifiable {
+        public var id: String {
+            card
+        }
+
+        /// El alias de la tarjeta, como la nombró su dueño.
+        public let card: String
+        public let amount: Money
+
+        public init(card: String, amount: Money) {
+            self.card = card
+            self.amount = amount
+        }
+    }
 
     /// - Parameters:
     ///   - month: cualquier fecha del mes que se está viendo.
@@ -59,7 +82,7 @@ public struct MonthCommitments: Sendable, Equatable {
         lookaheadDays: Int = 7,
         calendar: Calendar = .current) -> MonthCommitments {
         guard let interval = calendar.dateInterval(of: .month, for: month) else {
-            return MonthCommitments(currency: currency, recurring: [], cards: [], justAfter: [])
+            return MonthCommitments(currency: currency, recurring: [], cards: [], justAfter: [], accruing: [])
         }
         let monthPeriod = PayPeriod(start: interval.start, end: interval.end, isAnchoredToIncome: false)
         let recurring = monthPeriod.commitments(
@@ -85,7 +108,32 @@ public struct MonthCommitments: Sendable, Equatable {
             currency: currency,
             recurring: Self.outflows(recurring, in: currency),
             cards: Self.outflows(cardDues, in: currency),
-            justAfter: Self.outflows(after, in: currency))
+            justAfter: Self.outflows(after, in: currency),
+            accruing: Self.accruing(in: inputs, currency: currency, asOf: asOf, calendar: calendar))
+    }
+
+    /// Lo que cada tarjeta de crédito lleva acumulado en su ciclo abierto.
+    ///
+    /// Es la misma cifra que el detalle de tarjeta llama "Después del corte",
+    /// no una nueva: quien usa la tarjeta ve el mismo número en las dos
+    /// pantallas.
+    private static func accruing(
+        in inputs: Inputs,
+        currency: Currency,
+        asOf: Date,
+        calendar: Calendar) -> [AccruingCharge] {
+        inputs.cards
+            .compactMap { card -> AccruingCharge? in
+                guard card.kind == .credit else { return nil }
+                let amount = inputs.ledger.currentCycleBalance(for: card, asOf: asOf, calendar: calendar)
+                guard amount.currency == currency, amount.amount > 0 else { return nil }
+                return AccruingCharge(card: card.alias, amount: amount)
+            }
+            .sorted { first, second in
+                first.amount.amount == second.amount.amount
+                    ? first.card < second.card
+                    : first.amount.amount > second.amount.amount
+            }
     }
 
     /// Solo lo que sale, y solo en esta moneda. Un ingreso por venir se queda
@@ -113,9 +161,9 @@ public struct MonthCommitments: Sendable, Equatable {
         remaining - committed
     }
 
-    /// `true` si no hay nada comprometido ni asomándose.
+    /// `true` si no hay nada comprometido, asomándose ni acumulándose.
     public var isEmpty: Bool {
-        recurring.isEmpty && cards.isEmpty && justAfter.isEmpty
+        recurring.isEmpty && cards.isEmpty && justAfter.isEmpty && accruing.isEmpty
     }
 
     private static func sum(_ commitments: [Commitment]) -> Decimal {

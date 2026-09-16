@@ -2,12 +2,16 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// De qué está hecho "Te queda": cuánto ya tiene dueño y cuánto queda libre
+/// De qué está hecho "Te queda": cuánto está comprometido y cuánto queda libre
 /// (ADR-0046).
 ///
-/// Las tarjetas van en **un solo renglón** aunque sean varias: el detalle por
-/// tarjeta ya vive en "Esta quincena", que es la sección que lleva a Tarjetas.
-/// Repetirlo aquí tarjeta por tarjeta haría ver la misma deuda dos veces.
+/// Cada tarjeta va con su alias y su día límite, igual que un recurrente: "lo
+/// que voy a pagar" es una pregunta por tarjeta, no un total anónimo.
+///
+/// Lo que se acumuló **después del corte** se muestra abajo y no se suma: esa
+/// factura todavía no cierra, se paga el mes que entra y va a crecer mientras
+/// se siga usando la tarjeta. Es el mismo vocabulario del detalle de tarjeta,
+/// que ya separa "Para el corte" de "Después del corte".
 struct CommittedBreakdown: View {
     @Environment(\.lana) private var lana
     let commitments: MonthCommitments
@@ -16,16 +20,21 @@ struct CommittedBreakdown: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Sin nada comprometido no se parte nada: "Ya tiene dueño $0" y un
+            // Sin nada comprometido no se parte nada: "Comprometido $0" y un
             // "Libre" que repite la cifra de arriba serían dos renglones para
-            // no decir nada. Queda solo el pie de lo que viene.
+            // no decir nada.
             if commitments.committed > 0 {
                 split
             }
 
+            if !commitments.accruing.isEmpty {
+                accruingBlock
+                    .padding(.top, commitments.committed > 0 ? Space.p14.rawValue : 0)
+            }
+
             if !commitments.justAfter.isEmpty {
                 lookahead
-                    .padding(.top, commitments.committed > 0 ? Space.p12.rawValue : 0)
+                    .padding(.top, Space.p12.rawValue)
             }
         }
         .accessibilityElement(children: .combine)
@@ -37,7 +46,7 @@ struct CommittedBreakdown: View {
                 .padding(.bottom, Space.p12.rawValue)
 
             row(
-                title: "Ya tiene dueño",
+                title: "Comprometido",
                 amount: Money(amount: commitments.committed, currency: commitments.currency),
                 isStrong: true)
 
@@ -45,11 +54,10 @@ struct CommittedBreakdown: View {
                 ForEach(commitments.recurring, id: \.self) { commitment in
                     detailRow(concept: commitment.concept, date: commitment.date, amount: commitment.amount)
                 }
-                if commitments.cardsTotal > 0 {
-                    detailRow(
-                        concept: "Tarjetas",
-                        date: nil,
-                        amount: Money(amount: -commitments.cardsTotal, currency: commitments.currency))
+                // Tarjeta por tarjeta, con su día límite: es lo que se va a
+                // pagar de cada una este mes.
+                ForEach(commitments.cards, id: \.self) { commitment in
+                    detailRow(concept: commitment.concept, date: commitment.date, amount: commitment.amount)
                 }
             }
             .padding(.top, Space.p6.rawValue)
@@ -63,6 +71,30 @@ struct CommittedBreakdown: View {
                 amount: Money(amount: commitments.free(after: remaining), currency: commitments.currency),
                 isStrong: true,
                 isFree: true)
+        }
+    }
+
+    /// Lo acumulado en el ciclo abierto. Va apagado y fuera de la suma: decirlo
+    /// como si fuera de este mes sería cobrar dos veces lo mismo.
+    private var accruingBlock: some View {
+        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+            Text("Después del corte · se paga el mes que entra")
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink42)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(commitments.accruing) { charge in
+                HStack(spacing: Space.sm.rawValue) {
+                    Text(charge.card)
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink50)
+                        .lineLimit(1)
+                    Spacer(minLength: Space.xs.rawValue)
+                    Text(MoneyDisplay.compact(charge.amount))
+                        .lanaFont(.rowSubtitle)
+                        .monospacedDigit()
+                        .foregroundStyle(lana.ink50)
+                }
+            }
         }
     }
 

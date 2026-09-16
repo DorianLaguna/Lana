@@ -59,6 +59,23 @@ descuido, el desglose junta las tarjetas en **un solo renglón** ("Tarjetas
 · $3,200") y el detalle por tarjeta se queda donde ya estaba, en la sección que
 lleva a Tarjetas.
 
+## Enmiendas (2026-09-16)
+
+Al usarlo, el dueño de la app pidió dos cambios. La decisión de fondo no cambia
+—la cifra se sigue partiendo en lo que ya tiene destino y lo libre—, cambia cómo
+se nombra y cuánto detalle muestra:
+
+- **El bloque se llama "Comprometido"**, no "Ya tiene dueño".
+- **Cada tarjeta va con su alias y su día límite**, como un recurrente, en vez
+  del renglón consolidado "Tarjetas". Textual: *"quiero que me marque lo que voy
+  a pagar de las tarjetas"* — y eso es una pregunta por tarjeta, no un total
+  anónimo. Con esto, el detalle por tarjeta aparece también en "Esta quincena",
+  que se conservó por decisión previa.
+- **Lo acumulado después del corte se muestra aparte y no se suma.** Es la misma
+  cifra que el detalle de tarjeta llama "Después del corte": esa factura todavía
+  no cierra, se paga el mes que entra y va a crecer mientras se use la tarjeta.
+  Sumarla a lo comprometido de este mes sería cobrarla dos veces.
+
 ## Consecuencias
 
 - `DashboardModel` necesita dos stores más (`RecurringItemStore`,
