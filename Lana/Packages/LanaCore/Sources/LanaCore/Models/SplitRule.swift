@@ -35,9 +35,8 @@ public enum SplitRuleError: LocalizedError, Sendable {
 
 extension SplitRule {
     /// Cuánto le corresponde a cada participante del monto `total`. La suma
-    /// de las partes siempre es exactamente `total` — el residuo del
-    /// redondeo, si lo hay, se ajusta de forma determinista en el
-    /// participante que ordena último por `ParticipantID`.
+    /// de las partes siempre es exactamente `total`, y ninguna parte se aleja
+    /// más de un centavo de la exacta (ver `distribute`).
     public func portions(of total: Money) throws -> [ParticipantID: Money] {
         switch self {
         case .payerOnly:
@@ -65,6 +64,14 @@ extension SplitRule {
         }
     }
 
+    /// Reparte `total` en centavos según `fractionalShares`, por el método
+    /// del mayor residuo: cada parte exacta se trunca a centavos y los
+    /// centavos que sobran se dan, de uno en uno, a quienes más perdieron al
+    /// truncar. Empates, al que ordena último por `ParticipantID`.
+    ///
+    /// Antes todo el residuo iba al último participante, y como 1/7 no cabe
+    /// exacto en un `Decimal`, 350 entre 7 daba 49.99 a seis personas y 50.06
+    /// a una.
     private static func distribute(
         total: Money,
         fractionalShares: [ParticipantID: Decimal],
@@ -75,18 +82,38 @@ extension SplitRule {
             guard sum == expectedSum else { throw SplitRuleError.sharesDontSumToOne(sum: sum) }
         }
 
-        let ordered = fractionalShares.keys.sorted()
-        var portions: [ParticipantID: Money] = [:]
-        var distributed = Decimal(0)
-        for participant in ordered.dropLast() {
-            let fraction = fractionalShares[participant] ?? 0
-            let amount = (total.amount * fraction).rounded(scale: 2, mode: .down)
-            portions[participant] = Money(amount: amount, currency: total.currency)
-            distributed += amount
+        let cent = Decimal(string: "0.01") ?? 0
+        var amounts: [ParticipantID: Decimal] = [:]
+        var remainders: [(participant: ParticipantID, remainder: Decimal)] = []
+        for participant in fractionalShares.keys.sorted() {
+            // Seis decimales primero: una fracción periódica guardada en
+            // `Decimal` deja 49.9999…, que truncado a centavos perdería uno.
+            let exact = (total.amount * (fractionalShares[participant] ?? 0)).rounded(scale: 6, mode: .plain)
+            let truncated = exact.rounded(scale: 2, mode: .down)
+            amounts[participant] = truncated
+            remainders.append((participant, exact - truncated))
         }
-        if let last = ordered.last {
-            portions[last] = Money(amount: total.amount - distributed, currency: total.currency)
+
+        let distributed = amounts.values.reduce(Decimal(0), +)
+        let leftoverCents = NSDecimalNumber(decimal: ((total.amount - distributed) / cent).rounded(
+            scale: 0,
+            mode: .plain))
+            .intValue
+        if leftoverCents > 0 {
+            let byRemainder = remainders.sorted {
+                $0.remainder == $1.remainder ? $0.participant > $1.participant : $0.remainder > $1.remainder
+            }
+            for index in 0 ..< leftoverCents {
+                amounts[byRemainder[index % byRemainder.count].participant, default: 0] += cent
+            }
+        } else if leftoverCents < 0 {
+            let bySmallestRemainder = remainders.sorted {
+                $0.remainder == $1.remainder ? $0.participant < $1.participant : $0.remainder < $1.remainder
+            }
+            for index in 0 ..< -leftoverCents {
+                amounts[bySmallestRemainder[index % bySmallestRemainder.count].participant, default: 0] -= cent
+            }
         }
-        return portions
+        return amounts.mapValues { Money(amount: $0, currency: total.currency) }
     }
 }

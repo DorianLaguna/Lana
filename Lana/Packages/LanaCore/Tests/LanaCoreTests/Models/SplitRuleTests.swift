@@ -16,6 +16,31 @@ struct SplitRuleTests {
         #expect(portions[ids[2]]?.amount == Decimal(string: "33.34"))
     }
 
+    @Test("Iguales entre 7 de $350 da $50 exactos a cada quien, sin centavos de más")
+    func igualesEntreSieteSinResiduo() throws {
+        let ids = (0 ..< 7).map { _ in ParticipantID() }
+        let portions = try SplitRule.equally(among: ids).portions(of: Money(amount: 350, currency: .mxn))
+
+        #expect(portions.count == 7)
+        #expect(portions.values.allSatisfy { $0.amount == 50 })
+    }
+
+    @Test("Ninguna parte se aleja más de un centavo de la exacta, y todo suma el total")
+    func ningunaParteSeAlejaMasDeUnCentavo() throws {
+        let totals = ["100", "350", "0.05", "999.99", "1234.57", "7"]
+        for count in 2 ... 9 {
+            let ids = (0 ..< count).map { _ in ParticipantID() }
+            for text in totals {
+                let total = try #require(Decimal(string: text))
+                let portions = try SplitRule.equally(among: ids).portions(of: Money(amount: total, currency: .mxn))
+                let amounts = portions.values.map(\.amount)
+                #expect(amounts.reduce(0, +) == total, "\(text) entre \(count)")
+                let spread = (amounts.max() ?? 0) - (amounts.min() ?? 0)
+                #expect(spread <= Decimal(string: "0.01") ?? 0, "\(text) entre \(count): \(amounts)")
+            }
+        }
+    }
+
     @Test("payerOnly no genera partes")
     func payerOnlySinPartes() throws {
         let portions = try SplitRule.payerOnly.portions(of: Money(amount: 100, currency: .mxn))
