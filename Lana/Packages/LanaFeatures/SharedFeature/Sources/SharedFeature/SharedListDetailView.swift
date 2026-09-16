@@ -18,6 +18,10 @@ public struct SharedListDetailView: View {
     /// sin cruzar a `DashboardFeature` como antes.
     @State private var editingExpense: Expense?
     @State private var editingList: EditSharedListModel?
+    /// Quienes se acaban de agregar a la lista, mientras se decide si se suman
+    /// a lo ya registrado (ADR-0050). Se pregunta al cerrar la hoja de edición.
+    @State private var pendingNewcomers: [ParticipantID] = []
+    @State private var isAskingToInclude = false
 
     public init(model: SharedListDetailModel) {
         self.model = model
@@ -94,9 +98,14 @@ public struct SharedListDetailView: View {
                             list: model.list,
                             viewerID: model.viewerParticipantID,
                             onSave: { updated, viewerID in
+                                let previous = Set(model.list.participants.map(\.id))
                                 let saved = await model.updateList(updated)
                                 if saved, let viewerID {
                                     await model.setViewer(viewerID)
+                                }
+                                if saved {
+                                    let newcomers = updated.participants.map(\.id).filter { !previous.contains($0) }
+                                    pendingNewcomers = model.expensesToInclude(newcomers).isEmpty ? [] : newcomers
                                 }
                                 return saved
                             })
@@ -145,8 +154,27 @@ public struct SharedListDetailView: View {
                         participantName: { model.displayName(for: $0) })
                 }
             }
-            .sheet(item: $editingList) { editModel in
+            .sheet(item: $editingList, onDismiss: {
+                // Después de que la hoja se cierra, no durante: una alerta
+                // presentada mientras se cierra una hoja no aparece.
+                isAskingToInclude = !pendingNewcomers.isEmpty
+            }) { editModel in
                 EditSharedListView(model: editModel, onDone: { editingList = nil })
+            }
+            .alert(includeTitle, isPresented: $isAskingToInclude) {
+                Button("Sí, dividir entre todos") {
+                    let newcomers = pendingNewcomers
+                    pendingNewcomers = []
+                    Task { await model.include(newcomers) }
+                }
+                Button("Solo lo nuevo", role: .cancel) {
+                    pendingNewcomers = []
+                }
+            } message: {
+                Text("""
+                Se vuelven a dividir en partes iguales, contando a quien agregaste. \
+                Los de porcentaje, montos exactos o proporcional se quedan como están.
+                """)
             }
             .sheet(isPresented: $isPromptingViewer) {
                 ViewerPromptView(participants: model.list.participants) { participantID in
@@ -154,6 +182,17 @@ public struct SharedListDetailView: View {
                     isPromptingViewer = false
                 }
             }
+    }
+
+    /// "¿Sumar a Kin a los 12 gastos que ya están?"
+    private var includeTitle: String {
+        let names = pendingNewcomers.map { model.displayName(for: $0) }
+        let who = names.count <= 1
+            ? names.first ?? ""
+            : names.dropLast().joined(separator: ", ") + " y " + (names.last ?? "")
+        let count = model.expensesToInclude(pendingNewcomers).count
+        let expenses = count == 1 ? "al gasto que ya está" : "a los \(count) gastos que ya están"
+        return "¿Sumar a \(who) \(expenses)?"
     }
 
     /// `Debt` no es `Identifiable` — no tiene un id propio, es un valor

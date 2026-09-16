@@ -122,6 +122,35 @@ public final class SharedListDetailModel {
         }
     }
 
+    /// Los gastos ya registrados a los que se podría sumar a `newcomers`: los
+    /// de partes iguales que todavía no los incluyen (ADR-0050).
+    public func expensesToInclude(_ newcomers: [ParticipantID]) -> [Expense] {
+        expenses.filter { $0.split?.including(newcomers) != nil }
+    }
+
+    /// Suma a `newcomers` a los gastos de partes iguales ya registrados. Cada
+    /// uno emite una corrección de su división —nada se reescribe ni se
+    /// borra—, así que los saldos se recalculan solos (ADR-0050).
+    ///
+    /// - Returns: `false` si algún gasto no se pudo corregir; los que sí se
+    ///   guardaron se quedan corregidos.
+    public func include(_ newcomers: [ParticipantID]) async -> Bool {
+        errorMessage = nil
+        var succeeded = true
+        for var expense in expensesToInclude(newcomers) {
+            guard let split = expense.split?.including(newcomers) else { continue }
+            expense.split = split
+            do {
+                try await expenseStore.save(expense)
+            } catch {
+                errorMessage = error.localizedDescription
+                succeeded = false
+            }
+        }
+        await load(asOf: Date())
+        return succeeded
+    }
+
     /// Resuelve el nombre a mostrar de un participante — `nil` si ya no
     /// está en el roster (no debería pasar, pero un `Debt`/gasto viejo
     /// podría referenciar a alguien que se quitó de la lista).

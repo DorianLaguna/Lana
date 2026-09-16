@@ -33,11 +33,23 @@ public enum SplitRuleError: LocalizedError, Sendable {
     }
 }
 
-extension SplitRule {
+public extension SplitRule {
+    /// Esta misma división con `newcomers` sumados, para cuando alguien se
+    /// agrega a una lista y el usuario decide incluirlo en lo ya registrado
+    /// (ADR-0050). Solo aplica a partes iguales: `nil` para las demás reglas,
+    /// donde no hay forma segura de decidir cuánto le tocaría al nuevo, y
+    /// también si ya estaban todos.
+    func including(_ newcomers: [ParticipantID]) -> SplitRule? {
+        guard case let .equally(among) = self else { return nil }
+        let missing = newcomers.filter { !among.contains($0) }
+        guard !missing.isEmpty else { return nil }
+        return .equally(among: among + missing)
+    }
+
     /// Cuánto le corresponde a cada participante del monto `total`. La suma
     /// de las partes siempre es exactamente `total`, y ninguna parte se aleja
     /// más de un centavo de la exacta (ver `distribute`).
-    public func portions(of total: Money) throws -> [ParticipantID: Money] {
+    func portions(of total: Money) throws -> [ParticipantID: Money] {
         switch self {
         case .payerOnly:
             return [:]
