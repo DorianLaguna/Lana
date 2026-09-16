@@ -128,7 +128,42 @@ public final class RecurringItemsModel {
     /// Cuántos recurrentes ya vencieron este mes y siguen sin registrarse —
     /// el "3 pendientes" de la fila de Recurrentes en Mes.
     public func pendingCount(asOf date: Date = Date(), calendar: Calendar = .current) -> Int {
-        items.filter { $0.isDue(asOf: date, calendar: calendar) && registrations[$0.id] == nil }.count
+        pending(asOf: date, calendar: calendar).count
+    }
+
+    /// Los que ya vencieron y siguen sin registrarse, del más viejo al más
+    /// nuevo: lo que reclama acción va primero (rediseño, sección 11).
+    public func pending(asOf date: Date = Date(), calendar: Calendar = .current) -> [RecurringItem] {
+        items
+            .filter { $0.isDue(asOf: date, calendar: calendar) && registrations[$0.id] == nil }
+            .sorted { $0.dayOfMonth < $1.dayOfMonth }
+    }
+
+    /// Los que este mes ya quedaron registrados, con cómo se supo. Van
+    /// apagados: ya no piden nada.
+    public func registered(asOf date: Date = Date(), calendar: Calendar = .current) -> [RecurringItem] {
+        items
+            .filter { registrations[$0.id] != nil }
+            .sorted { $0.dayOfMonth < $1.dayOfMonth }
+    }
+
+    /// Los que todavía no vencen este mes.
+    public func upcoming(asOf date: Date = Date(), calendar: Calendar = .current) -> [RecurringItem] {
+        items
+            .filter { !$0.isDue(asOf: date, calendar: calendar) && registrations[$0.id] == nil }
+            .sorted { $0.dayOfMonth < $1.dayOfMonth }
+    }
+
+    /// Cuánto suman los gastos fijos al mes, por moneda — los ingresos no
+    /// entran: "$22,443 al mes" es lo que sale, no el neto.
+    public var monthlyExpenseTotal: [Money] {
+        var byCurrency: [Currency: Decimal] = [:]
+        for item in items where item.kind == .expense {
+            byCurrency[item.amount.currency, default: 0] += item.amount.amount
+        }
+        return byCurrency
+            .map { Money(amount: $0.value, currency: $0.key) }
+            .sorted { $0.currency.rawValue < $1.currency.rawValue }
     }
 
     /// El formulario de agregar (`editing: nil`) o editar un recurrente.

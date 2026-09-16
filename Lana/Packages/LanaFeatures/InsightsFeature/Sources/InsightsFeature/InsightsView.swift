@@ -3,14 +3,16 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// El Análisis con IA: el resumen narrado del periodo, la mezcla del
-/// presupuesto contra la regla que el usuario eligió, los patrones y las
-/// sugerencias.
+/// El Análisis con Lana (rediseño, sección 10): el mes o el año explicados en
+/// palabras, la mezcla contra la regla elegida, y preguntas en lenguaje
+/// natural.
 ///
-/// Es una pantalla aparte de la vista anual a propósito: ahí van las
-/// estadísticas puras, que funcionan siempre; aquí lo que depende de Apple
-/// Intelligence. Sin el modelo, esta pantalla explica por qué y la otra sigue
-/// completa.
+/// Es una pantalla aparte de El año a propósito: ahí van las estadísticas
+/// puras, que funcionan siempre; aquí lo que depende de Apple Intelligence.
+/// Sin el modelo, esta explica por qué y la otra sigue completa.
+///
+/// **Las cifras las calcula la app, no el modelo** — él solo redacta
+/// (ADR-0013).
 public struct InsightsView: View {
     @Environment(\.lana) private var lana
     @Bindable private var model: InsightsModel
@@ -28,83 +30,91 @@ public struct InsightsView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: Space.md.rawValue) {
-                    if model.availability == .available {
-                        periodPicker
-                        anchorSelector
-                        content
-                    } else {
-                        InsightsUnavailableView(
-                            availability: model.availability,
-                            onOpenSettings: onOpenSettings,
-                            onRetry: { Task { await model.onAppear() } })
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.bottom, Space.p20.rawValue)
+
+                if model.availability == .available {
+                    periodPicker
+                        .padding(.bottom, Space.p18.rawValue)
+                    content
+                } else {
+                    InsightsUnavailableView(
+                        availability: model.availability,
+                        onOpenSettings: onOpenSettings,
+                        onRetry: { Task { await model.onAppear() } })
                 }
-                .padding(Space.md.rawValue)
             }
-            .background(lana.bg)
-            .navigationTitle("Análisis")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Listo", action: onDone)
-                    }
-                }
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p18.rawValue)
+            .padding(.bottom, Space.p40.rawValue)
         }
-        // Como cualquier otra hoja de la app: que se vea que se puede arrastrar
-        // para cerrar.
+        .background(lana.bg)
         .presentationDragIndicator(.visible)
         .task { await model.onAppear() }
     }
 
-    private var periodPicker: some View {
-        Picker("Periodo", selection: Binding(
-            get: { model.period },
-            set: { period in Task { await model.select(period) } })) {
-                ForEach(InsightsPeriod.allCases) { period in
-                    Text(period.displayName).tag(period)
-                }
-            }
-            .pickerStyle(.segmented)
+    private var header: some View {
+        HStack {
+            Text("Análisis")
+                .lanaFont(.sheetTitle)
+                .foregroundStyle(lana.ink)
+            Spacer()
+            Button("Listo", action: onDone)
+                .lanaFont(.action)
+                .foregroundStyle(lana.accent)
+                .buttonStyle(.plain)
+                .frame(minHeight: LanaMetrics.minTouchTarget)
+        }
     }
 
-    /// Qué mes o qué año se analiza. Sin esto, el análisis solo sabía ver el
-    /// periodo en curso — y un mes ya cerrado es justo el que vale la pena
-    /// entender.
-    @ViewBuilder
-    private var anchorSelector: some View {
-        switch model.period {
-        case .month:
-            MonthSelector(
-                month: model.anchor,
-                onPrevious: { Task { await model.goToPrevious() } },
-                onNext: { Task { await model.goToNext() } })
-        case .year:
-            YearSelector(
-                year: model.anchorYear,
-                onPrevious: { Task { await model.goToPrevious() } },
-                onNext: { Task { await model.goToNext() } })
+    /// Las etiquetas son el periodo real ("Septiembre" / "2026"), no las
+    /// palabras "Mes" y "Año": así se sabe qué se está leyendo sin buscar otro
+    /// control que lo diga.
+    private var periodPicker: some View {
+        HStack(spacing: Space.p3.rawValue) {
+            ForEach(InsightsPeriod.allCases) { period in
+                let isSelected = model.period == period
+                Button {
+                    Task { await model.select(period) }
+                } label: {
+                    Text(label(for: period))
+                        .lanaFont(.detail)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundStyle(isSelected ? lana.ink : lana.ink50)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Space.sm.rawValue)
+                        .background {
+                            if isSelected {
+                                Capsule().fill(lana.surface3)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(Space.p3.rawValue)
+        .background(lana.bg, in: Capsule())
+        .overlay(Capsule().strokeBorder(lana.hairlineStrong, lineWidth: LanaMetrics.hairline))
+    }
+
+    private func label(for period: InsightsPeriod) -> String {
+        switch period {
+        case .month: LanaDateFormat.monthName(model.anchor)
+        case .year: String(model.anchorYear)
         }
     }
 
     @ViewBuilder
     private var content: some View {
         if model.isLoading {
-            LanaCard {
-                HStack(spacing: Space.sm.rawValue) {
-                    ProgressView()
-                    Text("Leyendo \(model.anchorLabel)…")
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink50)
-                }
-            }
+            shimmer
         } else if let message = model.errorMessage {
             EmptyStateView(
-                systemImage: "exclamationmark.triangle",
+                systemImage: "sparkles",
                 title: "No se pudo analizar",
                 message: message,
                 actionTitle: "Volver a intentar",
@@ -115,9 +125,10 @@ public struct InsightsView: View {
                 title: "Nada que analizar en \(model.anchorLabel)",
                 message: "Registra algún movimiento y Lana te cuenta qué pasó con tu dinero.")
         } else {
-            heroSection
-            suggestionSection
-            readingSection
+            summarySection
+            patternsSection
+            suggestionsSection
+            mixSection
             AskSection(
                 question: $model.question,
                 suggestions: model.suggestedQuestions,
@@ -126,177 +137,138 @@ public struct InsightsView: View {
                 onAsk: { Task { await model.ask() } },
                 onAskSuggestion: { suggestion in Task { await model.ask(suggestion) } },
                 onClear: { model.clearQuestion() })
-            otherCurrenciesNote
         }
     }
 
-    // MARK: - El héroe
+    /// Bloques con un latido suave, nunca un spinner centrado que bloquee la
+    /// hoja: lo que ya se sabe se sigue viendo.
+    private var shimmer: some View {
+        VStack(alignment: .leading, spacing: Space.p12.rawValue) {
+            ForEach(0 ..< 3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: Radius.inner.rawValue, style: .continuous)
+                    .fill(lana.surface2)
+                    .frame(height: LanaMetrics.minRowHeight)
+            }
+        }
+        .opacity(0.7)
+        .transition(.opacity)
+        .accessibilityLabel("Leyendo \(model.anchorLabel)")
+    }
 
-    /// La narrativa y la mezcla, en una sola tarjeta.
-    ///
-    /// Eran dos tarjetas grises seguidas, cada una a medias: un párrafo suelto
-    /// arriba y una barra sin contexto abajo. Juntas son el bloque que la
-    /// pantalla vino a mostrar, así que el resumen sube a `.title` y la mezcla
-    /// queda debajo, detrás de una línea — el mismo dato, no dos.
-    ///
-    /// Aquí el héroe no es una cifra sino prosa: `.largeAmount` está reservado
-    /// para dinero, y el total del periodo ya se ve en el Dashboard y en el
-    /// año. Repetirlo aquí sería una tercera copia del mismo número.
+    // MARK: - Resumen
+
+    /// Dos frases como máximo, con las cifras en semibold. Si todo va
+    /// destacado, nada destaca.
     @ViewBuilder
-    private var heroSection: some View {
-        if let mix = model.mix, let currency = model.analyzedCurrency {
-            LanaCard {
-                VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                    if let summary = model.narrative?.summary, !summary.isEmpty {
-                        Text(summary)
-                            .lanaFont(.title)
+    private var summarySection: some View {
+        if let summary = model.narrative?.summary, !summary.isEmpty {
+            Text(summary)
+                .lanaFont(.summary)
+                .foregroundStyle(lana.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, Space.p10.rawValue)
+        }
+        Text(contextNote)
+            .lanaFont(.detail)
+            .foregroundStyle(lana.ink42)
+            .padding(.bottom, Space.p26.rawValue)
+    }
+
+    /// La moneda se nombra siempre que haya más de una, y el procesamiento
+    /// on-device se dice: es una razón para confiar en la app.
+    private var contextNote: String {
+        guard let currency = model.analyzedCurrency else { return "En tu teléfono" }
+        guard !model.otherCurrencies.isEmpty else { return "Analizando \(currency.rawValue) · en tu teléfono" }
+        let others = model.otherCurrencies.map(\.rawValue).joined(separator: ", ")
+        return "Analizando \(currency.rawValue) · también tuviste movimientos en \(others)"
+    }
+
+    // MARK: - Lo que se repite
+
+    @ViewBuilder
+    private var patternsSection: some View {
+        let patterns = model.narrative?.patterns ?? []
+        if !patterns.isEmpty {
+            SectionHeader("Lo que se repite", style: .minor)
+                .padding(.bottom, Space.p12.rawValue)
+            VStack(spacing: Space.p10.rawValue) {
+                ForEach(patterns.prefix(3), id: \.self) { pattern in
+                    LanaCard(padding: .p14, radius: .inner) {
+                        Text(pattern)
+                            .lanaFont(.explanation)
                             .foregroundStyle(lana.ink)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-
-                    VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                        HStack {
-                            SectionCaption("Cómo repartiste")
-                            Spacer()
-                            rulePicker
-                        }
-                        BudgetMixBar(shares: model.shares, currency: currency)
-                        mixFootnotes(mix, currency: currency)
-                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(.bottom, Space.p26.rawValue)
         }
     }
 
+    /// Opción, nunca regaño: "podrías", "si quieres". Sin signos de admiración
+    /// y sin emoji — el tono lo fija `NarrationInstructions`, aquí solo se
+    /// presenta.
     @ViewBuilder
-    private func mixFootnotes(_ mix: BudgetMix, currency: Currency) -> some View {
-        if !mix.isMeasuredAgainstIncome {
-            // Sin ingreso registrado no hay meta que perseguir: se dice, en vez
-            // de inventar un denominador.
-            Text("""
-            Estos porcentajes son sobre lo que gastaste. Registra tu ingreso del \
-            periodo y Lana puede compararlos contra una regla.
-            """)
-            .lanaFont(.caption)
-            .foregroundStyle(lana.ink50)
-        }
-        if mix.unclassified > 0 {
-            Text("Sin clasificar: \(Money(amount: mix.unclassified, currency: currency).formatted())")
-                .lanaFont(.caption)
-                .monospacedDigit()
-                .foregroundStyle(lana.ink50)
-        }
-    }
-
-    // MARK: - Lo que se lee
-
-    /// Patrones e ideas, en una sola tarjeta separada por una línea.
-    ///
-    /// Eran dos tarjetas idénticas seguidas, cada una con dos o tres frases.
-    /// Son lo mismo —lo que el modelo notó— así que van juntas y separadas por
-    /// un `Divider()`, como la app hace en todas sus listas.
-    @ViewBuilder
-    private var readingSection: some View {
-        let patterns = model.narrative?.patterns ?? []
+    private var suggestionsSection: some View {
         let ideas = model.narrative?.suggestions ?? []
-
-        if !patterns.isEmpty || !ideas.isEmpty {
-            LanaCard {
-                VStack(alignment: .leading, spacing: Space.md.rawValue) {
-                    if !patterns.isEmpty {
-                        sentenceBlock("Lo que se nota", items: patterns)
-                    }
-                    if !patterns.isEmpty, !ideas.isEmpty {
-                        Divider()
-                    }
-                    if !ideas.isEmpty {
-                        sentenceBlock("Ideas", items: ideas)
-                    }
+        if !ideas.isEmpty || model.suggestion != nil {
+            SectionHeader("Si quieres ajustar", style: .minor)
+                .padding(.bottom, Space.p12.rawValue)
+            VStack(spacing: Space.p10.rawValue) {
+                ForEach(ideas.prefix(3), id: \.self) { idea in
+                    suggestionCard { Text(idea).lanaFont(.explanation).foregroundStyle(lana.ink) }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                if let suggestion = model.suggestion {
+                    suggestionCard { ruleSuggestion(suggestion) }
+                }
             }
+            .padding(.bottom, Space.p28.rawValue)
         }
     }
 
-    private func sentenceBlock(_ title: String, items: [String]) -> some View {
+    private func suggestionCard(@ViewBuilder content: () -> some View) -> some View {
+        LanaCard(padding: .p14, radius: .inner, fill: .accent) {
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.inner.rawValue, style: .continuous)
+                .strokeBorder(lana.accentBorder, lineWidth: LanaMetrics.hairline))
+    }
+
+    /// Lana propone una regla y recuerda la respuesta: descartarla no se
+    /// vuelve a proponer.
+    private func ruleSuggestion(_ suggestion: BudgetRuleRecommendation) -> some View {
         VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-            SectionCaption(title)
-            ForEach(items, id: \.self) { item in
-                Text(item)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            Text(suggestion.reason)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink)
+            HStack(spacing: Space.p10.rawValue) {
+                Button("Usarla") { model.selectRule(suggestion.rule) }
+                    .buttonStyle(.lana(size: .compact))
+                Button("Ahora no") { model.dismissSuggestion() }
+                    .lanaFont(.footnote)
+                    .foregroundStyle(lana.ink50)
+                    .buttonStyle(.plain)
             }
+            .frame(minHeight: LanaMetrics.minTouchTarget)
         }
     }
 
-    // MARK: - La regla y la mezcla
+    // MARK: - Cómo repartiste
 
     @ViewBuilder
-    private var suggestionSection: some View {
-        if let suggestion = model.suggestion {
-            LanaCard {
-                VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                    SectionCaption("Una regla que podría quedarte")
-                    Text(suggestion.rule.displayName)
-                        .lanaFont(.headline)
-                        .foregroundStyle(lana.ink)
-                    Text(suggestion.reason)
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink50)
-                    HStack(spacing: Space.sm.rawValue) {
-                        Button("Usarla") { model.selectRule(suggestion.rule) }
-                            .buttonStyle(.borderedProminent)
-                            .tint(lana.accent)
-                        // Descartar se recuerda: no se vuelve a proponer.
-                        Button("Ahora no") { model.dismissSuggestion() }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(lana.ink50)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
+    private var mixSection: some View {
+        if let mix = model.mix, let currency = model.analyzedCurrency {
+            BudgetMixSection(
+                mix: mix,
+                shares: model.shares,
+                currency: currency,
+                selectedRule: model.selectedRule,
+                onSelectRule: { model.selectRule($0) })
 
-    /// Cambiar de regla es instantáneo: las cuatro usan los mismos tres
-    /// grupos, así que solo cambian las metas — no se reclasifica ni se vuelve
-    /// a llamar al modelo.
-    private var rulePicker: some View {
-        Menu {
-            Button("Sin regla") { model.selectRule(nil) }
-            ForEach(BudgetRule.allCases) { rule in
-                Button {
-                    model.selectRule(rule)
-                } label: {
-                    Text("\(rule.displayName) — \(rule.summary)")
-                }
-            }
-        } label: {
-            HStack(spacing: Space.xs.rawValue) {
-                Text(model.selectedRule?.displayName ?? "Sin regla")
-                    .lanaFont(.caption)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-            }
-            .foregroundStyle(lana.accent)
-        }
-        .accessibilityLabel("Regla de presupuesto")
-    }
-
-    @ViewBuilder
-    private var otherCurrenciesNote: some View {
-        if !model.otherCurrencies.isEmpty {
-            Text("""
-            Este análisis es de \(model.analyzedCurrency?.rawValue ?? ""). \
-            También tuviste movimientos en \
-            \(model.otherCurrencies.map(\.rawValue).joined(separator: ", ")); \
-            esos se ven en la vista del año.
-            """)
-            .lanaFont(.caption)
-            .foregroundStyle(lana.ink50)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer()
+                .frame(height: Space.p28.rawValue)
         }
     }
 }

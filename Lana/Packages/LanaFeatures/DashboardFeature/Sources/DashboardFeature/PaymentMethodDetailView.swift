@@ -83,8 +83,8 @@ public struct PaymentMethodDetailView: View {
 
                 DaySectionListView(
                     sections: model.daySections,
-                    onSelect: onExpenseTap,
-                    viewerIdentities: model.viewerIdentities)
+                    source: model.source,
+                    onSelect: onExpenseTap)
             }
             .padding(Space.md.rawValue)
         }

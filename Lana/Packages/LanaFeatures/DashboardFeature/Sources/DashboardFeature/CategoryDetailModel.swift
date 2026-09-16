@@ -35,7 +35,8 @@ public struct SubcategoryTotal: Identifiable, Sendable {
 public final class CategoryDetailModel {
     /// La categoría que se está viendo.
     public let category: String
-    private let source: any ExpenseProviding
+    /// De dónde derivan los gastos — la vista lo necesita para las filas.
+    let source: any ExpenseProviding
 
     /// - Parameters:
     ///   - category: la categoría a filtrar.

@@ -90,6 +90,38 @@ struct LanaLearningView: View {
         return count == 1 ? "1 palabra aprendida" : "\(count) palabras aprendidas"
     }
 
+    /// Lo que más se usa, primero: es lo que Lana ya da por sabido.
+    private var entriesByUse: [CorrectionEntry] {
+        model.vocabulary.sorted { $0.useCount > $1.useCount }
+    }
+
+    /// Sin color por categoría: las categorías ya no tienen color propio
+    /// (ADR-0044). Olvidar vive en el menú contextual, no en un bote de basura
+    /// por renglón.
+    private func row(for entry: CorrectionEntry) -> some View {
+        HStack(spacing: Space.p10.rawValue) {
+            VStack(alignment: .leading, spacing: Space.p2.rawValue) {
+                Text(entry.term)
+                    .lanaFont(.rowTitle)
+                    .foregroundStyle(lana.ink)
+                Text(entry.category.capitalized)
+                    .lanaFont(.rowSubtitle)
+                    .foregroundStyle(lana.ink42)
+            }
+            Spacer(minLength: Space.sm.rawValue)
+            Text(entry.useCount == 1 ? "usada 1 vez" : "usada \(entry.useCount) veces")
+                .lanaFont(.rowSubtitle)
+                .foregroundStyle(lana.ink35)
+        }
+        .padding(Space.md.rawValue)
+        .frame(minHeight: LanaMetrics.minRowHeight)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .contextMenu {
+            Button("Olvidar", role: .destructive) { termPendingDelete = entry.term }
+        }
+    }
+
     @ViewBuilder
     private var vocabularyList: some View {
         if model.vocabulary.isEmpty {
@@ -98,39 +130,12 @@ struct LanaLearningView: View {
                 title: "Todavía no hay nada aprendido",
                 message: "Aparece aquí en cuanto corrijas la categoría de un gasto.")
         } else {
-            LanaCard {
+            LanaCard(padding: nil) {
                 VStack(spacing: 0) {
-                    ForEach(model.vocabulary) { entry in
-                        HStack {
-                            Text(entry.term)
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink)
-                            Spacer()
-                            Text("×\(entry.useCount)")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                            Text(entry.category.capitalized)
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.categoryRamp[entry.category.lowercased().stableRampIndex])
-                                .padding(.horizontal, Space.xs.rawValue)
-                                .padding(.vertical, 4)
-                                .background(
-                                    lana.categoryRamp[entry.category.lowercased().stableRampIndex].opacity(0.15),
-                                    in: Capsule())
-                            Button {
-                                termPendingDelete = entry.term
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(lana.attention)
-                            }
-                            .buttonStyle(.plain)
-                            // Sin esto VoiceOver solo anuncia "basurero", sin
-                            // decir qué palabra se olvida.
-                            .accessibilityLabel("Olvidar «\(entry.term)»")
-                        }
-                        .padding(.vertical, Space.xs.rawValue)
-                        if entry.id != model.vocabulary.last?.id {
-                            Divider()
+                    ForEach(Array(entriesByUse.enumerated()), id: \.element.id) { index, entry in
+                        row(for: entry)
+                        if index < entriesByUse.count - 1 {
+                            HairlineDivider()
                         }
                     }
                 }

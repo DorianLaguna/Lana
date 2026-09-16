@@ -186,26 +186,23 @@ private struct SharedExpenseRow: View {
     let expense: Expense
     let payerName: String?
 
+    /// Sin punto de color: las categorías ya no tienen uno propio (ADR-0044).
+    /// El subtítulo dice categoría y quién pagó, que es lo que distingue a un
+    /// gasto compartido de uno personal.
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            TransactionRow(
-                concept: expense.concept,
-                categoryName: categoryDisplayName,
-                categoryColor: lana.categoryRamp[(expense.category ?? "otro").stableRampIndex],
-                amountText: expense.amount.formatted())
-            HStack(spacing: Space.xs.rawValue) {
-                Text(expense.date.formatted(date: .abbreviated, time: .omitted))
-                if let payerName {
-                    Text("· Pagó \(payerName)")
-                }
-            }
-            .lanaFont(.caption)
-            .foregroundStyle(lana.ink50)
-            // Alineado bajo el texto de `TransactionRow`, no bajo su punto
-            // de color — el punto mide `Space.sm` + el espacio entre él y
-            // el texto es otro `Space.sm`.
-            .padding(.leading, Space.sm.rawValue * 2)
+        MovementRow(
+            title: expense.concept,
+            subtitle: subtitle,
+            amountText: expense.amount.formatted(),
+            isShared: true)
+    }
+
+    private var subtitle: String {
+        var parts = [categoryDisplayName]
+        if let payerName {
+            parts.append("pagó \(payerName)")
         }
+        return parts.joined(separator: " · ")
     }
 
     private var categoryDisplayName: String {
@@ -264,26 +261,6 @@ private struct ViewerPromptView: View {
                 selected = participants.first?.id
             }
         }
-    }
-}
-
-extension String {
-    /// Si es una de las categorías cerradas, su índice ya es único por
-    /// construcción (`SuggestedCategory.rampIndex`) — sin choques posibles
-    /// entre categorías reales. Si no, cae a un hash estable (djb2) como
-    /// respaldo — el `Hashable` de Swift cambia de semilla en cada corrida
-    /// del proceso y no sirve para esto. Copia local: la misma idea vive en
-    /// DashboardFeature/CardsFeature/SettingsFeature, y las features no se
-    /// importan entre sí.
-    var stableRampIndex: Int {
-        if let known = SuggestedCategory(rawValue: self) {
-            return known.rampIndex
-        }
-        var hash = 5381
-        for scalar in unicodeScalars {
-            hash = ((hash << 5) &+ hash) &+ Int(scalar.value)
-        }
-        return abs(hash) % 12
     }
 }
 

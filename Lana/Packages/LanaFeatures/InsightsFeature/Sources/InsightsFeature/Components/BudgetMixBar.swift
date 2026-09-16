@@ -3,13 +3,11 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// La barra segmentada de la mezcla: cuánto se llevó cada grupo, y dónde
-/// quedaría la meta de la regla elegida.
+/// "Cómo repartiste" (rediseño, sección 10): la barra apilada de la mezcla y
+/// su leyenda, con la meta de la regla elegida al lado de cada grupo.
 ///
-/// La meta se marca con una línea vertical sobre el tramo, no pintando el
-/// tramo de rojo cuando se pasa: rebasar una meta que el propio usuario eligió
-/// es un dato, no una falta (Docs/CLAUDE.md → Tono). `critical` se reserva para
-/// donde hay algo que hacer.
+/// Rebasar una meta que el propio usuario eligió es un dato, no una falta: el
+/// tramo nunca se pinta de alarma, la meta solo se dice.
 struct BudgetMixBar: View {
     @Environment(\.lana) private var lana
 
@@ -17,87 +15,86 @@ struct BudgetMixBar: View {
     let currency: Currency
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+        VStack(alignment: .leading, spacing: Space.md.rawValue) {
             segmentedBar
-            VStack(spacing: 0) {
-                ForEach(shares) { share in
-                    legendRow(share)
-                    if share.id != shares.last?.id {
-                        Divider()
-                    }
-                }
-            }
+            legend
         }
     }
 
     private var segmentedBar: some View {
         GeometryReader { proxy in
-            HStack(spacing: 1) {
+            HStack(spacing: Space.p3.rawValue) {
                 ForEach(shares) { share in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    Capsule()
                         .fill(color(for: share.group))
                         .frame(width: max(0, proxy.size.width * fraction(of: share)))
                 }
-                // Lo que falta para completar la barra cuando los tramos no
-                // llegan al 100% — pista, no un cuarto grupo.
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(lana.hairlineStrong.opacity(0.5))
+                // Lo que falta para completar la barra: pista, no un cuarto
+                // grupo.
+                Capsule()
+                    .fill(lana.surface3)
             }
         }
-        .frame(height: 12)
+        .frame(height: LanaMetrics.barStacked)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
 
-    /// Calca la forma de `TransactionRow`, la fila más repetida de la app: un
-    /// punto de color, una pila de dos líneas a la izquierda y otra a la
-    /// derecha. Antes eran cuatro columnas en una línea —etiqueta, porcentaje,
-    /// meta y monto— y a tamaños de accesibilidad no caben en el ancho de una
-    /// pantalla.
+    private var legend: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(shares.enumerated()), id: \.element.id) { index, share in
+                legendRow(share)
+                if index < shares.count - 1 {
+                    HairlineDivider()
+                }
+            }
+        }
+    }
+
     private func legendRow(_ share: BudgetShare) -> some View {
-        HStack(spacing: Space.sm.rawValue) {
+        HStack(spacing: Space.p10.rawValue) {
             Circle()
                 .fill(color(for: share.group))
-                .frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: LanaMetrics.dot, height: LanaMetrics.dot)
+            VStack(alignment: .leading, spacing: Space.p2.rawValue) {
                 Text(share.group.displayName)
-                    .lanaFont(.body)
+                    .lanaFont(.bodyEmphasis)
+                    .fontWeight(.regular)
                     .foregroundStyle(lana.ink)
                 Text(Money(amount: share.amount, currency: currency).formatted())
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .monospacedDigit()
-                    .foregroundStyle(lana.ink50)
+                    .foregroundStyle(lana.ink42)
             }
             Spacer(minLength: Space.sm.rawValue)
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Space.p2.rawValue) {
                 Text(share.share.formatted(.percent.precision(.fractionLength(0))))
-                    .lanaFont(.body)
-                    .monospacedDigit()
+                    .lanaFont(.rowAmount)
+                    .fontWeight(.semibold)
                     .foregroundStyle(lana.ink)
                 if let target = share.target {
                     // La meta se dice con palabras además del número: el color
                     // nunca es el único portador de información.
                     Text("meta \(target.formatted(.percent.precision(.fractionLength(0))))")
-                        .lanaFont(.caption)
+                        .lanaFont(.caption2)
                         .monospacedDigit()
-                        .foregroundStyle(lana.ink50)
+                        .foregroundStyle(lana.ink42)
                 }
             }
         }
-        .padding(.vertical, Space.xs.rawValue)
+        .padding(.vertical, Space.p12.rawValue)
         .accessibilityElement(children: .combine)
     }
 
     private func fraction(of share: BudgetShare) -> CGFloat {
-        // Un ahorro negativo (se gastó más de lo que entró) no dibuja tramo:
-        // no hay barra que ocupe menos que nada.
+        // Un ahorro negativo (se gastó más de lo que entró) no dibuja tramo.
         guard share.share > 0 else { return 0 }
         return CGFloat(truncating: min(share.share, 1) as NSDecimalNumber)
     }
 
     private func color(for group: BudgetGroup) -> Color {
         switch group {
-        case .necesidad: lana.accent
+        case .necesidad: lana.accentFill
         case .deseo: lana.attention
         case .ahorro: lana.positive
         }
@@ -113,29 +110,28 @@ struct BudgetMixBar: View {
 #Preview {
     VStack(spacing: Space.lg.rawValue) {
         ForEach(LanaTheme.allCases) { theme in
-            LanaCard {
-                BudgetMixBar(
-                    shares: [
-                        BudgetShare(
-                            group: .necesidad,
-                            amount: 5500,
-                            share: Decimal(string: "0.55") ?? 0,
-                            target: Decimal(string: "0.50")),
-                        BudgetShare(
-                            group: .deseo,
-                            amount: 2500,
-                            share: Decimal(string: "0.25") ?? 0,
-                            target: Decimal(string: "0.30")),
-                        BudgetShare(
-                            group: .ahorro,
-                            amount: 2000,
-                            share: Decimal(string: "0.20") ?? 0,
-                            target: Decimal(string: "0.20"))
-                    ],
-                    currency: .mxn)
-            }
-            .lanaTheme(theme)
+            BudgetMixBar(
+                shares: [
+                    BudgetShare(
+                        group: .necesidad,
+                        amount: 5500,
+                        share: Decimal(string: "0.55") ?? 0,
+                        target: Decimal(string: "0.50")),
+                    BudgetShare(
+                        group: .deseo,
+                        amount: 2500,
+                        share: Decimal(string: "0.25") ?? 0,
+                        target: Decimal(string: "0.30")),
+                    BudgetShare(
+                        group: .ahorro,
+                        amount: 2000,
+                        share: Decimal(string: "0.20") ?? 0,
+                        target: Decimal(string: "0.20"))
+                ],
+                currency: .mxn)
+                .padding(LanaMetrics.screenMargin)
+                .background(LanaColors(theme: theme, colorScheme: .dark).surface)
+                .lanaTheme(theme)
         }
     }
-    .padding(Space.md.rawValue)
 }

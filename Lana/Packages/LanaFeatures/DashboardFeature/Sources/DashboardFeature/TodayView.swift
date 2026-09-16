@@ -182,9 +182,12 @@ public struct TodayView<Settings: View>: View {
                 recent.isToday ? "Hoy" : LanaDateFormat.dayHeader(recent.day),
                 actionTitle: "Ver el mes",
                 action: onOpenMonth)
-            MovementRows(expenses: recent.items, model: model) { expense in
-                editExpenseModel = model.makeEditExpenseModel(for: expense)
-            }
+            MovementRows(
+                expenses: recent.items,
+                source: model,
+                highlightedIDs: model.highlightedExpenseIDs) { expense in
+                    editExpenseModel = model.makeEditExpenseModel(for: expense)
+                }
         }
     }
 

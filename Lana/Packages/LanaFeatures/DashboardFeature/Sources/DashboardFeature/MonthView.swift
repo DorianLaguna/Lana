@@ -13,6 +13,8 @@ private enum MonthDestination: Hashable {
     // `String` en el path, distinto origen.
     case yearCategory(String)
     case yearPaymentMethod(String)
+    /// "Más detalle" del año, por moneda — el `String` es su código ISO.
+    case yearDetail(String)
 }
 
 /// Mes: todo el análisis del mes — en qué se fue, con qué se pagó, qué es
@@ -244,9 +246,12 @@ public struct MonthView: View {
             ForEach(model.daySections) { section in
                 VStack(alignment: .leading, spacing: 0) {
                     SectionHeader(LanaDateFormat.dayHeader(section.day))
-                    MovementRows(expenses: section.items, model: model) { expense in
-                        editExpenseModel = model.makeEditExpenseModel(for: expense)
-                    }
+                    MovementRows(
+                        expenses: section.items,
+                        source: model,
+                        highlightedIDs: model.highlightedExpenseIDs) { expense in
+                            editExpenseModel = model.makeEditExpenseModel(for: expense)
+                        }
                 }
             }
         }
@@ -278,13 +283,14 @@ public struct MonthView: View {
         case .year:
             YearView(
                 model: yearModel,
+                selectedMonth: model.month,
                 // Tocar un mes regresa a Mes ya posado en él.
                 onSelectMonth: { month in
                     path.removeAll()
                     Task { await model.goToMonth(month) }
                 },
                 onSelectCategory: { path.append(.yearCategory($0)) },
-                onSelectPaymentMethod: { path.append(.yearPaymentMethod($0)) })
+                onOpenDetail: { path.append(.yearDetail($0.rawValue)) })
         case let .yearCategory(category):
             CategoryDetailView(model: yearModel.makeCategoryDetailModel(for: category)) { expense in
                 editExpenseModel = model.makeEditExpenseModel(for: expense)
@@ -293,6 +299,8 @@ public struct MonthView: View {
             PaymentMethodDetailView(model: yearModel.makePaymentMethodDetailModel(for: label)) { expense in
                 editExpenseModel = model.makeEditExpenseModel(for: expense)
             }
+        case let .yearDetail(currencyCode):
+            YearDetailView(statistics: yearModel.statistics, currency: Currency(rawValue: currencyCode))
         }
     }
 }

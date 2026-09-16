@@ -54,7 +54,8 @@ public final class PaymentMethodDetailModel {
     /// Las tarjetas guardadas — para resolver alias en `cardTotals`.
     public private(set) var cards: [Card] = []
 
-    private let source: any ExpenseProviding
+    /// De dónde derivan los gastos — la vista lo necesita para las filas.
+    let source: any ExpenseProviding
     private let cardStore: any CardStore
 
     /// - Parameters:

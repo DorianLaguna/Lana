@@ -3,11 +3,17 @@ import LanaDesign
 import SwiftUI
 
 /// Filas de movimiento separadas por una línea fina, sin línea tras la última.
-/// La misma forma en Hoy y en los días de Mes.
+/// La misma forma en Hoy, en Mes y en los drill-downs.
+///
+/// Depende de `ExpenseProviding`, no de un modelo concreto: el mes
+/// (`DashboardModel`) y el año (`YearModel`) alimentan las mismas filas.
 struct MovementRows: View {
     @Environment(\.lana) private var lana
     let expenses: [Expense]
-    let model: DashboardModel
+    let source: any ExpenseProviding
+    /// Los movimientos recién guardados, que se resaltan un momento. Vacío en
+    /// las pantallas que no vienen de la captura.
+    var highlightedIDs: Set<ExpenseID> = []
     let onSelect: (Expense) -> Void
 
     var body: some View {
@@ -30,7 +36,7 @@ struct MovementRows: View {
     /// El resalte de una fila recién guardada, que se disuelve solo: la
     /// consecuencia de haber dictado tiene que verse (rediseño, sección 08).
     private func highlight(for expense: Expense) -> some View {
-        let isHighlighted = model.highlightedExpenseIDs.contains(expense.id)
+        let isHighlighted = highlightedIDs.contains(expense.id)
         return RoundedRectangle(cornerRadius: Radius.inner.rawValue, style: .continuous)
             .fill(isHighlighted ? lana.accentHighlight : .clear)
             .padding(.horizontal, -Space.p10.rawValue)
@@ -40,10 +46,13 @@ struct MovementRows: View {
     /// Separada de `body`: con todos los argumentos inline, el type-checker
     /// tarda de más dentro del `ForEach`.
     private func row(for expense: Expense) -> MovementRow {
-        let subtitle = model.subtitle(for: expense)
+        let subtitle = DashboardModel.subtitle(
+            for: expense,
+            cards: source.cards,
+            cardsAreKnown: source.hasLoadedCards)
         // La parte que le toca a quien mira, no el monto completo del evento
         // (`Expense.personalAmount`, ADR-0029).
-        let personal = expense.personalAmount(viewerIdentities: model.viewerIdentities)
+        let personal = expense.personalAmount(viewerIdentities: source.viewerIdentities)
         let totalText = expense.sharedListID != nil && personal != expense.amount
             ? "de \(MoneyDisplay.full(expense.amount))"
             : nil

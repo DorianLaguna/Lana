@@ -1,12 +1,15 @@
 import LanaDesign
 import SwiftUI
 
-/// Preguntar en lenguaje natural sobre los propios datos
-/// (Docs/PLAN.md → Fase 9).
+/// "Pregúntale a Lana" (rediseño, sección 10): el campo, las preguntas
+/// sugeridas como chips y la respuesta.
 ///
-/// Las preguntas sugeridas son fijas, no generadas: cada una corresponde a un
-/// cálculo determinista que sí existe. Sugerir algo que después no se puede
-/// contestar sería peor que no sugerir nada.
+/// Los atajos van en chips y no en filas con chevron: una fila con chevron
+/// promete navegación, y esto no navega a ningún lado — contesta ahí mismo.
+///
+/// Las sugeridas son fijas, no generadas: cada una corresponde a un cálculo
+/// determinista que sí existe. Sugerir algo que después no se puede contestar
+/// sería peor que no sugerir nada.
 struct AskSection: View {
     @Environment(\.lana) private var lana
 
@@ -19,106 +22,91 @@ struct AskSection: View {
     let onClear: () -> Void
 
     var body: some View {
-        LanaCard {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                HStack {
-                    SectionCaption("Pregúntale a Lana")
-                    Spacer()
-                    // Solo cuando hay algo que borrar: un botón que no hace
-                    // nada es ruido.
-                    if hasSomethingToClear {
-                        Button("Borrar", action: onClear)
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.accent)
-                            .frame(minHeight: 44)
-                            .accessibilityLabel("Borrar la pregunta y su respuesta")
-                    }
-                }
+        VStack(alignment: .leading, spacing: Space.p14.rawValue) {
+            SectionHeader("Pregúntale a Lana", style: .minor)
 
+            field
+
+            if isAnswering {
                 HStack(spacing: Space.sm.rawValue) {
-                    LanaTextField("¿En qué se me fue el dinero?", text: question)
-                    Button(action: onAsk) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(canAsk ? lana.accent : lana.hairlineStrong)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canAsk)
-                    .accessibilityLabel("Preguntar")
+                    ProgressView()
+                    Text("Consultando tus números…")
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
                 }
+            } else if let answer, !answer.isEmpty {
+                answerCard(answer)
+            }
 
-                if isAnswering {
-                    HStack(spacing: Space.sm.rawValue) {
-                        ProgressView()
-                        Text("Consultando tus números…")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
+            // Las sugeridas se quedan aunque ya haya respuesta: si las
+            // sustituyeran, después de preguntar una vez no habría forma de ver
+            // las demás sin borrar lo escrito.
+            if !suggestions.isEmpty, !isAnswering {
+                FlowLayout {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Chip(suggestion, tone: .suggestion) { onAskSuggestion(suggestion) }
                     }
-                } else if let answer, !answer.isEmpty {
-                    Text(answer)
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                // Las sugeridas se quedan aunque ya haya respuesta: antes la
-                // sustituían, y después de preguntar una vez no había forma de
-                // ver las demás sin borrar lo escrito a mano.
-                if !suggestions.isEmpty, !isAnswering {
-                    Divider()
-                    if hasAnswer {
-                        SectionCaption("Otra pregunta")
-                    }
-                    suggestionRows
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var hasAnswer: Bool {
-        !(answer ?? "").isEmpty
+    private var field: some View {
+        HStack(spacing: Space.p10.rawValue) {
+            TextField("Escribe tu pregunta…", text: question)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink)
+                .submitLabel(.send)
+                .onSubmit(onAsk)
+
+            Button(action: onAsk) {
+                Image(systemName: "arrow.up")
+                    .lanaFont(.rowSubtitle)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(canAsk ? lana.ink : lana.ink35)
+                    .frame(width: LanaMetrics.sendButton, height: LanaMetrics.sendButton)
+                    .background(lana.surface3, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canAsk)
+            .accessibilityLabel("Preguntar")
+        }
+        .padding(.vertical, Space.p13.rawValue)
+        .padding(.horizontal, Space.md.rawValue)
+        .background(lana.bg, in: Capsule())
     }
 
-    private var hasSomethingToClear: Bool {
-        hasAnswer || !question.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// La respuesta se puede borrar: es de una sola pregunta, no un historial.
+    private func answerCard(_ answer: String) -> some View {
+        LanaCard(padding: .p14, radius: .inner, fill: .background) {
+            VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
+                    Text(question.wrappedValue)
+                        .lanaFont(.footnote)
+                        .foregroundStyle(lana.ink42)
+                    Spacer(minLength: Space.sm.rawValue)
+                    Button {
+                        onClear()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .lanaFont(.caption2)
+                            .foregroundStyle(lana.ink35)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Borrar la pregunta y su respuesta")
+                }
+                Text(answer)
+                    .lanaFont(.rowTitle)
+                    .fontWeight(.regular)
+                    .foregroundStyle(lana.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     private var canAsk: Bool {
         !question.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isAnswering
-    }
-
-    /// Las sugeridas como filas tocables, no como frases sueltas.
-    ///
-    /// Antes eran texto plano apilado: se leían como una lista de ejemplos, no
-    /// como algo que se pudiera tocar. Ahora usan el chevron estándar de la app
-    /// y una línea entre filas, igual que cualquier otra fila navegable.
-    private var suggestionRows: some View {
-        VStack(spacing: 0) {
-            ForEach(suggestions, id: \.self) { suggestion in
-                Button {
-                    onAskSuggestion(suggestion)
-                } label: {
-                    HStack(spacing: Space.sm.rawValue) {
-                        Text(suggestion)
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.ink)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(lana.ink50.opacity(0.6))
-                    }
-                    // Blanco táctil de 44pt: una frase de un renglón mide
-                    // menos (design-reviewer.md).
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                if suggestion != suggestions.last {
-                    Divider()
-                }
-            }
-        }
     }
 }
 
@@ -129,14 +117,15 @@ struct AskSection: View {
         ForEach(LanaTheme.allCases) { theme in
             AskSection(
                 question: $question,
-                suggestions: ["¿En qué se me fue el dinero este mes?", "¿Cuánto debo en mis tarjetas?"],
+                suggestions: ["¿Cuánto me queda de esta quincena?", "¿Cuánto debo en mis tarjetas?"],
                 answer: nil,
                 isAnswering: false,
                 onAsk: {},
                 onAskSuggestion: { _ in },
                 onClear: {})
+                .padding(LanaMetrics.screenMargin)
+                .background(LanaColors(theme: theme, colorScheme: .dark).surface)
                 .lanaTheme(theme)
         }
     }
-    .padding(Space.md.rawValue)
 }

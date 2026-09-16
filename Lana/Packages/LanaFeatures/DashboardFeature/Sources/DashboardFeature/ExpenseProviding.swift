@@ -23,4 +23,10 @@ protocol ExpenseProviding: AnyObject {
     /// El calendario del modelo, para agrupar por día sin depender del de la
     /// máquina.
     var calendar: Calendar { get }
+    /// Las tarjetas guardadas, para que la fila diga "Crédito Nu" y no solo
+    /// "Crédito" — y para distinguir una tarjeta borrada.
+    var cards: [Card] { get }
+    /// `false` si las tarjetas no se pudieron leer: sin esto, un fallo de
+    /// lectura haría que todo movimiento con tarjeta dijera "Tarjeta eliminada".
+    var hasLoadedCards: Bool { get }
 }

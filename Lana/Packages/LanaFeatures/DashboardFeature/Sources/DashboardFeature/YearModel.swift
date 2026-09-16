@@ -26,6 +26,11 @@ public final class YearModel: ExpenseProviding {
     /// Qué participante es "yo" en cada lista compartida (ADR-0022), cacheado
     /// tras cargar para no volver al store en cada suma.
     public private(set) var viewerIdentities: [SharedListID: ParticipantID] = [:]
+    /// Las tarjetas guardadas, para nombrar la forma de pago de cada
+    /// movimiento en los drill-downs (`ExpenseProviding`).
+    public private(set) var cards: [Card] = []
+    /// Ver `ExpenseProviding.hasLoadedCards`.
+    private(set) var hasLoadedCards = false
     /// Las estadísticas del año. Se recalculan al cargar, nunca se persisten
     /// (ADR-0005).
     public private(set) var statistics: AnnualStatistics
@@ -124,6 +129,10 @@ public final class YearModel: ExpenseProviding {
             viewerIdentities = [:]
         }
         expenses = loadedExpenses.filter { calendar.component(.year, from: $0.date) == year }
+        if let loadedCards = try? await cardStore.cards() {
+            cards = loadedCards
+            hasLoadedCards = true
+        }
         statistics = AnnualStatistics(
             year: year,
             expenses: expenses,

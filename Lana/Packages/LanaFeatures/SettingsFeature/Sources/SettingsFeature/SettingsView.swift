@@ -2,34 +2,24 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// Ajustes: cuatro secciones deliberadas —Lana, Apariencia, Datos, Acerca
-/// de— cada una una fila-resumen que abre su pantalla propia. La pantalla
-/// principal ya no muestra el contenido expandido (vocabulario, grid de
-/// temas): eso se movió a `LanaLearningView` y `ThemeSettingsView` para que
-/// Ajustes se lea de un vistazo y no domine ninguna pieza.
+/// Ajustes (rediseño, sección 12): lo que se visita dos veces al año. Por eso
+/// salió de la barra de pestañas y se empuja desde el avatar de Hoy —liberar
+/// un espacio permanente para algo que casi no se usa era el cambio más fácil
+/// de la navegación.
 ///
-/// Sin lógica propia — refleja `SettingsModel` (Docs/ARCHITECTURE.md). La
-/// navegación sigue el patrón `NavigationLink(value:)` +
-/// `navigationDestination(for:)` del resto de la app.
+/// Cuatro encabezados para ocho filas se reducen a dos, el estado de iCloud
+/// sube a la tarjeta de cuenta, y el tema se elige aquí mismo: ya no hace
+/// falta entrar a otra pantalla para cambiarlo.
 public struct SettingsView: View {
     @Environment(\.lana) private var lana
-    private let model: SettingsModel
-    /// Salta a la pestaña Tarjetas — el hogar de la guía de Apple Pay, que ya
-    /// no vive en Ajustes. `SettingsFeature` no puede navegar a otra feature
-    /// (no se importan entre sí, Docs/ARCHITECTURE.md), así que el contenedor
-    /// inyecta el salto. `nil` en previews: entonces el puntero se queda como
-    /// texto, sin botón.
+    @Bindable private var model: SettingsModel
+    /// Salta a la pestaña Tarjetas — el hogar de la guía de Apple Pay, que no
+    /// vive en Ajustes. `SettingsFeature` no puede navegar a otra feature.
     private let onOpenCards: (() -> Void)?
     /// Abre la página de Lana en los Ajustes del sistema, para el permiso de
-    /// micrófono y dictado. Mismo patrón que `EntryView(onOpenSettings:)`:
-    /// la feature nunca importa UIKit.
+    /// micrófono y dictado. La feature nunca importa UIKit.
     private let onOpenSystemSettings: (() -> Void)?
 
-    /// - Parameters:
-    ///   - model: el estado que esta pantalla refleja.
-    ///   - onOpenCards: salta a la pestaña Tarjetas (guía de Apple Pay).
-    ///   - onOpenSystemSettings: abre los Ajustes del sistema en la página de
-    ///     Lana, para conceder el permiso de dictado.
     public init(
         model: SettingsModel,
         onOpenCards: (() -> Void)? = nil,
@@ -39,17 +29,29 @@ public struct SettingsView: View {
         self.onOpenSystemSettings = onOpenSystemSettings
     }
 
-    /// Sin `NavigationStack` propio: Ajustes se empuja desde el avatar de Hoy
-    /// y navega dentro de ese stack. Sin barra de pestañas (rediseño, sección 12).
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-                lanaSection
-                appearanceSection
-                dataSection
-                aboutSection
+            VStack(alignment: .leading, spacing: 0) {
+                accountCard
+                    .padding(.bottom, Space.p26.rawValue)
+
+                SectionHeader("Tema", style: .minor)
+                    .padding(.bottom, Space.p12.rawValue)
+                themeCard
+                    .padding(.bottom, Space.p26.rawValue)
+
+                SectionHeader("Lana", style: .minor)
+                    .padding(.bottom, Space.p12.rawValue)
+                lanaCard
+                    .padding(.bottom, Space.p26.rawValue)
+
+                aboutCard
+                    .padding(.bottom, Space.p22.rawValue)
+
+                footer
             }
-            .padding(Space.md.rawValue)
+            .padding(.horizontal, LanaMetrics.screenMargin)
+            .padding(.top, Space.p22.rawValue)
             .tabBarClearance(.noTabBar)
         }
         .background(lana.bg)
@@ -57,12 +59,14 @@ public struct SettingsView: View {
         .lanaInlineNavigationTitle()
         .hidesLanaTabBar()
         .task { await model.onAppear() }
-        .navigationDestination(for: SettingsDestination.self) { destination in
+        // `NavRow` es un botón, no un `NavigationLink`: la navegación pasa por
+        // este estado. Ajustes se empuja dentro del stack de Hoy, así que no
+        // puede tener un path propio.
+        .navigationDestination(item: $destination) { destination in
             Group {
                 switch destination {
                 case .lanaInfo: LanaInfoView(onOpenCards: onOpenCards)
                 case .lanaLearning: LanaLearningView(model: model)
-                case .theme: ThemeSettingsView(model: model)
                 case .data: DataSettingsView(model: model)
                 case .privacy: PrivacyView()
                 case .aboutLana: AboutLanaView()
@@ -72,34 +76,85 @@ public struct SettingsView: View {
         }
     }
 
-    // MARK: - LANA
+    // MARK: - Cuenta
 
-    private var lanaSection: some View {
-        section("Lana") {
-            LanaCard {
-                VStack(spacing: 0) {
-                    NavigationLink(value: SettingsDestination.lanaInfo) {
-                        SettingsRow(
-                            icon: "sparkles",
-                            title: "Cómo funciona Lana",
-                            subtitle: "Tu asistente financiero")
+    /// El estado de iCloud vive aquí, no en una sección propia: es un dato de
+    /// la cuenta, no un tema aparte.
+    private var accountCard: some View {
+        LanaCard(padding: .md, radius: .cardLarge) {
+            HStack(spacing: Space.p14.rawValue) {
+                InitialAvatar(name: "Lana", diameter: LanaMetrics.avatarLarge, isRaised: true)
+                VStack(alignment: .leading, spacing: Space.p2.rawValue) {
+                    Text("Tu Lana")
+                        .lanaFont(.pushTitle)
+                        .foregroundStyle(lana.ink)
+                    Text(syncSummary)
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(syncColor)
+                }
+                Spacer(minLength: Space.sm.rawValue)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var syncSummary: String {
+        switch model.syncStatus {
+        case .disabled: "Sin iCloud · todo vive en este iPhone"
+        case .syncing: "Sincronizando…"
+        case let .synced(lastSuccess): "iCloud al día · \(lastSuccess.formatted(.relative(presentation: .named)))"
+        case .failed: "No se pudo respaldar la última vez"
+        }
+    }
+
+    private var syncColor: Color {
+        switch model.syncStatus {
+        case .synced: lana.positive
+        case .syncing: lana.ink42
+        case .disabled, .failed: lana.attention
+        }
+    }
+
+    // MARK: - Tema
+
+    /// Elegir tema ya no requiere entrar a otra pantalla: los ocho caben aquí
+    /// y se aplican al instante.
+    private var themeCard: some View {
+        LanaCard(padding: .md, radius: .cardLarge) {
+            VStack(alignment: .leading, spacing: Space.p12.rawValue) {
+                HStack(spacing: Space.p9.rawValue) {
+                    ForEach(LanaTheme.allCases) { theme in
+                        ThemeSwatch(theme: theme, isSelected: theme == model.selectedTheme) {
+                            withAnimation(.easeInOut(duration: 0.25)) { model.selectTheme(theme) }
+                        }
                     }
-                    .buttonStyle(.plain)
+                }
+                Text(model.selectedTheme.appearanceDescription)
+                    .lanaFont(.detail)
+                    .foregroundStyle(lana.ink55)
+            }
+        }
+    }
 
-                    rowDivider
+    // MARK: - Lana
 
-                    NavigationLink(value: SettingsDestination.lanaLearning) {
-                        SettingsRow(
-                            icon: "brain",
-                            title: "Aprendizaje",
-                            subtitle: learnedWordsSubtitle)
-                    }
-                    .buttonStyle(.plain)
-
-                    if let availability = model.speechAvailability {
-                        rowDivider
-                        speechRow(availability)
-                    }
+    private var lanaCard: some View {
+        LanaCard(padding: nil, radius: .cardLarge) {
+            VStack(spacing: 0) {
+                NavRow("Cómo funciona Lana", subtitle: "Hablas, entiende, registra") {
+                    destination = .lanaInfo
+                }
+                HairlineDivider()
+                NavRow("Aprendizaje", subtitle: learnedWordsSubtitle) {
+                    destination = .lanaLearning
+                }
+                if let availability = model.speechAvailability {
+                    HairlineDivider()
+                    speechRow(availability)
+                }
+                HairlineDivider()
+                NavRow("iCloud", subtitle: syncSummary, subtitleTone: syncTone) {
+                    destination = .data
                 }
             }
         }
@@ -113,33 +168,33 @@ public struct SettingsView: View {
         return count == 1 ? "1 palabra aprendida" : "\(count) palabras aprendidas"
     }
 
-    /// El permiso de dictado, visible antes de necesitarlo — hasta ahora solo
-    /// aparecía dentro de la hoja de captura, y ya fallando. Solo es tocable
-    /// cuando hay algo que hacer (permiso negado o restringido); un permiso
-    /// concedido es un dato, no una acción, y no lleva chevron a ningún lado.
-    @ViewBuilder
-    private func speechRow(_ availability: SpeechAvailability) -> some View {
-        let row = SettingsRow(
-            icon: "mic",
-            title: "Micrófono y dictado",
-            subtitle: speechSubtitle(availability),
-            showsChevron: isSpeechActionable(availability))
-
-        if isSpeechActionable(availability), let onOpenSystemSettings {
-            Button(action: onOpenSystemSettings) { row }
-                .buttonStyle(.plain)
-        } else {
-            row
+    private var syncTone: LanaTone {
+        switch model.syncStatus {
+        case .synced: .positive
+        case .syncing: .muted
+        case .disabled, .failed: .attention
         }
     }
 
-    /// Hay algo que el usuario pueda arreglar desde los Ajustes del sistema.
+    /// Un permiso concedido es un dato, no una acción: solo lleva a Ajustes
+    /// del sistema cuando hay algo que arreglar. El tono nunca reprocha — no
+    /// haber dado permiso no es un error del usuario.
+    private func speechRow(_ availability: SpeechAvailability) -> some View {
+        NavRow(
+            "Micrófono y dictado",
+            subtitle: speechSubtitle(availability),
+            subtitleTone: availability == .available ? .positive : .attention,
+            showsChevron: isSpeechActionable(availability),
+            action: {
+                guard isSpeechActionable(availability) else { return }
+                onOpenSystemSettings?()
+            })
+    }
+
     private func isSpeechActionable(_ availability: SpeechAvailability) -> Bool {
         availability == .permissionDenied || availability == .restricted
     }
 
-    /// El tono es "dato con su salida al lado", nunca reproche: no haber dado
-    /// permiso no es un error del usuario (Docs/CLAUDE.md → Tono del producto).
     private func speechSubtitle(_ availability: SpeechAvailability) -> String {
         switch availability {
         case .available: "Permitido"
@@ -150,199 +205,98 @@ public struct SettingsView: View {
         }
     }
 
-    // MARK: - APARIENCIA
+    // MARK: - Acerca de
 
-    private var appearanceSection: some View {
-        section("Apariencia") {
-            LanaCard {
-                NavigationLink(value: SettingsDestination.theme) {
-                    SettingsRow(
-                        icon: "paintpalette",
-                        title: "Tema",
-                        subtitle: model.selectedThemeName)
-                }
-                .buttonStyle(.plain)
+    /// La versión deja de ser una fila propia y viaja como valor de "Acerca de".
+    private var aboutCard: some View {
+        LanaCard(padding: nil, radius: .cardLarge) {
+            VStack(spacing: 0) {
+                NavRow("Privacidad") { destination = .privacy }
+                HairlineDivider()
+                NavRow("Acerca de Lana", value: model.appVersion) { destination = .aboutLana }
             }
         }
     }
 
-    // MARK: - DATOS
-
-    private var dataSection: some View {
-        section("Datos") {
-            LanaCard {
-                NavigationLink(value: SettingsDestination.data) {
-                    SettingsRow(
-                        icon: "icloud",
-                        title: "iCloud",
-                        subtitle: syncSummary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
+    private var footer: some View {
+        Text("Tus movimientos viven en tu iCloud.\nLa voz y el análisis se procesan en tu iPhone.")
+            .lanaFont(.rowSubtitle)
+            .foregroundStyle(lana.ink30)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
     }
 
-    /// Resumen compacto del estado de sync para la fila principal — el
-    /// detalle largo (y el caso `.failed` completo) vive en `DataSettingsView`.
-    private var syncSummary: String {
-        switch model.syncStatus {
-        case .disabled: "Solo en este dispositivo"
-        case .syncing: "Sincronizando…"
-        case let .synced(lastSuccess): "Sincronizado \(lastSuccess.formatted(.relative(presentation: .named)))"
-        case .failed: "No se pudo respaldar la última vez"
-        }
-    }
-
-    // MARK: - ACERCA DE
-
-    private var aboutSection: some View {
-        section("Acerca de") {
-            LanaCard {
-                VStack(spacing: 0) {
-                    NavigationLink(value: SettingsDestination.privacy) {
-                        SettingsRow(icon: "lock", title: "Privacidad", subtitle: nil)
-                    }
-                    .buttonStyle(.plain)
-
-                    rowDivider
-
-                    NavigationLink(value: SettingsDestination.aboutLana) {
-                        SettingsRow(icon: "info.circle", title: "Acerca de Lana", subtitle: nil)
-                    }
-                    .buttonStyle(.plain)
-
-                    if let version = model.appVersion {
-                        rowDivider
-                        SettingsRow(
-                            icon: "number",
-                            title: "Versión",
-                            subtitle: version,
-                            showsChevron: false)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    /// El separador entre filas, alineado con el texto y no con el borde de la
-    /// tarjeta: arranca donde termina la columna del icono (su ancho más su
-    /// espaciado), como cualquier lista agrupada de iOS.
-    private var rowDivider: some View {
-        Divider()
-            .padding(.leading, SettingsRow.iconColumnWidth + Space.md.rawValue)
-    }
-
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-            Text(title.uppercased())
-                .lanaFont(.caption)
-                .foregroundStyle(lana.ink50)
-            content()
-        }
-    }
+    /// El destino que se está empujando. `NavRow` es un botón, no un
+    /// `NavigationLink`, así que la navegación pasa por aquí.
+    @State private var destination: SettingsDestination?
 }
 
-/// Destinos empujables desde Ajustes. Un solo enum para todo el stack de la
-/// pantalla (mismo patrón que `DashboardDestination`), así una fila anidada
-/// —p. ej. Privacidad dentro de "Acerca de"— navega en el mismo stack.
+/// Destinos empujables desde Ajustes. El tema ya no está: se elige en la
+/// propia pantalla.
 enum SettingsDestination: Hashable {
     case lanaInfo
     case lanaLearning
-    case theme
     case data
     case privacy
     case aboutLana
 }
 
-/// Una fila de Ajustes: icono con el acento del tema, título, subtítulo
-/// opcional y chevron. El lenguaje visual único de las listas de Ajustes —
-/// para no repetir el mismo `HStack` en cada sección.
-struct SettingsRow: View {
+/// Un swatch del selector de tema, pintado con SUS propios colores para que se
+/// vea el aspecto real de cada opción.
+private struct ThemeSwatch: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.lana) private var lana
-    let icon: String
-    let title: String
-    let subtitle: String?
-    var showsChevron = true
+    let theme: LanaTheme
+    let isSelected: Bool
+    let onTap: () -> Void
 
-    /// El ancho de la columna del icono. Público dentro del módulo porque los
-    /// separadores se alinean con el texto, no con el borde de la tarjeta.
-    static let iconColumnWidth = Space.lg.rawValue
-
-    /// El mínimo que exigen las Human Interface Guidelines para algo tocable.
-    /// No es un valor de espaciado (por eso no sale de `Space`): es el tamaño
-    /// del dedo. Sin esto, una fila de una sola línea medía ~28pt.
-    private static let minimumTouchTarget: CGFloat = 44
+    private var colors: LanaColors {
+        LanaColors(theme: theme, colorScheme: colorScheme)
+    }
 
     var body: some View {
-        HStack(spacing: Space.md.rawValue) {
-            Image(systemName: icon)
-                .font(.system(size: 17))
-                .foregroundStyle(lana.accent)
-                .frame(width: Self.iconColumnWidth)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink)
-                if let subtitle {
-                    Text(subtitle)
-                        .lanaFont(.caption)
-                        .foregroundStyle(lana.ink50)
+        Button(action: onTap) {
+            Circle()
+                .fill(colors.accentFill)
+                .frame(width: LanaMetrics.themeSwatch, height: LanaMetrics.themeSwatch)
+                .overlay {
+                    // La palomita, no solo el borde: el color nunca es el único
+                    // portador de información.
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .lanaFont(.rowSubtitle)
+                            .fontWeight(.bold)
+                            .foregroundStyle(colors.onAccent)
+                    }
                 }
-            }
-
-            Spacer(minLength: Space.sm.rawValue)
-
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink50)
-            }
+                .overlay {
+                    if isSelected {
+                        Circle().strokeBorder(lana.ink, lineWidth: LanaMetrics.outline)
+                    }
+                }
+                .frame(width: LanaMetrics.minTouchTarget, height: LanaMetrics.minTouchTarget)
+                .contentShape(Circle())
         }
-        .padding(.vertical, Space.xs.rawValue)
-        .frame(minHeight: Self.minimumTouchTarget)
-        .contentShape(Rectangle())
-        // Una sola parada de VoiceOver por fila: sin esto se recorre el icono,
-        // el título y el subtítulo como tres elementos sueltos.
-        .accessibilityElement(children: .combine)
-    }
-}
-
-extension String {
-    /// Si es una de las categorías cerradas, su índice ya es único por
-    /// construcción (`SuggestedCategory.rampIndex`). Si no, cae a un hash
-    /// estable (djb2) — el `Hashable` de Swift cambia de semilla en cada
-    /// corrida del proceso y no sirve para esto. El módulo (12) tiene que
-    /// coincidir con `LanaColors.categoryRamp.count`. Copia local: la misma
-    /// idea vive en `DashboardFeature`/`CardsFeature`, y las features no se
-    /// importan entre sí.
-    var stableRampIndex: Int {
-        if let known = SuggestedCategory(rawValue: self) {
-            return known.rampIndex
-        }
-        var hash = 5381
-        for scalar in unicodeScalars {
-            hash = ((hash << 5) &+ hash) &+ Int(scalar.value)
-        }
-        return abs(hash) % 12
+        .buttonStyle(.plain)
+        .accessibilityLabel(theme.displayName)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
 #Preview {
     ForEach(LanaTheme.allCases) { theme in
-        SettingsView(
-            model: SettingsModel(
-                vocabularyStore: InMemoryCorrectionVocabularyStore(seed: [
-                    CorrectionEntry(term: "bocina", category: "ocio", useCount: 4),
-                    CorrectionEntry(term: "chicles", category: "despensa", useCount: 7)
-                ]),
-                syncStatusReporting: InMemorySyncStatusReporting(.synced(lastSuccess: .now)),
-                speech: InMemorySpeechTranscribing(),
-                userDefaults: UserDefaults(suiteName: "preview") ?? .standard),
-            onOpenCards: {},
-            onOpenSystemSettings: {})
-            .lanaTheme(theme)
+        NavigationStack {
+            SettingsView(
+                model: SettingsModel(
+                    vocabularyStore: InMemoryCorrectionVocabularyStore(seed: [
+                        CorrectionEntry(term: "bocina", category: "ocio", useCount: 4)
+                    ]),
+                    syncStatusReporting: InMemorySyncStatusReporting(.synced(lastSuccess: .now)),
+                    speech: InMemorySpeechTranscribing(),
+                    userDefaults: UserDefaults(suiteName: "preview") ?? .standard),
+                onOpenCards: {},
+                onOpenSystemSettings: {})
+        }
+        .lanaTheme(theme)
     }
 }

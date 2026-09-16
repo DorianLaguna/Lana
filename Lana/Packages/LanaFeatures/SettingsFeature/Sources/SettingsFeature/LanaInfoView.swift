@@ -115,9 +115,10 @@ struct LanaInfoView: View {
                 Text(example.merchant)
                     .lanaFont(.body)
                     .foregroundStyle(lana.ink)
+                // Sin color por categoría: ya no tienen uno propio (ADR-0044).
                 Text(example.category)
                     .lanaFont(.caption)
-                    .foregroundStyle(lana.categoryRamp[example.category.lowercased().stableRampIndex])
+                    .foregroundStyle(lana.ink42)
             }
             Spacer()
             Text(example.amount)
