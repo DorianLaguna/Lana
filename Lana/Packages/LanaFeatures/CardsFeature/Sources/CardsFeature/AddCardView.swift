@@ -50,6 +50,8 @@ public struct AddCardView: View {
 
                 Section {
                     colorPicker
+                } footer: {
+                    Text("Lana nunca guarda el número completo, el CVV ni la fecha de vencimiento.")
                 }
 
                 // El débito no tiene línea de crédito, corte ni fecha límite

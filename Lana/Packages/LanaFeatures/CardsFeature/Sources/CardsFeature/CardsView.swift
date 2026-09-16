@@ -2,33 +2,20 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// La pestaña Tarjetas: lista, alta y detalle (Fase 6.5, calca
-/// `Tarjetas.dc.html`). Sin lógica propia — refleja `CardsModel`
-/// (Docs/ARCHITECTURE.md).
+/// La pestaña Tarjetas (rediseño, sección 04): cuánto debes, en qué tarjeta y
+/// qué se paga pronto. Sin lógica propia — refleja `CardsModel`.
 public struct CardsView: View {
     @Environment(\.lana) private var lana
-    private let model: CardsModel
-    /// Un solo estado para alta y edición — `AddCardModel` ya sabe cuál es
-    /// según se haya creado con `editing: nil` o con una tarjeta.
+    @Bindable private var model: CardsModel
+    /// Un solo estado para alta y edición — `AddCardModel` ya sabe cuál es.
     @State private var addCardModel: AddCardModel?
-    /// `CardsFeature` no puede construir un editor de gasto — eso vive en
-    /// `DashboardFeature`, y las features no se importan entre sí — así
-    /// que la app (`ContentView`, que sí importa ambas) decide qué hacer
-    /// cuando se toca un gasto dentro del detalle de una tarjeta.
+    @State private var cardPendingDelete: Card?
+    /// El editor de un movimiento vive en `DashboardFeature`, que esta feature
+    /// no puede importar; la app resuelve el toque.
     private let onExpenseTap: (Expense) -> Void
-    /// Reabre la guía de configuración de Apple Pay como hoja (R1.4). Es la
-    /// captura automática de gastos vía Atajos, no un método de pago, así
-    /// que su hogar es Tarjetas —donde el usuario ya piensa en sus
-    /// tarjetas— y no Ajustes. `CardsFeature` no puede construir
-    /// `GuiaApplePayView` (vive en `OnboardingFeature`, y las features no se
-    /// importan entre sí), así que solo dispara este handler; el target de
-    /// la app arma y presenta la hoja.
-    ///
-    /// La app SIEMPRE lo cablea, aunque el dispositivo no pueda armar la
-    /// automatización: quien explica esa incompatibilidad es la propia guía,
-    /// con su pantalla de "No se puede crear la automatización" (R2.6), y
-    /// esconder la entrada dejaría al usuario sin saber por qué. `nil` solo
-    /// en previews; sin él, la fila no se muestra.
+    /// Reabre la guía de Apple Pay (R1.4). Su hogar es Tarjetas —es captura
+    /// automática de gastos, no un método de pago— pero la arma la app, que es
+    /// quien conoce `OnboardingFeature`. `nil` solo en previews.
     private let onConfigureApplePay: (() -> Void)?
 
     public init(
@@ -42,50 +29,30 @@ public struct CardsView: View {
 
     public var body: some View {
         NavigationStack {
-            Group {
-                if model.cards.isEmpty, !model.isLoading {
-                    EmptyStateView(
-                        systemImage: "creditcard",
-                        title: "Sin tarjetas",
-                        // La guía de Apple Pay solo aparece con al menos una
-                        // tarjeta —el emparejamiento la necesita—, así que
-                        // aquí se dice, en vez de que desaparezca sin razón.
-                        message: """
-                        Agrega una para ver sus gastos, su deuda y poder configurar la \
-                        captura automática de Apple Pay.
-                        """,
-                        actionTitle: "Agregar tarjeta",
-                        action: { addCardModel = model.makeAddCardModel() })
-                } else {
-                    ScrollView {
-                        VStack(spacing: Space.sm.rawValue) {
-                            ForEach(model.cards) { card in
-                                NavigationLink(value: card.id) {
-                                    CardRow(card: card, debt: model.debt(for: card))
-                                }
-                                .buttonStyle(.plain)
-                            }
-
-                            if let onConfigureApplePay {
-                                applePaySection(onConfigureApplePay)
-                                    .padding(.top, Space.md.rawValue)
-                            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if model.cards.isEmpty, !model.isLoading {
+                        emptyState
+                    } else {
+                        totalSection
+                            .padding(.bottom, Space.p30.rawValue)
+                        cardList
+                        if let onConfigureApplePay {
+                            applePayRow(onConfigureApplePay)
+                                .padding(.top, Space.p28.rawValue)
                         }
-                        .padding(Space.md.rawValue)
-                        // El micrófono flotante de `MainTabView` caía justo
-                        // encima de la entrada de Apple Pay, que es el último
-                        // elemento de esta lista.
-                        .tabBarClearance()
                     }
                 }
+                .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.sm.rawValue)
+                .tabBarClearance()
             }
             .background(lana.bg)
             .navigationTitle("Tarjetas")
-            // Por `CardID`, no por `Card`: así, cuando `model.cards` se
-            // refresca tras editar, este destino se recalcula con la
-            // versión viva de la tarjeta en vez de quedarse con la que
-            // estaba al momento de navegar.
+            .lanaInlineNavigationTitle()
             .navigationDestination(for: CardID.self) { cardID in
+                // Por `CardID` y no por `Card`: al refrescar tras editar, el
+                // destino se recalcula con la versión viva de la tarjeta.
                 if let card = model.cards.first(where: { $0.id == cardID }) {
                     CardDetailView(
                         model: model.makeCardDetailModel(for: card),
@@ -100,169 +67,203 @@ public struct CardsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Agregar tarjeta")
                 }
             }
             .sheet(item: $addCardModel) { addCardModel in
                 AddCardView(model: addCardModel, onDone: {
                     self.addCardModel = nil
-                    // `AddCardModel.save()` escribe directo en `cardStore`,
-                    // no pasa por `CardsModel.save()` — sin este refresco la
-                    // lista se queda con los datos viejos hasta que la vista
-                    // vuelva a aparecer (cambiar de tab), y parece que no
-                    // guardó.
+                    // `AddCardModel.save()` escribe directo en `cardStore`, sin
+                    // pasar por `CardsModel`.
                     Task { await model.onAppear() }
                 })
+            }
+            .confirmationDialog(
+                "¿Borrar \(cardPendingDelete?.alias ?? "esta tarjeta")?",
+                isPresented: isDeletingBinding,
+                titleVisibility: .visible) {
+                    Button("Borrar", role: .destructive) {
+                        if let card = cardPendingDelete {
+                            Task { try? await model.delete(card) }
+                        }
+                        cardPendingDelete = nil
+                    }
+            } message: {
+                Text("Los movimientos que pagaste con ella se quedan, marcados como de una tarjeta eliminada.")
             }
         }
         .task { await model.onAppear() }
         .refreshable { await model.onAppear() }
     }
 
-    /// La entrada a la guía de Apple Pay (R1.4), en el volumen que le toca.
-    ///
-    /// La primera vez es una invitación: hay algo que el usuario todavía no
-    /// sabe que puede hacer, y va en el par de acento del tema. Una vez que
-    /// recorrió la guía deja de ser noticia y se vuelve una fila más, bajo su
-    /// encabezado — un degradado permanente competiría para siempre con la
-    /// lista de tarjetas, que es lo que el usuario viene a ver.
-    @ViewBuilder
-    private func applePaySection(_ action: @escaping () -> Void) -> some View {
-        if model.hasSeenApplePayGuide {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                Text("AUTOMATIZACIÓN")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink50)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                seenApplePayRow(action)
+    // MARK: - Debes en total
+
+    private var totalSection: some View {
+        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+            Text("Debes en total")
+                .lanaFont(.footnote)
+                .foregroundStyle(lana.ink50)
+            Text(totalText)
+                .lanaFont(.totalAmount)
+                .foregroundStyle(lana.ink)
+                .contentTransition(.numericText())
+            Text(coverageText)
+                .lanaFont(.detail)
+                .foregroundStyle(lana.ink42)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Una cifra por moneda, nunca sumadas entre sí.
+    private var totalText: String {
+        guard !model.totalDebt.isEmpty else { return Money(amount: 0, currency: .mxn).formatted() }
+        return model.totalDebt.map { $0.formatted() }.joined(separator: " · ")
+    }
+
+    private var coverageText: String {
+        let withDebt = model.cardsWithDebtCount
+        let total = model.cards.count
+        guard withDebt > 0 else { return total == 1 ? "en tu única tarjeta" : "en ninguna de tus \(total) tarjetas" }
+        return "en \(withDebt) de \(total) \(total == 1 ? "tarjeta" : "tarjetas")"
+    }
+
+    // MARK: - Lista
+
+    private var cardList: some View {
+        VStack(spacing: Space.p10.rawValue) {
+            ForEach(model.cardsByDebt) { card in
+                NavigationLink(value: card.id) {
+                    CardRow(card: card, debt: model.debt(for: card))
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Editar") { addCardModel = model.makeAddCardModel(editing: card) }
+                    Button("Borrar", role: .destructive) { cardPendingDelete = card }
+                }
             }
-        } else {
-            configureApplePayRow(action)
         }
     }
 
-    /// La entrada ya recorrida. Nunca dice "activado" ni lleva palomita: Lana
-    /// no puede comprobar que la automatización exista —eso mismo le dice la
-    /// pantalla de cierre de la guía— y una señal de "listo" aquí la
-    /// contradiría.
-    private func seenApplePayRow(_ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            LanaCard {
-                HStack(spacing: Space.sm.rawValue) {
-                    Image(systemName: "creditcard.and.123")
-                        .foregroundStyle(lana.accent)
-                        .frame(width: Space.lg.rawValue)
+    private var emptyState: some View {
+        EmptyStateView(
+            systemImage: "creditcard",
+            title: "Sin tarjetas",
+            message: "Dalas de alta y Lana sabrá con qué pagaste al dictar.",
+            actionTitle: "Agregar tarjeta",
+            action: { addCardModel = model.makeAddCardModel() })
+            .padding(.top, Space.xxl.rawValue)
+    }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Guía de Apple Pay")
-                            .lanaFont(.body)
+    // MARK: - Apple Pay
+
+    /// Cuando ya está configurada es una fila discreta; cuando no, invita con
+    /// el fondo del acento. Nunca dice "activado": Lana no puede comprobar que
+    /// la automatización de Atajos exista.
+    private func applePayRow(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            LanaCard(radius: .inner, fill: model.hasSeenApplePayGuide ? .surface : .accent) {
+                HStack(spacing: Space.p12.rawValue) {
+                    VStack(alignment: .leading, spacing: Space.p2.rawValue) {
+                        Text("Compras con Apple Pay")
+                            .lanaFont(.bodyEmphasis)
                             .foregroundStyle(lana.ink)
-                        Text("Vuelve a verla cuando quieras")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
+                        Text(model.hasSeenApplePayGuide
+                            ? "Vuelve a ver la guía cuando quieras"
+                            : "Registra tus compras automáticamente")
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(model.hasSeenApplePayGuide ? lana.ink42 : lana.ink70)
                     }
-
                     Spacer(minLength: Space.sm.rawValue)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(lana.ink50.opacity(0.6))
+                    RowChevron()
                 }
             }
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 
-    /// La invitación de la primera vez: fila etiquetada y seleccionable, cuyo
-    /// toque solo delega en el handler inyectado. Distintiva a propósito, no
-    /// una tarjeta gris más — es la acción de "inteligencia/automatización",
-    /// el mismo mundo que Lana y el micrófono flotante, así que usa el par de
-    /// acento del tema (accent → highlight), el lenguaje visual que la app
-    /// reserva para eso. Icono en círculo de acento y texto blanco encima del
-    /// degradado para que resalte entre las tarjetas.
-    private func configureApplePayRow(_ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: Space.md.rawValue) {
-                Image(systemName: "creditcard.and.123")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(.white.opacity(0.2), in: Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Configurar Apple Pay")
-                        .lanaFont(.headline)
-                        .foregroundStyle(.white)
-                    Text("Registra tus compras automáticamente")
-                        .lanaFont(.caption)
-                        .foregroundStyle(.white.opacity(0.85))
+    private var isDeletingBinding: Binding<Bool> {
+        Binding(
+            get: { cardPendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    cardPendingDelete = nil
                 }
-
-                Spacer(minLength: Space.sm.rawValue)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
-            }
-            .padding(Space.md.rawValue)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                LinearGradient(
-                    colors: [lana.accent, lana.highlight],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: Space.sm.rawValue, style: .continuous))
-            .shadow(color: lana.accent.opacity(0.3), radius: 8, y: 3)
-        }
-        .buttonStyle(.plain)
+            })
     }
 }
 
+/// Una tarjeta en la lista: color, alias, últimos cuatro y corte, deuda y qué
+/// tanto del límite llevas. Las que no deben nada se apagan.
 private struct CardRow: View {
     @Environment(\.lana) private var lana
     let card: Card
     let debt: Money?
 
-    var body: some View {
-        LanaCard {
-            HStack(spacing: Space.sm.rawValue) {
-                RoundedRectangle(cornerRadius: Space.xs.rawValue, style: .continuous)
-                    .fill((Color(hex: card.colorHex) ?? lana.accent).gradient)
-                    .frame(width: 52, height: 34)
+    private var hasDebt: Bool {
+        (debt?.amount ?? 0) > 0
+    }
 
-                VStack(alignment: .leading, spacing: 2) {
+    var body: some View {
+        LanaCard(fill: hasDebt ? .surface : .dim) {
+            HStack(spacing: Space.p12.rawValue) {
+                RoundedRectangle(cornerRadius: Radius.swatch.rawValue, style: .continuous)
+                    .fill(Color(hex: card.colorHex) ?? lana.accentFill)
+                    .frame(width: LanaMetrics.cardSwatchWidth, height: LanaMetrics.cardSwatchHeight)
+                    .opacity(hasDebt ? 1 : 0.5)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: Space.p2.rawValue) {
                     Text(card.alias)
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink)
-                    if let lastFourDigits = card.lastFourDigits {
-                        Text("•••• \(lastFourDigits)")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
+                        .lanaFont(.rowTitle)
+                        .foregroundStyle(hasDebt ? lana.ink : lana.ink70)
+                    if let subtitle {
+                        Text(subtitle)
+                            .lanaFont(.rowSubtitle)
+                            .foregroundStyle(lana.ink42)
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: Space.sm.rawValue)
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    if let debt, debt.amount > 0 {
+                VStack(alignment: .trailing, spacing: Space.p2.rawValue) {
+                    if let debt, hasDebt {
                         Text(debt.formatted())
-                            .lanaFont(.body)
-                            .monospacedDigit()
+                            .lanaFont(.rowAmountStrong)
                             .foregroundStyle(lana.ink)
-                        Text("debes")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
+                        if let limitText {
+                            Text(limitText)
+                                .lanaFont(.caption2)
+                                .foregroundStyle(lana.ink42)
+                        }
                     } else {
                         Text("Sin deuda")
-                            .lanaFont(.caption)
-                            .foregroundStyle(lana.ink50)
+                            .lanaFont(.detail)
+                            .foregroundStyle(lana.ink35)
                     }
                 }
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(lana.ink50.opacity(0.6))
             }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "•••• 9131 · corte día 12" — cada parte se omite si no se registró.
+    private var subtitle: String? {
+        var parts: [String] = []
+        if let lastFourDigits = card.lastFourDigits {
+            parts.append("•••• \(lastFourDigits)")
+        }
+        if let cutoffDay = card.cutoffDay {
+            parts.append("corte día \(cutoffDay)")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var limitText: String? {
+        guard let limit = card.limit, limit.amount > 0, let debt else { return nil }
+        let percent = NSDecimalNumber(decimal: debt.amount / limit.amount * 100).intValue
+        return "\(percent)% del límite"
     }
 }
 

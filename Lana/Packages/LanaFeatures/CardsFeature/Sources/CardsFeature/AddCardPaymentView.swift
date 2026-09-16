@@ -15,9 +15,14 @@ public struct AddCardPaymentView: View {
     @State private var date = Date()
     @State private var isSaving = false
     private let onDone: () -> Void
+    /// "Pagar todo" desde el detalle abre este formulario con el monto ya
+    /// puesto. Es lo del último corte, no `totalDebt`: el ciclo todavía
+    /// abierto ni el banco lo deja pagar.
+    private let prefillsStatementDue: Bool
 
-    public init(model: CardDetailModel, onDone: @escaping () -> Void) {
+    public init(model: CardDetailModel, prefillsStatementDue: Bool = false, onDone: @escaping () -> Void) {
         self.model = model
+        self.prefillsStatementDue = prefillsStatementDue
         self.onDone = onDone
     }
 
@@ -44,6 +49,8 @@ public struct AddCardPaymentView: View {
                     }
                     .disabled(model.statementDue.amount <= 0)
                     DatePicker("Fecha", selection: $date, displayedComponents: .date)
+                } footer: {
+                    Text("Un pago no cuenta como gasto: es un movimiento de tipo pago.")
                 }
 
                 if let errorMessage = model.errorMessage {
@@ -81,6 +88,10 @@ public struct AddCardPaymentView: View {
                 }
         }
         .presentationDragIndicator(.visible)
+        .onAppear {
+            guard prefillsStatementDue, amount == 0 else { return }
+            amount = model.statementDue.amount
+        }
     }
 }
 

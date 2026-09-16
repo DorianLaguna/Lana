@@ -94,6 +94,38 @@ public final class CardsModel {
         debtByCardID[card.id]
     }
 
+    /// Lo que se debe en total, por moneda — nunca sumadas entre sí
+    /// (Docs/CONVENTIONS.md → Multi-moneda). Es la cifra que abre la pantalla.
+    public var totalDebt: [Money] {
+        var byCurrency: [Currency: Decimal] = [:]
+        for debt in debtByCardID.values where debt.amount > 0 {
+            byCurrency[debt.currency, default: 0] += debt.amount
+        }
+        return byCurrency
+            .map { Money(amount: $0.value, currency: $0.key) }
+            .sorted { $0.currency.rawValue < $1.currency.rawValue }
+    }
+
+    /// Cuántas tarjetas deben algo — el "en 3 de 4 tarjetas" que acompaña al
+    /// total.
+    public var cardsWithDebtCount: Int {
+        cards.filter { (debtByCardID[$0.id]?.amount ?? 0) > 0 }.count
+    }
+
+    /// Las tarjetas en el orden del rediseño: por deuda de mayor a menor, y
+    /// las que no deben nada al final. Se apagan, no se esconden — siguen
+    /// siendo suyas y se pueden abrir.
+    public var cardsByDebt: [Card] {
+        cards.sorted { first, second in
+            let firstDebt = debtByCardID[first.id]?.amount ?? 0
+            let secondDebt = debtByCardID[second.id]?.amount ?? 0
+            if firstDebt == secondDebt {
+                return first.alias.localizedCaseInsensitiveCompare(second.alias) == .orderedAscending
+            }
+            return firstDebt > secondDebt
+        }
+    }
+
     /// Da de alta o edita una tarjeta (según lleve un `id` nuevo o existente).
     public func save(_ card: Card) async throws {
         try await cardStore.save(card)
