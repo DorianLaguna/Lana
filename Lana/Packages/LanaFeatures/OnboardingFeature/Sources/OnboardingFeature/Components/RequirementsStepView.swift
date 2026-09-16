@@ -17,44 +17,29 @@ struct RequirementsStepView: View {
     let isRunningInSimulator: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-            Text("Antes de empezar")
-                .lanaFont(.title)
-                .foregroundStyle(lana.ink)
-
+        VStack(alignment: .leading, spacing: Space.p10.rawValue) {
             LanaCard {
-                requirementRow(
-                    systemImage: "iphone",
-                    tint: lana.accent,
-                    message: requirement.physicalDeviceMessage)
+                HStack(alignment: .firstTextBaseline, spacing: Space.p10.rawValue) {
+                    Image(systemName: "iphone")
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink50)
+                        .accessibilityHidden(true)
+                    Text(requirement.physicalDeviceMessage)
+                        .lanaFont(.explanation)
+                        .foregroundStyle(lana.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // R5.2. El contenido siempre lo tuvo; hasta ahora ninguna vista lo
-            // dibujaba, así que quien probaba en el simulador veía la guía
-            // completa sin enterarse de que nada de eso podía funcionar ahí.
+            // R5.2. Un aviso, no un segundo requisito: va sobre
+            // `attentionSofter` y no en una tarjeta gemela, para que no se
+            // lean como dos cosas que hay que cumplir.
             if isRunningInSimulator {
-                LanaCard {
-                    requirementRow(
-                        systemImage: "desktopcomputer",
-                        tint: lana.attention,
-                        message: requirement.simulatorMessage)
-                }
+                GuideNotice(systemImage: "desktopcomputer", message: requirement.simulatorMessage)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func requirementRow(systemImage: String, tint: Color, message: String) -> some View {
-        HStack(alignment: .top, spacing: Space.sm.rawValue) {
-            Image(systemName: systemImage)
-                .foregroundStyle(tint)
-                .font(.system(size: 22))
-                .frame(width: 28)
-            Text(message)
-                .lanaFont(.body)
-                .foregroundStyle(lana.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 }
 
@@ -65,7 +50,7 @@ struct RequirementsStepView: View {
                 RequirementsStepView(
                     requirement: GuiaApplePayContent.standard.deviceRequirement,
                     isRunningInSimulator: false)
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
@@ -80,7 +65,7 @@ struct RequirementsStepView: View {
                 RequirementsStepView(
                     requirement: GuiaApplePayContent.standard.deviceRequirement,
                     isRunningInSimulator: true)
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }

@@ -18,83 +18,85 @@ struct ShortcutStepsView: View {
     let onOpenShortcutsApp: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-            Text("Arma la automatización")
-                .lanaFont(.title)
-                .foregroundStyle(lana.ink)
-
-            VStack(spacing: Space.sm.rawValue) {
-                ForEach(steps) { step in
-                    stepRow(step)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
+                stepRow(step, isLast: index == steps.count - 1)
             }
 
             if let onOpenShortcutsApp {
                 Button(action: onOpenShortcutsApp) {
                     Label("Abrir la app Atajos", systemImage: "square.stack.3d.up")
                 }
-                .lanaFont(.body)
+                .lanaFont(.action)
                 .foregroundStyle(lana.accent)
+                .buttonStyle(.plain)
+                .frame(minHeight: LanaMetrics.minTouchTarget)
+                .padding(.top, Space.sm.rawValue)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func stepRow(_ step: GuiaStep) -> some View {
-        LanaCard {
-            HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                // El número del paso + el ícono: la numeración de R2.1 se ve,
-                // no depende solo del orden visual.
-                ZStack {
-                    Circle()
-                        .fill(lana.accentMuted)
-                        .frame(width: 32, height: 32)
-                    Text("\(step.id)")
-                        .lanaFont(.headline)
-                        .foregroundStyle(lana.accent)
-                }
-
-                VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                    HStack(spacing: Space.xs.rawValue) {
-                        Image(systemName: step.systemImage)
-                            .foregroundStyle(lana.accent)
-                        Text(step.title)
-                            .lanaFont(.headline)
-                            .foregroundStyle(lana.ink)
-                    }
-                    Text(step.detail)
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink50)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    // El mapeo de parámetros pertenece a ESTE paso —el de
-                    // agregar la acción de Lana—, no a una tarjeta suelta al
-                    // final: es donde el usuario realmente conecta cada dato.
-                    // Va como desplegable para no alargar el paso de golpe.
-                    if step.attachesParameterMapping {
-                        parameterMappingDisclosure
-                            .padding(.top, Space.xs.rawValue)
-                    }
+    /// Un paso de la línea de tiempo: el número a la izquierda, unido al
+    /// siguiente por una línea, y el contenido a la derecha.
+    private func stepRow(_ step: GuiaStep, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: Space.p14.rawValue) {
+            VStack(spacing: Space.p6.rawValue) {
+                GuideStepNumber(number: step.id)
+                if !isLast {
+                    Rectangle()
+                        .fill(lana.hairlineStrong)
+                        .frame(width: LanaMetrics.outline)
+                        .frame(maxHeight: .infinity)
                 }
             }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.p6.rawValue) {
+                    Image(systemName: step.systemImage)
+                        .lanaFont(.footnote)
+                        .foregroundStyle(lana.ink50)
+                        .accessibilityHidden(true)
+                    Text(step.title)
+                        .lanaFont(.pushTitle)
+                        .foregroundStyle(lana.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(step.detail)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink60)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // El mapeo de parámetros es el contenido de ESTE paso —el de
+                // agregar la acción de Lana—, donde el usuario conecta cada
+                // dato. Va a la vista: escondido en un desplegable, era lo
+                // primero que se saltaba quien seguía la guía.
+                if step.attachesParameterMapping {
+                    parameterMapping
+                        .padding(.top, Space.p6.rawValue)
+                }
+            }
+            .padding(.bottom, isLast ? 0 : Space.lg.rawValue)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Paso \(step.id)")
         }
     }
 
-    private var parameterMappingDisclosure: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                ForEach(parameterMappings) { mapping in
+    private var parameterMapping: some View {
+        LanaCard(padding: nil, radius: .inner) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(parameterMappings.enumerated()), id: \.element.id) { index, mapping in
                     mappingRow(mapping)
+                        .padding(.horizontal, Space.p14.rawValue)
+                        .padding(.vertical, Space.p12.rawValue)
+                    if index < parameterMappings.count - 1 {
+                        HairlineDivider()
+                    }
                 }
             }
-            .padding(.top, Space.xs.rawValue)
-        } label: {
-            Text("Ver cómo conectar los parámetros")
-                .lanaFont(.caption)
-                .foregroundStyle(lana.accent)
         }
-        .tint(lana.accent)
     }
 
     /// Un renglón del mapeo, en dos líneas. Antes era «origen → destino» en un
@@ -103,18 +105,19 @@ struct ShortcutStepsView: View {
     /// palabra dentro de la app Atajos. Por lo mismo el texto es seleccionable
     /// — así se pueden copiar sin que la feature toque UIKit.
     private func mappingRow(_ mapping: ParameterMapping) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Space.p2.rawValue) {
             Text("En Wallet: \(mapping.walletLabel)")
-                .lanaFont(.caption)
+                .lanaFont(.bodyEmphasis)
                 .foregroundStyle(lana.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: Space.xs.rawValue) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.xs.rawValue) {
                 Image(systemName: "arrow.turn.down.right")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.accent)
-                Text("En Lana: \(mapping.intentLabel)")
-                    .lanaFont(.caption)
+                    .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
+                    .accessibilityHidden(true)
+                Text("En Lana: \(mapping.intentLabel)")
+                    .lanaFont(.detail)
+                    .foregroundStyle(lana.ink70)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -131,7 +134,7 @@ struct ShortcutStepsView: View {
                     steps: GuiaApplePayContent.standard.shortcutSteps,
                     parameterMappings: GuiaApplePayContent.standard.parameterMappings,
                     onOpenShortcutsApp: {})
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }

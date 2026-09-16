@@ -17,9 +17,10 @@ struct MatchingStepView: View {
     let onOpenCardSettings: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg.rawValue) {
+        VStack(alignment: .leading, spacing: Space.p26.rawValue) {
+            // Un encabezado dentro del paso, no un segundo título de guía.
             Text("Empareja tus tarjetas")
-                .lanaFont(.title)
+                .lanaFont(.screenTitle)
                 .foregroundStyle(lana.ink)
 
             // Lo que el usuario tiene que hacer, separado de lo que solo
@@ -29,16 +30,17 @@ struct MatchingStepView: View {
                 findNameCard
 
                 Text("Luego regístralo en tu tarjeta dentro de Lana:")
-                    .lanaFont(.caption)
-                    .foregroundStyle(lana.ink50)
-                    .padding(.leading, Space.xs.rawValue)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink60)
+                    .padding(.top, Space.xs.rawValue)
 
                 Button(action: onOpenCardSettings) {
                     Label("Ir a Tarjetas", systemImage: "creditcard")
                 }
-                .lanaFont(.body)
+                .lanaFont(.action)
                 .foregroundStyle(lana.accent)
-                .padding(.leading, Space.xs.rawValue)
+                .buttonStyle(.plain)
+                .frame(minHeight: LanaMetrics.minTouchTarget)
             }
 
             // Referencia: cómo decide Lana. Útil para entender, no algo que
@@ -49,8 +51,11 @@ struct MatchingStepView: View {
 
             // Solución de problemas: los casos de "si algo sale distinto".
             section(header: "Si algo no empareja", systemImage: "questionmark.circle") {
-                guidanceCard(systemImage: "pencil.and.list.clipboard", message: matching.mismatchGuidance)
-                guidanceCard(systemImage: "magnifyingglass", message: matching.noMatchGuidance)
+                VStack(alignment: .leading, spacing: 0) {
+                    guidanceRow(systemImage: "pencil.and.list.clipboard", message: matching.mismatchGuidance)
+                    HairlineDivider(strong: true)
+                    guidanceRow(systemImage: "magnifyingglass", message: matching.noMatchGuidance)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -63,11 +68,11 @@ struct MatchingStepView: View {
         header: String,
         systemImage: String,
         @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+        VStack(alignment: .leading, spacing: Space.p10.rawValue) {
             Label(header, systemImage: systemImage)
-                .lanaFont(.caption)
+                .lanaFont(.sectionHeader)
                 .foregroundStyle(lana.ink50)
-                .textCase(.uppercase)
+                .accessibilityAddTraits(.isHeader)
             content()
         }
     }
@@ -75,30 +80,11 @@ struct MatchingStepView: View {
     /// El orden de prioridad de señales (R3.1) — informativo.
     private var prioritySignalsCard: some View {
         LanaCard {
-            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+            VStack(alignment: .leading, spacing: Space.p14.rawValue) {
                 ForEach(matching.prioritySignals) { signal in
-                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                        // El número de prioridad (1-based sobre el id
-                        // 0-based) se ve — no depende solo del orden.
-                        ZStack {
-                            Circle()
-                                .fill(lana.accentMuted)
-                                .frame(width: 28, height: 28)
-                            Text("\(signal.id + 1)")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.accent)
-                        }
-                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                            Text(signal.name)
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink)
-                            Text(signal.explanation)
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // El número de prioridad (1-based sobre el id 0-based) se
+                    // ve — no depende solo del orden.
+                    numberedRow(number: signal.id + 1, title: signal.name, detail: signal.explanation)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,52 +96,53 @@ struct MatchingStepView: View {
     /// no está a la vista: vive tras «Detalles de la tarjeta».
     private var findNameCard: some View {
         LanaCard {
-            VStack(alignment: .leading, spacing: Space.md.rawValue) {
+            VStack(alignment: .leading, spacing: Space.p14.rawValue) {
                 Text("Encuentra el nombre de tu tarjeta en Wallet")
-                    .lanaFont(.headline)
+                    .lanaFont(.pushTitle)
                     .foregroundStyle(lana.ink)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 ForEach(matching.findNameSteps) { step in
-                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                        // El número del paso se ve — no depende solo del orden.
-                        ZStack {
-                            Circle()
-                                .fill(lana.accentMuted)
-                                .frame(width: 28, height: 28)
-                            Text("\(step.id)")
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.accent)
-                        }
-                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                            Text(step.title)
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink)
-                            Text(step.detail)
-                                .lanaFont(.caption)
-                                .foregroundStyle(lana.ink50)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    numberedRow(number: step.id, title: step.title, detail: step.detail)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func guidanceCard(systemImage: String, message: String) -> some View {
-        LanaCard {
-            HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                Image(systemName: systemImage)
-                    .foregroundStyle(lana.accent)
-                    .frame(width: 28)
-                Text(message)
-                    .lanaFont(.body)
+    private func numberedRow(number: Int, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: Space.p12.rawValue) {
+            GuideStepNumber(number: number)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Space.p2.rawValue) {
+                Text(title)
+                    .lanaFont(.rowTitle)
+                    .foregroundStyle(lana.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(detail)
+                    .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func guidanceRow(systemImage: String, message: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.p12.rawValue) {
+            Image(systemName: systemImage)
+                .lanaFont(.bodyEmphasis)
+                .foregroundStyle(lana.ink50)
+                .frame(width: LanaMetrics.badge)
+                .accessibilityHidden(true)
+            Text(message)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink70)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, Space.p12.rawValue)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -166,7 +153,7 @@ struct MatchingStepView: View {
                 MatchingStepView(
                     matching: GuiaApplePayContent.standard.matching,
                     onOpenCardSettings: {})
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }

@@ -2,16 +2,15 @@ import LanaCore
 import LanaDesign
 import SwiftUI
 
-/// La guía de Apple Pay (ADR-0009; rediseño, sección 13): cuatro pasos para
+/// La guía de Apple Pay (ADR-0009; rediseño, sección 13): cinco pasos para
 /// armar la automatización de Atajos que registra los pagos por contacto.
 ///
 /// Es lo más difícil de la app —pide salir a otra aplicación y conectar
 /// campos— así que el paso difícil se muestra como un mapeo visual y no como
 /// prosa. **Siempre se puede omitir.**
 ///
-/// Los cuatro pasos cuentan configuración, no pantallas: el cierre confirma el
-/// último paso. La máquina de estados conserva sus cinco pantallas
-/// (`GuiaApplePayModel.Screen`), que es lo que sus tests fijan.
+/// Un paso por pantalla de `GuiaApplePayModel.Screen`; el último, el repaso,
+/// es donde se confirma.
 public struct GuiaApplePayView: View {
     @Environment(\.lana) private var lana
     @State private var model: GuiaApplePayModel
@@ -21,10 +20,9 @@ public struct GuiaApplePayView: View {
     /// Abre la app Atajos (best-effort); `nil` cuando no se cablea.
     private let onOpenShortcutsApp: (() -> Void)?
 
-    /// Cuántos pasos ve la persona. El cierre no cuenta: es la confirmación
-    /// del último, no un trámite más.
+    /// Cuántos pasos ve la persona: uno por pantalla.
     private static var totalSteps: Int {
-        4
+        GuiaApplePayModel.Screen.allCases.count
     }
 
     public init(
@@ -60,7 +58,7 @@ public struct GuiaApplePayView: View {
         .onAppear { model.presentFirstScreen() }
     }
 
-    // MARK: - Los cuatro pasos
+    // MARK: - Los cinco pasos
 
     @ViewBuilder
     private var stepContent: some View {
@@ -70,7 +68,7 @@ public struct GuiaApplePayView: View {
                 GuideStepChrome(
                     step: 1,
                     totalSteps: Self.totalSteps,
-                    title: "Qué vas a lograr",
+                    title: "Antes de empezar",
                     message: """
                     Que tus pagos con Apple Pay se registren solos. Necesitas la app Atajos y \
                     tus tarjetas dadas de alta en Lana.
@@ -102,13 +100,13 @@ public struct GuiaApplePayView: View {
                 GuideStepChrome(
                     step: 3,
                     totalSteps: Self.totalSteps,
-                    title: "Crea la automatización",
+                    title: "Arma la automatización",
                     message: nil,
                     onSkip: { model.skip() },
                     content: {
                         automationStep(content)
                     })
-            case .limitations, .closing:
+            case .limitations:
                 GuideStepChrome(
                     step: 4,
                     totalSteps: Self.totalSteps,
@@ -116,7 +114,17 @@ public struct GuiaApplePayView: View {
                     message: nil,
                     onSkip: { model.skip() },
                     content: {
-                        expectationsStep(content)
+                        LimitationsStepView(limitations: content.limitations)
+                    })
+            case .closing:
+                GuideStepChrome(
+                    step: 5,
+                    totalSteps: Self.totalSteps,
+                    title: "Repasa lo que configuraste",
+                    message: nil,
+                    onSkip: { model.skip() },
+                    content: {
+                        closingStep
                     })
             }
         } else {
@@ -168,26 +176,14 @@ public struct GuiaApplePayView: View {
         }
     }
 
-    /// Honesto: solo pagos por contacto, puede tardar, a veces se dispara con
-    /// rechazadas, y hay que revisar cada uno.
-    private func expectationsStep(_ content: GuiaApplePayContent) -> some View {
+    /// El repaso, y el error de confirmar si el avance del onboarding falló
+    /// (R6.4): se confirma aquí, así que aquí se reintenta.
+    private var closingStep: some View {
         VStack(alignment: .leading, spacing: Space.md.rawValue) {
-            LimitationsStepView(limitations: content.limitations)
-
-            LanaCard {
-                VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                    Text("¿Cómo saber si quedó bien?")
-                        .lanaFont(.bodyEmphasis)
-                        .foregroundStyle(lana.ink)
-                    Text("""
-                    Haz un pago pequeño por contacto y revisa la bandeja "Por revisar" en Hoy. \
-                    Si aparece ahí, la automatización está corriendo.
-                    """)
-                    .lanaFont(.explanation)
-                    .foregroundStyle(lana.ink70)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            ClosingStepView(
+                summary: model.completionSummary,
+                summaryUnavailable: model.summaryUnavailable,
+                mode: model.mode)
 
             if let advanceError = model.advanceError {
                 EmptyStateView(
@@ -226,9 +222,9 @@ public struct GuiaApplePayView: View {
         .background(lana.bg)
     }
 
-    /// Límites y cierre son el mismo paso para quien la usa.
+    /// El repaso es el único paso donde se confirma.
     private var isLastStep: Bool {
-        model.currentScreen == .limitations || model.currentScreen == .closing
+        model.currentScreen == .closing
     }
 
     private var primaryTitle: String {

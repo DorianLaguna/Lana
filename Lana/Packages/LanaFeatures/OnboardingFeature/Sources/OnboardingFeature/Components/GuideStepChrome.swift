@@ -4,13 +4,14 @@ import SwiftUI
 /// El marco de un paso de la guía de Apple Pay (rediseño, sección 13): la
 /// barra de progreso, "Omitir", el número de paso y el título.
 ///
-/// Los cuatro segmentos cuentan **pasos de configuración**, no pantallas: el
-/// cierre es la confirmación del último paso, no un quinto trámite. La máquina
-/// de estados sigue teniendo sus cinco pantallas (ver `GuiaApplePayModel`).
+/// Un segmento por pantalla de `GuiaApplePayModel`: antes de empezar, conectar
+/// Wallet, armar la automatización, qué esperar y el repaso. El repaso es un
+/// paso propio porque lleva lo único que se puede comprobar ("¿Cómo saber si
+/// quedó bien?"); fundido con "Qué esperar" nunca llegaba a verse.
 struct GuideStepChrome<Content: View>: View {
     @Environment(\.lana) private var lana
 
-    /// Cuál de los cuatro pasos se está viendo, empezando en 1.
+    /// Cuál paso se está viendo, empezando en 1.
     let step: Int
     /// Cuántos pasos tiene la guía.
     let totalSteps: Int
@@ -117,6 +118,51 @@ struct MappingRow: View {
     }
 }
 
+/// Un aviso con icono sobre `attentionSofter`: algo que conviene saber y que
+/// no es un requisito ni un paso — el fondo es lo que lo separa de ellos.
+struct GuideNotice: View {
+    @Environment(\.lana) private var lana
+
+    let systemImage: String
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.p10.rawValue) {
+            Image(systemName: systemImage)
+                .lanaFont(.bodyEmphasis)
+                .foregroundStyle(lana.attention)
+                .accessibilityHidden(true)
+            Text(message)
+                .lanaFont(.detail)
+                .foregroundStyle(lana.ink70)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Space.md.rawValue)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            lana.attentionSofter,
+            in: RoundedRectangle(cornerRadius: Radius.card.rawValue, style: .continuous))
+    }
+}
+
+/// Un número de paso en un círculo: la numeración se ve, no depende solo del
+/// orden visual.
+struct GuideStepNumber: View {
+    @Environment(\.lana) private var lana
+
+    let number: Int
+
+    var body: some View {
+        Text("\(number)")
+            .lanaFont(.footnote)
+            .fontWeight(.semibold)
+            .monospacedDigit()
+            .foregroundStyle(lana.accent)
+            .frame(width: LanaMetrics.badge, height: LanaMetrics.badge)
+            .background(lana.accentSoft, in: Circle())
+    }
+}
+
 /// La advertencia del paso 2: qué **no** hace la captura automática, dicho
 /// antes de configurarla y no después.
 struct GuideWarning: View {
@@ -150,7 +196,7 @@ struct GuideWarning: View {
             ForEach(LanaTheme.allCases) { theme in
                 GuideStepChrome(
                     step: 2,
-                    totalSteps: 4,
+                    totalSteps: 5,
                     title: "Conecta Wallet con tus tarjetas",
                     message: "En la app Atajos vas a crear una automatización. Lana necesita tres campos:",
                     onSkip: {},

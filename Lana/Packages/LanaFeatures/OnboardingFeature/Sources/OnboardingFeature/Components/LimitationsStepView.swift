@@ -13,26 +13,23 @@ struct LimitationsStepView: View {
     let limitations: [KnownLimitation]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-            Text("Qué esperar")
-                .lanaFont(.title)
-                .foregroundStyle(lana.ink)
-
-            VStack(spacing: Space.sm.rawValue) {
-                ForEach(limitations) { limitation in
-                    LanaCard {
-                        HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                            Image(systemName: systemImage(for: limitation.kind))
-                                .foregroundStyle(tint(for: limitation.kind))
-                                .font(.system(size: 20))
-                                .frame(width: 28)
-                            Text(limitation.message)
-                                .lanaFont(.body)
-                                .foregroundStyle(lana.ink)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(limitations.enumerated()), id: \.element.id) { index, limitation in
+                HStack(alignment: .firstTextBaseline, spacing: Space.p12.rawValue) {
+                    Image(systemName: systemImage(for: limitation.kind))
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(tint(for: limitation.kind))
+                        .frame(width: LanaMetrics.badge)
+                        .accessibilityHidden(true)
+                    Text(limitation.message)
+                        .lanaFont(.explanation)
+                        .foregroundStyle(lana.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, Space.p14.rawValue)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if index < limitations.count - 1 {
+                    HairlineDivider(strong: true)
                 }
             }
         }
@@ -56,7 +53,7 @@ struct LimitationsStepView: View {
     private func tint(for kind: KnownLimitation.Kind) -> Color {
         switch kind {
         case .rejectedTx, .duplicateTx, .emptyWalletVariables: lana.attention
-        default: lana.accent
+        default: lana.ink50
         }
     }
 }
@@ -66,7 +63,7 @@ struct LimitationsStepView: View {
         VStack(spacing: Space.md.rawValue) {
             ForEach(LanaTheme.allCases) { theme in
                 LimitationsStepView(limitations: GuiaApplePayContent.standard.limitations)
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }

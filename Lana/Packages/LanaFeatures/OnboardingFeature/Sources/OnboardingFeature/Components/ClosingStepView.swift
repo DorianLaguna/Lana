@@ -22,96 +22,88 @@ struct ClosingStepView: View {
     let mode: GuiaApplePayModel.Mode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg.rawValue) {
-            Text("Repasa lo que configuraste")
-                .lanaFont(.title)
-                .foregroundStyle(lana.ink)
-
+        VStack(alignment: .leading, spacing: Space.p26.rawValue) {
             if summaryUnavailable {
                 // R6.2: el resumen no está disponible, pero el flujo continúa —
                 // el control de confirmar lo conserva la vista padre.
-                LanaCard {
-                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .foregroundStyle(lana.attention)
-                            .frame(width: 28)
-                        Text("El resumen no pudo cargarse, pero puedes continuar.")
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.ink50)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                GuideNotice(
+                    systemImage: "exclamationmark.triangle",
+                    message: "El resumen no pudo cargarse, pero puedes continuar.")
             } else {
-                // Repaso, no verificación: Lana no puede comprobar que la
-                // automatización de Atajos exista (no hay API pública para
-                // consultarla — ver `ApplePayEnvironmentProbe`), así que esta
-                // lista solo recuerda lo que la guía pidió hacer. Sin palomita
-                // verde ni "Completado": esa señal daba una falsa sensación de
-                // "verificado".
-                Text("Estos son los pasos que cubrió la guía:")
-                    .lanaFont(.body)
-                    .foregroundStyle(lana.ink50)
-
-                LanaCard {
-                    VStack(spacing: 0) {
-                        ForEach(summary) { step in
-                            HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                                Image(systemName: "\(step.id).circle")
-                                    .foregroundStyle(lana.ink50)
-                                Text(step.title)
-                                    .lanaFont(.body)
-                                    .foregroundStyle(lana.ink)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, Space.xs.rawValue)
-
-                            if step.id != summary.last?.id {
-                                Divider()
-                            }
-                        }
-                    }
-                }
-
-                // Lo honesto: la única comprobación real la hace el usuario.
-                LanaCard {
-                    HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                        Image(systemName: "checkmark.seal")
-                            .foregroundStyle(lana.accent)
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
-                            Text("¿Cómo saber si quedó bien?")
-                                .lanaFont(.headline)
-                                .foregroundStyle(lana.ink)
-                            Text("""
-                            Lana no puede confirmar por su cuenta que la automatización \
-                            haya quedado. La única forma segura es hacer un pago por \
-                            contacto (NFC) con esa tarjeta: si aparece un gasto nuevo en \
-                            Lana para revisar, funcionó.
-                            """)
-                            .lanaFont(.body)
-                            .foregroundStyle(lana.ink50)
-                            .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                recap
+                verification
             }
 
-            LanaCard {
-                HStack(alignment: .top, spacing: Space.sm.rawValue) {
-                    Image(systemName: "arrow.right.circle")
-                        .foregroundStyle(lana.accent)
-                        .frame(width: 28)
-                    Text(nextStepMessage)
-                        .lanaFont(.body)
-                        .foregroundStyle(lana.ink50)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            // Tercer peso: una nota, no un bloque. Sin tarjeta ni icono.
+            Text(nextStepMessage)
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink42)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Repaso, no verificación: Lana no puede comprobar que la automatización
+    /// de Atajos exista (no hay API pública para consultarla — ver
+    /// `ApplePayEnvironmentProbe`), así que esta lista solo recuerda lo que la
+    /// guía pidió hacer. Plana y sin palomita verde ni "Completado": esa señal
+    /// daba una falsa sensación de "verificado".
+    private var recap: some View {
+        VStack(alignment: .leading, spacing: Space.xs.rawValue) {
+            Text("Estos son los pasos que cubrió la guía:")
+                .lanaFont(.explanation)
+                .foregroundStyle(lana.ink60)
+                .padding(.bottom, Space.xs.rawValue)
+
+            VStack(spacing: 0) {
+                ForEach(summary) { step in
+                    HStack(alignment: .center, spacing: Space.p12.rawValue) {
+                        GuideStepNumber(number: step.id)
+                            .accessibilityHidden(true)
+                        Text(step.title)
+                            .lanaFont(.rowTitle)
+                            .foregroundStyle(lana.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, Space.p10.rawValue)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Paso \(step.id): \(step.title)")
+
+                    if step.id != summary.last?.id {
+                        HairlineDivider(strong: true)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Lo único accionable de la pantalla, y por eso lo único sobre `surface`:
+    /// la comprobación real la hace el usuario.
+    private var verification: some View {
+        LanaCard {
+            HStack(alignment: .firstTextBaseline, spacing: Space.p10.rawValue) {
+                Image(systemName: "checkmark.seal")
+                    .lanaFont(.bodyEmphasis)
+                    .foregroundStyle(lana.accent)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+                    Text("¿Cómo saber si quedó bien?")
+                        .lanaFont(.pushTitle)
+                        .foregroundStyle(lana.ink)
+                    Text("""
+                    Lana no puede confirmar por su cuenta que la automatización \
+                    haya quedado. La única forma segura es hacer un pago por \
+                    contacto (NFC) con esa tarjeta: si aparece un gasto nuevo en \
+                    Lana para revisar, funcionó.
+                    """)
+                    .lanaFont(.explanation)
+                    .foregroundStyle(lana.ink70)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     /// La nota final depende de cómo se abrió la guía: en onboarding queda
@@ -136,7 +128,7 @@ struct ClosingStepView: View {
                     },
                     summaryUnavailable: false,
                     mode: .onboarding)
-                    .padding(Space.md.rawValue)
+                    .padding(LanaMetrics.onboardingMargin)
                     .background(LanaColors(theme: theme, colorScheme: .light).bg)
                     .lanaTheme(theme)
             }
