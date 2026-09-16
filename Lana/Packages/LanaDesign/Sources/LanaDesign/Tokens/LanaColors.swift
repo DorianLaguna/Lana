@@ -63,6 +63,9 @@ public struct LanaColors: Sendable, Equatable {
     /// El fondo translúcido de la barra de pestañas (se monta sobre
     /// `.ultraThinMaterial`).
     public let tabBarTint: Color
+    /// La etiqueta y el icono de una pestaña inactiva: `ink60`, porque la
+    /// etiqueta es de 10.5 pt y necesita 4.5:1 contra la barra ya compuesta.
+    public let tabBarInactive: Color
     /// El borde de la barra de pestañas.
     public let tabBarBorder: Color
     /// El borde punteado de "+ Nueva lista compartida".
@@ -84,7 +87,7 @@ public struct LanaColors: Sendable, Equatable {
     public let ink50: Color
     /// Los decimales de la cifra héroe.
     public let ink45: Color
-    /// Subtítulos de fila, pestañas inactivas. Solo texto de apoyo ≥12.5 pt.
+    /// Subtítulos de fila. Solo texto de apoyo ≥12.5 pt.
     public let ink42: Color
     /// Texto deshabilitado, "Sin deuda".
     public let ink35: Color
@@ -134,7 +137,7 @@ public struct LanaColors: Sendable, Equatable {
         surfaceDim = neutrals.surfaceDim.color
         hairline = neutrals.inkBase.color.opacity(0.06)
         hairlineStrong = neutrals.inkBase.color.opacity(0.08)
-        tabBarTint = neutrals.tabBar.color.opacity(0.92)
+        tabBarTint = neutrals.tabBar.color.opacity(NeutralPalette.tabBarTintOpacity)
         tabBarBorder = neutrals.inkBase.color.opacity(0.07)
         dashedBorder = neutrals.inkBase.color.opacity(0.14)
         handle = neutrals.inkBase.color.opacity(0.18)
@@ -150,6 +153,7 @@ public struct LanaColors: Sendable, Equatable {
         ink30 = neutrals.ink(.ink30)
         ink28 = neutrals.ink(.ink28)
         categoryRamp = Array(repeating: ink28, count: 12)
+        tabBarInactive = neutrals.ink(NeutralPalette.tabBarInactiveInk)
 
         let attentionBase = isDark ? Self.attentionDark : Self.attentionLight
         attention = attentionBase.color
@@ -264,6 +268,18 @@ struct NeutralPalette: Sendable {
         ink: RGBColor(hex: "#0B0B0D"),
         inkBase: RGBColor(hex: "#0B0B0D"),
         isDark: false)
+
+    /// La opacidad de `tabBar` sobre el material de la barra de pestañas.
+    static let tabBarTintOpacity = 0.92
+    /// El nivel de tinta de una pestaña inactiva.
+    static let tabBarInactiveInk = InkLevel.ink60
+
+    /// La barra de pestañas como llega al ojo: `tabBar` al 92 % sobre `bg`.
+    /// El material de abajo desenfoca el fondo, así que `bg` es su mejor
+    /// aproximación sin un contexto de renderizado.
+    var composedTabBar: RGBColor {
+        tabBar.composited(alpha: Self.tabBarTintOpacity, over: bg)
+    }
 
     func opacity(for level: InkLevel) -> Double {
         isDark ? level.darkOpacity : level.lightOpacity

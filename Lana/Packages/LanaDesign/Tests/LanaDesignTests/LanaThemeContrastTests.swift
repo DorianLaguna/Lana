@@ -56,6 +56,26 @@ struct LanaThemeContrastTests {
         }
     }
 
+    /// La etiqueta de pestaña es de 10.5 pt: sin excepción de texto grande,
+    /// así que las dos pestañas —activa e inactiva— piden 4.5:1 contra la
+    /// barra ya compuesta, no contra `bg` pelón.
+    @Test("Las pestañas cumplen 4.5:1 contra la barra compuesta sobre bg", arguments: LanaTheme.allCases)
+    func etiquetasDePestana(theme: LanaTheme) {
+        for neutrals in Self.modes(for: theme) {
+            let bar = neutrals.composedTabBar
+            let mode = neutrals.isDark ? "oscuro" : "claro"
+            let inactive = neutrals.inkBase.composited(
+                alpha: neutrals.opacity(for: NeutralPalette.tabBarInactiveInk),
+                over: bar)
+            let inactiveRatio = inactive.contrastRatio(with: bar)
+            #expect(inactiveRatio >= Self.textMinimum, "\(theme.displayName) \(mode) inactiva: \(inactiveRatio)")
+
+            let accent = neutrals.isDark ? theme.palette.textDark : theme.palette.textLight
+            let activeRatio = accent.contrastRatio(with: bar)
+            #expect(activeRatio >= Self.textMinimum, "\(theme.displayName) \(mode) activa: \(activeRatio)")
+        }
+    }
+
     private struct SemanticCase {
         let label: String
         let color: RGBColor

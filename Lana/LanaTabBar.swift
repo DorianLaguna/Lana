@@ -87,7 +87,7 @@ struct LanaTabBar: View {
                 Text(tab.title)
                     .lanaFont(.tabLabel)
             }
-            .foregroundStyle(isSelected ? lana.accent : lana.ink42)
+            .foregroundStyle(isSelected ? lana.accent : lana.tabBarInactive)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
