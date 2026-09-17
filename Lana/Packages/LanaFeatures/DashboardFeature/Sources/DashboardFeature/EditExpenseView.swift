@@ -109,14 +109,9 @@ public struct EditExpenseView: View {
                 Text("$")
                     .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
-                TextField("0", value: $model.amount, format: .number)
-                    .lanaFont(.draftAmount)
+                AmountField(amount: $model.amount)
                     .foregroundStyle(model.kind == .income ? lana.positive : lana.ink)
-                    .multilineTextAlignment(.trailing)
                     .fixedSize()
-                #if os(iOS)
-                    .keyboardType(.decimalPad)
-                #endif
             }
         }
     }

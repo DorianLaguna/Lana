@@ -93,14 +93,9 @@ public struct DraftCard: View {
                 Text("$")
                     .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
-                TextField("0", value: $draft.amount, format: .number)
-                    .lanaFont(.draftAmount)
+                AmountField(amount: $draft.amount)
                     .foregroundStyle(draft.kind == .income ? lana.positive : lana.ink)
-                    .multilineTextAlignment(.trailing)
                     .fixedSize()
-                #if os(iOS)
-                    .keyboardType(.decimalPad)
-                #endif
             }
 
             if let onDelete {

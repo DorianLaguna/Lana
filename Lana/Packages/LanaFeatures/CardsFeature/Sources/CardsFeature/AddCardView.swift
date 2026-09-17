@@ -173,10 +173,7 @@ public struct AddCardView: View {
     /// necesita el tipo concreto, no un genérico sobre `Numeric`.
     private func amountField(_ label: String, value: Binding<Decimal>) -> some View {
         numberRow(label) {
-            TextField("0", value: value, format: .number)
-            #if os(iOS)
-                .keyboardType(.decimalPad)
-            #endif
+            AmountField(amount: value, style: .rowTitle)
         }
     }
 

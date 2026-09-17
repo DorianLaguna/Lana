@@ -175,15 +175,10 @@ extension SharedExpenseCaptureView {
                 Text("$")
                     .lanaFont(.rowSubtitle)
                     .foregroundStyle(lana.ink50)
-                TextField("0", value: $amount, format: .number)
-                    .lanaFont(.draftAmount)
+                AmountField(amount: $amount)
                     .foregroundStyle(lana.ink)
-                    .multilineTextAlignment(.trailing)
                     .fixedSize()
                     .focused($focusedField, equals: .amount)
-                #if os(iOS)
-                    .keyboardType(.decimalPad)
-                #endif
             }
         }
     }

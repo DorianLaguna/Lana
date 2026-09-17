@@ -34,12 +34,7 @@ public struct AddCardPaymentView: View {
                         Text("Monto")
                             .foregroundStyle(lana.ink)
                         Spacer()
-                        TextField("0", value: $amount, format: .number)
-                            .monospacedDigit()
-                            .multilineTextAlignment(.trailing)
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                        AmountField(amount: $amount, style: .rowTitle)
                     }
                     // Precarga lo que toca del último estado de cuenta —
                     // no `totalDebt`, que incluye el ciclo todavía abierto:
