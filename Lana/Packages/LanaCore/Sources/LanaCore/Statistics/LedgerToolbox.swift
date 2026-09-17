@@ -64,6 +64,9 @@ public struct LedgerToolbox: Sendable {
             name: "origenDelIngreso",
             toolDescription: "De dónde vino el dinero en un mes, por categoría."),
         LedgerTool(
+            name: "buscarPorConcepto",
+            toolDescription: "Cuándo fue la última vez que se gastó en algo, cuántas veces y cuánto suma."),
+        LedgerTool(
             name: "disponibleProyectado",
             toolDescription: "Cuánto queda del sueldo actual, después de los pagos con fecha que faltan.")
     ]

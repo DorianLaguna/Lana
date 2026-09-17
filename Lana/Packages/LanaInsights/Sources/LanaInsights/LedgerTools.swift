@@ -21,7 +21,8 @@ enum LedgerTools {
             SaldoDeListaTool(toolbox: toolbox),
             DeudaPorTarjetaTool(toolbox: toolbox),
             DisponibleProyectadoTool(toolbox: toolbox),
-            OrigenDelIngresoTool(toolbox: toolbox)
+            OrigenDelIngresoTool(toolbox: toolbox),
+            BuscarPorConceptoTool(toolbox: toolbox)
         ]
     }
 }
@@ -188,5 +189,33 @@ struct OrigenDelIngresoTool: Tool {
 
     func call(arguments: MonthArguments) async throws -> String {
         await toolbox.origenDelIngreso(year: arguments.year, month: arguments.month)
+    }
+}
+
+/// Qué buscar en el historial. Es texto libre a propósito: el usuario nombra
+/// algo ("gasolina", "café", "renta") y se busca tal cual en lo que él mismo
+/// escribió o dictó.
+@Generable
+struct ConceptArguments: Sendable {
+    @Guide(description: """
+    Lo que se busca, en una o dos palabras, tal como lo dijo la persona: \
+    "gasolina", "café", "uber". Sin verbos ni artículos.
+    """)
+    var texto: String
+}
+
+struct BuscarPorConceptoTool: Tool {
+    let toolbox: LedgerToolbox
+
+    let name = "buscarPorConcepto"
+    let description = """
+    Busca gastos por lo que dicen —concepto, categoría o subcategoría— en todo \
+    el historial, sin importar el mes. Dice cuándo fue el último, cuántos van y \
+    cuánto suman. Úsala para "¿cuándo fue la última vez que compré X?", \
+    "¿cada cuánto pago X?" o "¿cuánto llevo gastado en X?".
+    """
+
+    func call(arguments: ConceptArguments) async throws -> String {
+        await toolbox.buscarPorConcepto(texto: arguments.texto)
     }
 }

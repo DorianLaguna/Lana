@@ -313,6 +313,7 @@ struct LedgerToolboxTests {
             "saldoDeLista",
             "deudaPorTarjeta",
             "disponibleProyectado",
+            "buscarPorConcepto",
             "origenDelIngreso"
         ])
         #expect(LedgerToolbox.catalog.allSatisfy { !$0.toolDescription.isEmpty })

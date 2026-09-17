@@ -44,6 +44,7 @@ Cada decisión de diseño se mide contra eso.
 | Marcar una deuda como pagada | Se paga la fila entera, sin preguntar monto; pagarla la cierra | 0054 |
 | Por revisar | Confirmar en la hoja de captura ya es la revisión | 0055 |
 | Teclear un monto | Campo propio, vacío en cero y alineado a la derecha | 0056 |
+| Buscar en el historial | Séptima tool: por concepto, categoría o subcategoría, sin mes | 0058 |
 | Quitar a alguien de una lista | Solo si su única huella son partes de gastos iguales | 0052 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |
