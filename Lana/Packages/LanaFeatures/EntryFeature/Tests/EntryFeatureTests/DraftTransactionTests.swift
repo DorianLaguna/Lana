@@ -52,4 +52,27 @@ struct DraftTransactionTests {
             source: .applePay)
         #expect(DraftTransaction(expense: fromApplePay).asExpense().source == .applePay)
     }
+
+    @Test("Confirmar desde la hoja no deja el movimiento por revisar (ADR-0055)")
+    func confirmarNoDejaPorRevisar() {
+        var draft = DraftTransaction(
+            result: ParseResult(
+                amount: Money(amount: 350, currency: .mxn),
+                concept: "tortas y tacos",
+                category: "comida",
+                needsReview: true),
+            fallbackDate: .now)
+
+        #expect(draft.doubts == [.uncertain])
+        #expect(draft.asExpense().needsReview)
+        #expect(draft.confirmed().needsReview == false)
+
+        // Lo que sí sigue faltando se queda marcado, para que la bandeja lo
+        // recuerde.
+        draft.category = ""
+        #expect(draft.confirmed().needsReview)
+        draft.category = "comida"
+        draft.amount = 0
+        #expect(draft.confirmed().needsReview)
+    }
 }

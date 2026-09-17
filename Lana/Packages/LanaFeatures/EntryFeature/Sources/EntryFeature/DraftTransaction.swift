@@ -122,6 +122,18 @@ public struct DraftTransaction: Equatable, Sendable, Identifiable {
         asExpense().splitShares() ?? []
     }
 
+    /// El movimiento como se guarda al confirmar desde la hoja de captura.
+    ///
+    /// **Confirmar es la revisión** (ADR-0055): quien dictó vio el borrador y
+    /// tocó Guardar, así que no vuelve a salir en "Por revisar" — esa bandeja
+    /// es para lo que entró solo (Apple Pay, tickets). La marca se queda solo
+    /// si todavía falta un dato concreto: monto, concepto o categoría.
+    public func confirmed() -> Expense {
+        var expense = asExpense()
+        expense.needsReview = doubts.contains { $0 != .uncertain }
+        return expense
+    }
+
     public func asExpense() -> Expense {
         Expense(
             id: id,

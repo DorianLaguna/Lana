@@ -142,8 +142,8 @@ struct EntryModelTests {
         #expect(model.stage == .composing)
     }
 
-    @Test("Confirmar guarda todos los borradores, incluso los que necesitan revisión")
-    func confirmarGuardaTodosLosBorradoresAunConNeedsReview() async throws {
+    @Test("Confirmar guarda el borrador dudoso, y ya no lo deja por revisar (ADR-0055)")
+    func confirmarGuardaElBorradorDudosoSinDejarloPorRevisar() async throws {
         let result = ParseResult(
             amount: Money(amount: 45, currency: .mxn),
             concept: "estacionamiento",
@@ -165,6 +165,28 @@ struct EntryModelTests {
         #expect(model.stage == .saved)
         let saved = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
         #expect(saved.count == 1)
+        // La hoja de captura ya fue la revisión: no vuelve a pedirla.
+        #expect(saved.first?.needsReview == false)
+    }
+
+    @Test("Un borrador al que le falta un dato sí se queda por revisar (ADR-0055)")
+    func confirmarDejaPorRevisarLoQueLeFaltaUnDato() async throws {
+        let result = ParseResult(amount: Money(amount: 45, currency: .mxn), concept: "estacionamiento")
+        let store = InMemoryExpenseStore()
+        let model = EntryModel(
+            parser: InMemoryExpenseParsing(results: [result]),
+            store: store,
+            cardStore: InMemoryCardStore(),
+            speech: InMemorySpeechTranscribing(),
+            vocabularyStore: InMemoryCorrectionVocabularyStore(),
+            sharedListStore: InMemorySharedListStore())
+        await model.onAppear()
+        model.inputText = "45 de estacionamiento"
+        await model.submit()
+        await model.confirm()
+
+        let saved = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(saved.first?.category == nil)
         #expect(saved.first?.needsReview == true)
     }
 

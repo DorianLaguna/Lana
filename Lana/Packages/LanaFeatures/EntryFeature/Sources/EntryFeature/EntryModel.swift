@@ -344,7 +344,9 @@ public final class EntryModel {
     }
 
     /// El paso "confirmar". Guarda todos los borradores tal como quedaron
-    /// editados — lo ambiguo entra con `needsReview`, nunca bloquea esto.
+    /// editados. Confirmar aquí ya es la revisión, así que el movimiento no
+    /// vuelve a pedirla salvo que le falte un dato concreto
+    /// (`DraftTransaction.confirmed()`, ADR-0055).
     /// Si el usuario cambió la categoría que propuso el parser, esa
     /// corrección se registra antes de guardar (ADR-0012) — hasta ahora
     /// `CorrectionVocabularyStore` existía pero nada la disparaba.
@@ -356,7 +358,7 @@ public final class EntryModel {
                 if !draft.category.isEmpty, draft.category != draft.originalCategory {
                     await vocabularyStore.record(term: draft.concept, category: draft.category)
                 }
-                try await store.save(draft.asExpense())
+                try await store.save(draft.confirmed())
             }
             lastSavedIDs = drafts.map(\.id)
             stage = .saved
