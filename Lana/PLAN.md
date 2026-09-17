@@ -41,6 +41,7 @@ Cada decisión de diseño se mide contra eso.
 | Origen de un movimiento | Campo opcional en el evento raíz; ninguna corrección lo cambia | 0049 |
 | Nuevo miembro de una lista | Se pregunta si se suma a lo ya registrado; solo partes iguales, como corrección | 0050 |
 | Deudas en una lista | Cada quien paga o cobra su saldo, repartido en proporción | 0053 |
+| Marcar una deuda como pagada | Se paga la fila entera, sin preguntar monto; pagarla la cierra | 0054 |
 | Quitar a alguien de una lista | Solo si su única huella son partes de gastos iguales | 0052 |
 | Monetización | Freemium con unlock único (StoreKit 2) | — |
 | Android | Fuera de alcance, permanentemente | 0004 |

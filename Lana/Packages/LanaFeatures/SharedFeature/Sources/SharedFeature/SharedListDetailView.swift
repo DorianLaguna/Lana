@@ -8,7 +8,6 @@ public struct SharedListDetailView: View {
     @Environment(\.lana) private var lana
     @Bindable private var model: SharedListDetailModel
     @State private var isCapturing = false
-    @State private var settlingDebt: Debt?
     @State private var viewingDebt: Debt?
     @State private var isPromptingViewer = false
     /// Tocar un gasto lo edita aquí mismo — `SharedExpenseCaptureView` ya
@@ -41,7 +40,7 @@ public struct SharedListDetailView: View {
                     debts: model.debts,
                     participantName: { model.displayName(for: $0) },
                     viewerID: model.viewerParticipantID,
-                    onSettle: { settlingDebt = $0 },
+                    onSettle: { debt in Task { await model.settle(debt) } },
                     onSelectDebt: { viewingDebt = $0 })
 
                 if !model.expenses.isEmpty {
@@ -136,11 +135,6 @@ public struct SharedListDetailView: View {
             .sheet(item: $editingExpense) { expense in
                 SharedExpenseCaptureView(model: model, existingExpense: expense, onDone: { editingExpense = nil })
             }
-            .sheet(isPresented: isSettlingBinding) {
-                if let debt = settlingDebt {
-                    SettleUpView(model: model, debt: debt, onDone: { settlingDebt = nil })
-                }
-            }
             .sheet(isPresented: isViewingDebtBinding) {
                 if let debt = viewingDebt {
                     DebtDetailView(
@@ -211,19 +205,8 @@ public struct SharedListDetailView: View {
     }
 
     /// `Debt` no es `Identifiable` — no tiene un id propio, es un valor
-    /// calculado a partir de los saldos, no una entidad persistida — por
-    /// eso `.sheet(isPresented:)` en vez de `.sheet(item:)`.
-    private var isSettlingBinding: Binding<Bool> {
-        Binding(
-            get: { settlingDebt != nil },
-            set: { isPresented in
-                if !isPresented {
-                    settlingDebt = nil
-                }
-            })
-    }
-
-    /// Mismo motivo que `isSettlingBinding` — `Debt` no es `Identifiable`.
+    /// calculado a partir de los saldos, no una entidad persistida — por eso
+    /// `.sheet(isPresented:)` en vez de `.sheet(item:)`.
     private var isViewingDebtBinding: Binding<Bool> {
         Binding(
             get: { viewingDebt != nil },

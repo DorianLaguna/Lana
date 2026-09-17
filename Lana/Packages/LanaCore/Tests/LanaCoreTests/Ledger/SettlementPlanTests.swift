@@ -69,20 +69,60 @@ struct SettlementPlanTests {
         }
     }
 
-    @Test("Una liquidación registrada baja lo que falta, sin descuadrar")
-    func liquidacionBajaElPlan() throws {
-        let first = try #require(ledger.settlementPlan(in: listID, currency: .mxn).first)
-        let settled = ledger.appending(.settlementRecorded(SettlementRecorded(
+    private func settling(_ debt: Debt, on ledger: PersonLedger) -> PersonLedger {
+        ledger.appending(.settlementRecorded(SettlementRecorded(
             sharedListID: listID,
-            from: first.from,
-            to: first.to,
-            amount: first.amount,
+            from: debt.from,
+            to: debt.to,
+            amount: debt.amount,
             paymentMethod: .cash,
             date: Date(timeIntervalSince1970: 1_700_000_000))))
+    }
 
-        let plan = settled.settlementPlan(in: listID, currency: .mxn)
-        let balances = settled.netBalances(in: listID)[.mxn] ?? [:]
-        let owedByFirst = plan.filter { $0.from == first.from }.reduce(Decimal(0)) { $0 + $1.amount.amount }
-        #expect(owedByFirst == -(balances[first.from] ?? 0))
+    @Test("Pagar una fila completa la cierra y no mueve las demás (ADR-0054)")
+    func pagarUnaFilaLaCierra() throws {
+        let before = ledger.settlementPlan(in: listID, currency: .mxn)
+        let paid = try #require(before.first)
+
+        let after = settling(paid, on: ledger).settlementPlan(in: listID, currency: .mxn)
+
+        #expect(!after.contains { $0.from == paid.from && $0.to == paid.to })
+        let untouched = before.filter { !($0.from == paid.from && $0.to == paid.to) }
+        #expect(after == untouched)
+    }
+
+    @Test("Pagar todo lo de una persona la saca del plan y la deja en cero")
+    func pagarTodoLoDeUnaPersona() throws {
+        var current = ledger
+        let debtor = try #require(ledger.settlementPlan(in: listID, currency: .mxn).first?.from)
+        for debt in ledger.settlementPlan(in: listID, currency: .mxn) where debt.from == debtor {
+            current = settling(debt, on: current)
+        }
+
+        #expect(!current.settlementPlan(in: listID, currency: .mxn).contains { $0.from == debtor })
+        #expect((current.netBalances(in: listID)[.mxn] ?? [:])[debtor] == 0)
+    }
+
+    @Test("Una liquidación fuera del plan no descuadra: se rearma desde el saldo")
+    func liquidacionFueraDelPlan() throws {
+        let plan = ledger.settlementPlan(in: listID, currency: .mxn)
+        let debtor = try #require(plan.first?.from)
+        // Le paga de más a quien sí le tocaba: el plan deja de corresponder.
+        let excessive = try Debt(
+            from: debtor,
+            to: #require(plan.first?.to),
+            amount: Money(amount: 5000, currency: .mxn))
+        let after = settling(excessive, on: ledger)
+
+        let balances = after.netBalances(in: listID)[.mxn] ?? [:]
+        for debt in after.settlementPlan(in: listID, currency: .mxn) {
+            #expect(debt.amount.amount > 0)
+        }
+        for (participant, balance) in balances {
+            let plan = after.settlementPlan(in: listID, currency: .mxn)
+            let paid = plan.filter { $0.from == participant }.reduce(Decimal(0)) { $0 + $1.amount.amount }
+            let received = plan.filter { $0.to == participant }.reduce(Decimal(0)) { $0 + $1.amount.amount }
+            #expect(received - paid == balance)
+        }
     }
 }

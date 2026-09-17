@@ -9,10 +9,9 @@ public struct SharedListView: View {
     @Bindable private var model: SharedListModel
     @State private var createModel: CreateSharedListModel?
     @State private var listPendingDelete: SharedList?
-    @State private var settling: SettlementTarget?
     /// La navegación se maneja con un path propio y no con
     /// `NavigationLink(value:)`: la tarjeta de una lista trae sus propios
-    /// botones ("Liquidar") y un link se los tragaría.
+    /// botones ("Ya pagó") y un link se los tragaría.
     @State private var path: [SharedListID] = []
 
     public init(model: SharedListModel) {
@@ -50,15 +49,6 @@ public struct SharedListView: View {
                     self.createModel = nil
                     Task { await model.onAppear() }
                 })
-            }
-            .sheet(item: $settling) { target in
-                SettleUpView(
-                    model: model.makeDetailModel(for: target.list),
-                    debt: target.debt,
-                    onDone: {
-                        settling = nil
-                        Task { await model.onAppear() }
-                    })
             }
             .confirmationDialog(
                 "¿Borrar \(listPendingDelete?.name ?? "esta lista")? Se borra también su historial.",
@@ -112,7 +102,12 @@ public struct SharedListView: View {
                     viewerID: model.viewerIdentities[list.id],
                     name: { model.displayName(for: $0, in: list) },
                     onOpen: { openList(list) },
-                    onSettle: { debt in settling = SettlementTarget(list: list, debt: debt) })
+                    onSettle: { debt in
+                        Task {
+                            await model.makeDetailModel(for: list).settle(debt)
+                            await model.onAppear()
+                        }
+                    })
                     .contextMenu {
                         Button("Borrar", role: .destructive) { listPendingDelete = list }
                     }
@@ -168,18 +163,8 @@ public struct SharedListView: View {
     }
 }
 
-/// La lista a la que pertenece una deuda — `Debt` no dice de cuál lista es.
-private struct SettlementTarget: Identifiable {
-    let list: SharedList
-    let debt: Debt
-
-    var id: String {
-        "\(list.id.rawValue)-\(debt.from.rawValue)-\(debt.to.rawValue)"
-    }
-}
-
 /// Una lista con sus avatares, cuántos gastos lleva y, abajo, quién le debe a
-/// quién con su botón de liquidar.
+/// quién con su botón de "Ya pagó".
 private struct SharedListCard: View {
     @Environment(\.lana) private var lana
     let list: SharedList
@@ -245,7 +230,7 @@ private struct SharedListCard: View {
                 .lanaFont(.rowAmount)
                 .fontWeight(.semibold)
                 .foregroundStyle(debt.to == viewerID ? lana.positive : lana.ink)
-            Button("Liquidar") { onSettle(debt) }
+            Button(debt.to == viewerID ? "Ya me pagó" : "Ya pagó") { onSettle(debt) }
                 .buttonStyle(.lana(size: .compact))
         }
         .padding(.vertical, Space.p12.rawValue)

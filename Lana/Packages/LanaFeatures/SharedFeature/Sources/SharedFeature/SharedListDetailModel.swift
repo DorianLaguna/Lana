@@ -336,6 +336,19 @@ public final class SharedListDetailModel {
         return try? await parser.parse(trimmed).first
     }
 
+    /// Marca una fila de "Para quedar a mano" como pagada: registra el pago
+    /// completo de esa fila (ADR-0054). No se pregunta el monto — una fila del
+    /// plan es lo que falta entre esos dos, y se paga entero.
+    @discardableResult
+    public func settle(_ debt: Debt) async -> Bool {
+        await recordSettlement(
+            from: debt.from,
+            to: debt.to,
+            amount: debt.amount.amount,
+            currency: debt.amount.currency,
+            date: Date())
+    }
+
     /// Registra que `from` le pagó a `to` para saldar (parte de) su deuda.
     public func recordSettlement(
         from: ParticipantID,
