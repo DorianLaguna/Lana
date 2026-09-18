@@ -20,12 +20,12 @@ public extension PersonLedger {
             Self.apply(settlement, to: &cells)
         }
 
-        // Pagar de más, o pagarle a quien no le tocaba, deja el plan sin
-        // relación con los saldos vigentes. Ahí se rearma desde el saldo, que
-        // siempre cuadra aunque pierda la correspondencia fila a fila.
-        guard Self.cells(cells, settle: net) else {
-            return Self.debts(from: Self.proportionalCells(net), currency: currency)
-        }
+        // Un pago que no cuadra con su fila —de más, a quien no le tocaba, o
+        // uno viejo registrado con otro reparto— deja el plan sin sumar los
+        // saldos. Se parcha **la diferencia**, no se rehace el plan: rehacerlo
+        // movía filas que nadie tocó, que es justo lo que se quería evitar
+        // (ADR-0054).
+        Self.patch(&cells, toSettle: net)
         return Self.debts(from: cells, currency: currency)
     }
 
@@ -125,42 +125,43 @@ private extension PersonLedger {
         return cells
     }
 
-    /// Descuenta una liquidación del plan: primero de la fila de ese par —lo
-    /// que se estaba pagando— y lo que sobre, de las demás filas de quien pagó,
-    /// de mayor a menor.
+    /// Descuenta una liquidación **solo de la fila de ese par**. Pagarle a
+    /// alguien no puede mover lo que se le debe a un tercero: si el pago no
+    /// cabe en su fila, la diferencia la resuelve `patch(_:toSettle:)`.
     static func apply(_ settlement: SettlementRecorded, to cells: inout [ParticipantID: [ParticipantID: Decimal]]) {
-        var pending = settlement.amount.amount
-        let direct = min(cells[settlement.from]?[settlement.to] ?? 0, pending)
-        if direct > 0 {
-            cells[settlement.from]?[settlement.to, default: 0] -= direct
-            pending -= direct
-        }
-        while pending > 0,
-              let creditor = cells[settlement.from]?
-              .filter({ $0.value > 0 })
-              .max(by: { $0.value == $1.value ? $0.key < $1.key : $0.value < $1.value })?
-              .key {
-            let taken = min(cells[settlement.from]?[creditor] ?? 0, pending)
-            cells[settlement.from]?[creditor, default: 0] -= taken
-            pending -= taken
-        }
+        let planned = cells[settlement.from]?[settlement.to] ?? 0
+        guard planned > 0 else { return }
+        cells[settlement.from]?[settlement.to, default: 0] = max(0, planned - settlement.amount.amount)
     }
 
-    /// `true` si el plan deja a cada quien pagando o cobrando exactamente su
-    /// saldo.
-    static func cells(
-        _ cells: [ParticipantID: [ParticipantID: Decimal]],
-        settle balances: [ParticipantID: Decimal]) -> Bool {
-        var effect: [ParticipantID: Decimal] = [:]
+    /// Suma al plan lo que le falte para saldar los saldos vigentes, sin tocar
+    /// lo que ya tiene: reparte **la diferencia** con el mismo criterio
+    /// proporcional y la mezcla. Las filas que ya estaban se quedan como
+    /// están, incluidas las que un pago dejó en cero.
+    static func patch(
+        _ cells: inout [ParticipantID: [ParticipantID: Decimal]],
+        toSettle balances: [ParticipantID: Decimal]) {
+        var residual = balances
         for (debtor, row) in cells {
-            for (creditor, amount) in row where amount != 0 {
-                guard amount > 0 else { return false }
-                effect[debtor, default: 0] += amount
-                effect[creditor, default: 0] -= amount
+            for (creditor, amount) in row where amount > 0 {
+                residual[debtor, default: 0] += amount
+                residual[creditor, default: 0] -= amount
             }
         }
-        let participants = Set(balances.keys).union(effect.keys)
-        return participants.allSatisfy { (balances[$0] ?? 0) + (effect[$0] ?? 0) == 0 }
+        guard residual.values.contains(where: { $0 != 0 }) else { return }
+
+        for (debtor, row) in proportionalCells(residual) {
+            for (creditor, amount) in row where amount > 0 {
+                // Pagar de más deja una deuda al revés (quien cobraba ahora
+                // debe): se netea contra la fila contraria en vez de mostrar
+                // las dos.
+                let opposite = min(cells[creditor]?[debtor] ?? 0, amount)
+                if opposite > 0 {
+                    cells[creditor]?[debtor, default: 0] -= opposite
+                }
+                cells[debtor, default: [:]][creditor, default: 0] += amount - opposite
+            }
+        }
     }
 
     static func debts(from cells: [ParticipantID: [ParticipantID: Decimal]], currency: Currency) -> [Debt] {

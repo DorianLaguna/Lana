@@ -42,6 +42,7 @@ Cada decisión de diseño se mide contra eso.
 | Nuevo miembro de una lista | Se pregunta si se suma a lo ya registrado; solo partes iguales, como corrección | 0050 |
 | Deudas en una lista | Cada quien paga o cobra su saldo, repartido en proporción | 0053 |
 | Marcar una deuda como pagada | Se paga la fila entera, sin preguntar monto; pagarla la cierra | 0054 |
+| Un pago fuera del plan | Solo mueve su fila; la diferencia se parcha, el plan no se rehace | 0059 |
 | Por revisar | Confirmar en la hoja de captura ya es la revisión | 0055 |
 | Teclear un monto | Campo propio, vacío en cero y alineado a la derecha | 0056 |
 | Buscar en el historial | Séptima tool: por concepto, categoría o subcategoría, sin mes | 0058 |

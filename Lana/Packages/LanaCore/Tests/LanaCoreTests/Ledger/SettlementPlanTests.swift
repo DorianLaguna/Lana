@@ -103,8 +103,41 @@ struct SettlementPlanTests {
         #expect((current.netBalances(in: listID)[.mxn] ?? [:])[debtor] == 0)
     }
 
-    @Test("Una liquidación fuera del plan no descuadra: se rearma desde el saldo")
-    func liquidacionFueraDelPlan() throws {
+    /// El caso del reporte: la lista ya traía pagos registrados con el reparto
+    /// anterior, y pagar una fila movía también la del otro acreedor.
+    @Test("Con pagos viejos que no cuadran, pagar una fila no mueve las demás (ADR-0054)")
+    func pagosViejosNoContagianLasDemasFilas() throws {
+        let iori = people[1]
+        // Un pago del reparto anterior: alguien le pagó todo su saldo a Iori.
+        var current = ledger.appending(.settlementRecorded(SettlementRecorded(
+            sharedListID: listID,
+            from: people[3],
+            to: iori,
+            amount: Money(amount: 200, currency: .mxn),
+            paymentMethod: .cash,
+            date: Date(timeIntervalSince1970: 1_700_000_000))))
+
+        let before = current.settlementPlan(in: listID, currency: .mxn)
+        let paid = try #require(before.first { $0.from == people[4] })
+        let others = before.filter { !($0.from == paid.from && $0.to == paid.to) }
+
+        current = settling(paid, on: current)
+        let after = current.settlementPlan(in: listID, currency: .mxn)
+
+        #expect(!after.contains { $0.from == paid.from && $0.to == paid.to })
+        #expect(after == others)
+
+        // Y sigue cuadrando con los saldos.
+        let balances = current.netBalances(in: listID)[.mxn] ?? [:]
+        for (participant, balance) in balances {
+            let paidTotal = after.filter { $0.from == participant }.reduce(Decimal(0)) { $0 + $1.amount.amount }
+            let received = after.filter { $0.to == participant }.reduce(Decimal(0)) { $0 + $1.amount.amount }
+            #expect(received - paidTotal == balance)
+        }
+    }
+
+    @Test("Pagar de más no descuadra el plan: se parcha la diferencia")
+    func pagarDeMasNoDescuadra() throws {
         let plan = ledger.settlementPlan(in: listID, currency: .mxn)
         let debtor = try #require(plan.first?.from)
         // Le paga de más a quien sí le tocaba: el plan deja de corresponder.

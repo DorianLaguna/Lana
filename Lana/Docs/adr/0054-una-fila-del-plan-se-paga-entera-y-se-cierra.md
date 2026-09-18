@@ -1,6 +1,6 @@
 # ADR-0054: Una fila del plan se paga entera, y pagarla la cierra
 
-- **Estado:** Aceptada
+- **Estado:** Aceptada, revisada por ADR-0059
 - **Fecha:** 2026-09-17
 - **Relacionada:** ADR-0053 (cada quien paga o cobra su saldo), ADR-0005 (eventos
   append-only)
