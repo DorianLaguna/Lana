@@ -51,22 +51,44 @@ public struct BalancesView: View {
                         }
                     }
 
-                    if !debts.isEmpty {
-                        VStack(alignment: .leading, spacing: Space.sm.rawValue) {
-                            // Los saldos dicen cuánto; esto, quién le paga a
-                            // quién para quedar a mano. Sin el encabezado se
-                            // leía como una segunda lista de saldos.
-                            Text("Para quedar a mano")
-                                .lanaFont(.minorHeader)
-                                .foregroundStyle(lana.ink42)
-                                .accessibilityAddTraits(.isHeader)
-                                .padding(.top, Space.md.rawValue)
-                            ForEach(debtGroups(debts, viewer: viewerID)) { group in
-                                debtGroup(group)
-                            }
-                        }
-                    }
+                    settlements
                 }
+            }
+        }
+    }
+
+    /// Solo lo que te toca a ti: quién te debe y a quién le debes. Lo que se
+    /// deban entre ellos no se muestra — lo que se necesita saber es quién ya
+    /// te pagó, no llevarle la cuenta a los demás.
+    @ViewBuilder
+    private var settlements: some View {
+        let mine = myDebts(debts, viewer: viewerID)
+        if !mine.owedToMe.isEmpty || !mine.iOwe.isEmpty {
+            VStack(alignment: .leading, spacing: Space.sm.rawValue) {
+                if !mine.owedToMe.isEmpty {
+                    settlementSection("Te deben", debts: mine.owedToMe, paidLabel: "Ya me pagó") { $0.from }
+                }
+                if !mine.iOwe.isEmpty {
+                    settlementSection("Tú debes", debts: mine.iOwe, paidLabel: "Ya pagué") { $0.to }
+                }
+            }
+        }
+    }
+
+    private func settlementSection(
+        _ title: String,
+        debts: [Debt],
+        paidLabel: String,
+        other: @escaping (Debt) -> ParticipantID) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .lanaFont(.minorHeader)
+                .foregroundStyle(lana.ink42)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, Space.md.rawValue)
+                .padding(.bottom, Space.xs.rawValue)
+            ForEach(debts, id: \.self) { debt in
+                debtRow(debt, name: participantName(other(debt)), paidLabel: paidLabel)
             }
         }
     }
@@ -113,41 +135,13 @@ public struct BalancesView: View {
             .accessibilityLabel(label)
     }
 
-    /// Una persona que debe, con su total, y debajo a quién le paga y cuánto
-    /// (ADR-0053). Cada fila abre el detalle; "Ya pagó" registra el pago.
-    private func debtGroup(_ group: DebtGroup) -> some View {
-        let isViewer = group.debtor == viewerID
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: Space.sm.rawValue) {
-                Text(isViewer ? "Tú debes" : "\(participantName(group.debtor)) debe")
-                    .lanaFont(.rowTitle)
-                    .foregroundStyle(lana.ink)
-                Spacer(minLength: Space.sm.rawValue)
-                Text(group.total.formatted())
-                    .lanaFont(.rowAmount)
-                    .foregroundStyle(lana.ink)
-            }
-            .padding(.bottom, Space.xs.rawValue)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
-
-            ForEach(group.debts, id: \.to) { debt in
-                debtRow(debt, debtorIsViewer: isViewer)
-            }
-        }
-        .padding(.vertical, Space.p10.rawValue)
-    }
-
-    private func debtRow(_ debt: Debt, debtorIsViewer: Bool) -> some View {
-        let creditorIsViewer = debt.to == viewerID
-        let creditor = creditorIsViewer ? "ti" : participantName(debt.to)
-        let paidLabel = debtorIsViewer ? "Ya pagué" : (creditorIsViewer ? "Ya me pagó" : "Ya pagó")
-        return HStack(spacing: Space.sm.rawValue) {
+    private func debtRow(_ debt: Debt, name: String, paidLabel: String) -> some View {
+        HStack(spacing: Space.sm.rawValue) {
             Button {
                 onSelectDebt(debt)
             } label: {
                 HStack(spacing: Space.sm.rawValue) {
-                    Text("a \(creditor)")
+                    Text(name)
                         .lanaFont(.label)
                         .foregroundStyle(lana.ink70)
                     Spacer(minLength: Space.xs.rawValue)
@@ -156,7 +150,6 @@ public struct BalancesView: View {
                         .monospacedDigit()
                         .foregroundStyle(lana.ink)
                 }
-                .padding(.leading, Space.md.rawValue)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -167,8 +160,8 @@ public struct BalancesView: View {
             Button {
                 onSettle(debt)
             } label: {
-                // Mismo ancho para las tres etiquetas, para que los montos
-                // queden alineados de grupo en grupo.
+                // Mismo ancho en los dos bloques, para que los montos queden
+                // alineados entre "Te deben" y "Tú debes".
                 ZStack {
                     Text("Ya me pagó").hidden()
                     Text(paidLabel)
@@ -202,42 +195,17 @@ func debtPhrase(_ debt: Debt, viewer: ParticipantID?, name: (ParticipantID) -> S
     return "\(name(debt.from)) le debe a \(name(debt.to))"
 }
 
-/// Las deudas de una persona, juntas: "Bruno debe $122.21 — a Iori $66.83,
-/// a Liz $55.38".
-struct DebtGroup: Identifiable {
-    let debtor: ParticipantID
-    let debts: [Debt]
-
-    var id: ParticipantID {
-        debtor
+/// Las deudas que te tocan a ti, separadas por lado y de mayor a menor. Las
+/// de terceros entre sí se quedan fuera (ADR-0053 las calcula igual: solo no
+/// se muestran).
+func myDebts(_ debts: [Debt], viewer: ParticipantID?) -> (owedToMe: [Debt], iOwe: [Debt]) {
+    func sorted(_ debts: [Debt]) -> [Debt] {
+        debts.sorted { $0.amount.amount > $1.amount.amount }
     }
-
-    var total: Money {
-        let currency = debts.first?.amount.currency ?? .mxn
-        return Money(amount: debts.reduce(Decimal(0)) { $0 + $1.amount.amount }, currency: currency)
-    }
-}
-
-/// Agrupa por quien debe. Primero quien mira, si debe; luego los demás de
-/// mayor a menor. Dentro de cada grupo, primero lo que te pagan a ti y luego
-/// de mayor a menor.
-func debtGroups(_ debts: [Debt], viewer: ParticipantID?) -> [DebtGroup] {
-    Dictionary(grouping: debts, by: \.from)
-        .map { debtor, owed in
-            DebtGroup(debtor: debtor, debts: owed.sorted { lhs, rhs in
-                if (lhs.to == viewer) != (rhs.to == viewer) {
-                    return lhs.to == viewer
-                }
-                return lhs.amount.amount == rhs.amount.amount ? lhs.to < rhs.to : lhs.amount.amount > rhs.amount.amount
-            })
-        }
-        .sorted { lhs, rhs in
-            if (lhs.debtor == viewer) != (rhs.debtor == viewer) {
-                return lhs.debtor == viewer
-            }
-            let (left, right) = (lhs.total.amount, rhs.total.amount)
-            return left == right ? lhs.debtor < rhs.debtor : left > right
-        }
+    guard let viewer else { return ([], []) }
+    return (
+        owedToMe: sorted(debts.filter { $0.to == viewer }),
+        iOwe: sorted(debts.filter { $0.from == viewer }))
 }
 
 #Preview {

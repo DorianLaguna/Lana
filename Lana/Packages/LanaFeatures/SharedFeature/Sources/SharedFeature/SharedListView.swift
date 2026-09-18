@@ -194,12 +194,12 @@ private struct SharedListCard: View {
                 }
                 .buttonStyle(.plain)
 
-                if debts.isEmpty {
+                if myDebts.isEmpty {
                     Text("Todo saldado")
                         .lanaFont(.callout)
                         .foregroundStyle(lana.ink42)
                 } else {
-                    ForEach(debts, id: \.self) { debt in
+                    ForEach(myDebts, id: \.self) { debt in
                         debtRow(debt)
                     }
                 }
@@ -247,6 +247,12 @@ private struct SharedListCard: View {
             return "Le debes a \(name(debt.to))"
         }
         return "\(name(debt.from)) le debe a \(name(debt.to))"
+    }
+
+    /// Lo que se deben entre ellos no se muestra, así que la tarjeta puede
+    /// quedar sin filas aunque la lista tenga saldos.
+    private var myDebts: [Debt] {
+        debts.filter { $0.from == viewerID || $0.to == viewerID }
     }
 }
 

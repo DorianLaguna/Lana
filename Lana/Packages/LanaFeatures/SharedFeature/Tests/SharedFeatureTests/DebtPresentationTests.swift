@@ -32,19 +32,24 @@ struct DebtPresentationTests {
         #expect(balanceLabel(isOwed: false, isViewer: false) == "debe")
     }
 
-    @Test("Agrupa por quien debe: tú primero, luego de mayor a menor, y a ti primero dentro de cada grupo")
-    func agrupaPorDeudor() {
-        let groups = debtGroups([
+    @Test("Solo lo que te toca a ti: lo de terceros entre sí no se muestra")
+    func soloLoQueTeToca() {
+        let mine = myDebts([
             debt(kin, iori, 60),
-            debt(evan, iori, 70),
+            debt(evan, yo, 5),
             debt(kin, yo, 50),
-            debt(yo, iori, 10),
-            debt(evan, yo, 5)
+            debt(yo, iori, 10)
         ], viewer: yo)
 
-        #expect(groups.map(\.debtor) == [yo, kin, evan])
-        #expect(groups.map(\.total.amount) == [10, 110, 75])
-        #expect(groups[1].debts.map(\.to) == [yo, iori])
-        #expect(groups[2].debts.map(\.to) == [yo, iori])
+        #expect(mine.owedToMe.map(\.amount.amount) == [50, 5])
+        #expect(mine.iOwe.map(\.amount.amount) == [10])
+    }
+
+    @Test("Sin saber quién eres en la lista, no se muestra ninguna")
+    func sinViewerNoHayFilas() {
+        let mine = myDebts([debt(kin, iori, 60)], viewer: nil)
+
+        #expect(mine.owedToMe.isEmpty)
+        #expect(mine.iOwe.isEmpty)
     }
 }
