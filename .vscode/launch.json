@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Lana}/Lana/Packages/LanaParsing",
+            "name": "Debug parser-eval (Lana/Packages/LanaParsing)",
+            "target": "parser-eval",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug parser-eval (Lana/Packages/LanaParsing)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Lana}/Lana/Packages/LanaParsing",
+            "name": "Release parser-eval (Lana/Packages/LanaParsing)",
+            "target": "parser-eval",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release parser-eval (Lana/Packages/LanaParsing)"
+        }
+    ]
+}

@@ -29,25 +29,39 @@ struct CaptureProvider: TimelineProvider {
 }
 
 /// El botón de captura rápida: tocarlo abre Lana directo en modo escucha
-/// (ADR-0018), vía `lana://capture`.
+/// (ADR-0018), vía `lana://capture`. Vive en la pantalla de inicio como
+/// mosaico chico y en la pantalla bloqueada como círculo bajo el reloj
+/// (ADR-0057) — el mismo destino, dos tamaños.
+///
+/// El toque va con `.widgetURL` y no con `Link` porque en un widget chico
+/// (y en uno accesorio) el sistema solo respeta el primero: toda la
+/// superficie es un solo destino.
 struct LanaCaptureWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        Link(destination: captureURL) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: LanaMetrics.stopGlyph * 1.3, weight: .semibold))
-                .foregroundStyle(LanaColors(theme: .cobalto, colorScheme: colorScheme).onAccent)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .accessibilityLabel("Dictar un movimiento")
+        glyph
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .widgetURL(LanaCaptureLink.url)
+            .accessibilityLabel("Dictar un movimiento")
     }
 
-    private var captureURL: URL {
-        guard let url = URL(string: "lana://capture") else {
-            preconditionFailure("lana://capture es un literal fijo, siempre válido")
+    /// En la pantalla bloqueada el sistema pinta el widget en su propio modo
+    /// desteñido y lo encierra en un círculo chico: ni el acento del tema
+    /// sobreviviría ahí, ni cabe el glifo del mosaico. Se deja que combine con
+    /// el reloj y sus vecinos, que es lo que el usuario espera de esa fila.
+    @ViewBuilder
+    private var glyph: some View {
+        switch family {
+        case .accessoryCircular:
+            Image(systemName: "dollarsign.circle.fill")
+                .font(.system(size: LanaMetrics.stopGlyph, weight: .semibold))
+        default:
+            Image(systemName: "dollarsign.circle.fill")
+                .font(.system(size: LanaMetrics.stopGlyph * 1.3, weight: .semibold))
+                .foregroundStyle(LanaColors(theme: .cobalto, colorScheme: colorScheme).onAccent)
         }
-        return url
     }
 }
 
@@ -60,14 +74,22 @@ struct LanaCaptureWidgetView: View {
 /// a claro/oscuro del sistema nada más.
 private struct LanaCaptureWidgetBackground: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.widgetFamily) private var family
 
     private var lana: LanaColors {
         LanaColors(theme: .cobalto, colorScheme: colorScheme)
     }
 
-    /// El micrófono sobre el color del tema, plano — como en la barra de la app.
+    /// La moneda sobre el color del tema, plana — el mismo acento que la
+    /// barra de la app. En la pantalla bloqueada, en cambio, el fondo es el
+    /// del sistema: el mismo disco translúcido del clima y la batería.
     var body: some View {
-        lana.accentFill
+        switch family {
+        case .accessoryCircular:
+            AccessoryWidgetBackground()
+        default:
+            lana.accentFill
+        }
     }
 }
 
@@ -81,11 +103,17 @@ struct LanaCaptureWidget: Widget {
         }
         .configurationDisplayName("Registrar gasto")
         .description("Toca para abrir Lana y dictar un gasto de inmediato.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .accessoryCircular])
     }
 }
 
 #Preview(as: .systemSmall) {
+    LanaCaptureWidget()
+} timeline: {
+    CaptureEntry(date: .now)
+}
+
+#Preview(as: .accessoryCircular) {
     LanaCaptureWidget()
 } timeline: {
     CaptureEntry(date: .now)

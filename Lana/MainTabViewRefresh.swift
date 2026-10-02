@@ -61,6 +61,7 @@ extension MainTabView {
     func makeReviewTrayModel() -> ReviewTrayModel {
         ReviewTrayModel(
             expenses: dashboardModel.needsReviewItems,
+            recurringSuggestions: dashboardModel.recurringLinkSuggestions,
             store: store,
             cards: dashboardModel.cards,
             allSubcategories: entryModel.allSubcategories,

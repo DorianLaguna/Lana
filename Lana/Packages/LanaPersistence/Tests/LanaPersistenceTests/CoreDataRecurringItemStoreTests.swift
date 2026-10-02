@@ -138,6 +138,30 @@ extension CoreDataExpenseStoreTests {
         #expect(results.first?.amount.amount == 15500)
     }
 
+    @Test("Ligar después un movimiento a su recurrente, o rechazarlo, sobrevive al store (ADR-0061)")
+    func ligarDespuesSobrevive() async throws {
+        let store = try await makeStore()
+        let netflix = RecurringItemID()
+        let other = RecurringItemID()
+        var expense = Expense(
+            kind: .expense,
+            amount: Money(amount: 139, currency: .mxn),
+            concept: "netflix",
+            date: Date(timeIntervalSince1970: 1_755_216_000))
+        try await store.save(expense)
+
+        expense.declinedRecurringItemIDs = [other]
+        try await store.save(expense)
+        expense.recurringItemID = netflix
+        expense.declinedRecurringItemIDs = []
+        try await store.save(expense)
+
+        let results = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(results.first?.recurringItemID == netflix)
+        // Un guardado sin rechazos no borra los de antes.
+        #expect(results.first?.declinedRecurringItemIDs == [other])
+    }
+
     @Test("Borrar quita el recurrente del store")
     func recurrenteBorrarLoQuita() async throws {
         let store = try await makeStore()

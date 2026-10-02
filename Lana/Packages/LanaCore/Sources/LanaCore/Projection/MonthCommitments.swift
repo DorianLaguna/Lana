@@ -120,6 +120,34 @@ public struct MonthCommitments: Sendable, Equatable {
             justAfter: Self.outflows(after, in: currency))
     }
 
+    /// Los ingresos recurrentes que todavía no caen este mes, del más próximo
+    /// al más lejano. "Te queda" los cuenta desde el día 1 para no arrancar el
+    /// mes en negativo (ADR-0060).
+    ///
+    /// Solo los que faltan: uno que ya pasó y no se registró —se borró porque
+    /// no llegó— ya no se espera.
+    ///
+    /// - Parameter expenses: los movimientos del mes, para no contar dos veces
+    ///   uno que ya se registró.
+    public static func expectedIncome(
+        month: Date,
+        currency: Currency,
+        recurringItems: [RecurringItem],
+        expenses: [Expense],
+        asOf: Date = Date(),
+        calendar: Calendar = .current) -> [Commitment] {
+        guard let interval = calendar.dateInterval(of: .month, for: month) else { return [] }
+        let monthPeriod = PayPeriod(start: interval.start, end: interval.end, isAnchoredToIncome: false)
+        return monthPeriod
+            .commitments(
+                from: recurringItems.filter { $0.kind == .income },
+                registeredIn: expenses,
+                asOf: asOf,
+                calendar: calendar)
+            .filter { $0.amount.currency == currency && $0.amount.amount > 0 }
+            .sorted { $0.date < $1.date }
+    }
+
     /// Lo que hay que decir de cada tarjeta de crédito.
     ///
     /// **El mes lo decide el corte.** Si el corte de este mes todavía no llega,
@@ -178,8 +206,8 @@ public struct MonthCommitments: Sendable, Equatable {
         return calendar.isDate(cycle.end, equalTo: month.start, toGranularity: .month)
     }
 
-    /// Solo lo que sale, y solo en esta moneda. Un ingreso por venir se queda
-    /// fuera a propósito: lo que queda cuenta lo registrado, no lo prometido.
+    /// Solo lo que sale, y solo en esta moneda. Un ingreso por venir no es un
+    /// compromiso: "Te queda" ya lo cuenta como esperado (`expectedIncome`).
     private static func outflows(_ commitments: [Commitment], in currency: Currency) -> [Commitment] {
         commitments
             .filter { $0.amount.currency == currency && $0.amount.amount < 0 }

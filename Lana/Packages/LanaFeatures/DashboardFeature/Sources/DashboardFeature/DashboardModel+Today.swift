@@ -39,8 +39,112 @@ public struct MovementSubtitle: Equatable, Sendable {
 // MARK: - Hoy y Mes
 
 /// Los derivados de Hoy y Mes (rediseño, secciones 02 y 03). "Te queda" es
-/// del mes calendario, no el disponible proyectado (ADR-0045).
+/// del mes, no el disponible proyectado (ADR-0045): lo pagado con crédito
+/// cuenta en el mes de su corte y los sueldos por venir ya cuentan (ADR-0060).
 public extension DashboardModel {
+    /// Lo que dice "Te queda", por moneda: lo que le cuenta a este mes según
+    /// su corte, contra lo que entró más los sueldos que faltan por caer
+    /// (ADR-0060). Hoy y Mes muestran esta misma cifra.
+    func budgetTotals(asOf date: Date = Date()) -> [PeriodTotal] {
+        let incomeCurrencies = recurringItems.filter { $0.kind == .income }.map(\.amount.currency)
+        let currencies = Set(statistics.currencies).union(incomeCurrencies)
+            .sorted { $0.rawValue < $1.rawValue }
+        return currencies.compactMap { currency in
+            let registered = statistics.total(in: currency)
+            let pending = expectedIncome(in: currency, asOf: date).reduce(Decimal(0)) { $0 + $1.amount.amount }
+            guard registered != nil || pending > 0 else { return nil }
+            return PeriodTotal(
+                currency: currency,
+                expenses: registered?.expenses ?? 0,
+                income: (registered?.income ?? 0) + pending)
+        }
+    }
+
+    /// "Para octubre": un movimiento de este mes que ya le cuenta al
+    /// siguiente porque se compró con tarjeta después del corte (ADR-0060).
+    /// `nil` para todo lo que cuenta en el mes que se ve.
+    func deferredLabel(for expense: Expense) -> String? {
+        guard let counted = BudgetMonth.month(of: expense, cards: cards, calendar: calendar),
+              counted > month else { return nil }
+        return "Para \(LanaDateFormat.monthNameLowercased(counted))"
+    }
+
+    /// Las notas bajo la cifra de Mes: los sueldos que ya cuenta y lo que
+    /// movió el corte de las tarjetas.
+    func monthTotalsNotes(in currency: Currency, asOf date: Date = Date()) -> [String] {
+        [expectedIncomeNote(in: currency, asOf: date)].compactMap(\.self) + cutoffNotes(in: currency)
+    }
+
+    /// Lo que mueve el corte de las tarjetas respecto al calendario, dicho en
+    /// Mes para que la lista no parezca incompleta (ADR-0060): lo comprado el
+    /// mes anterior que cerró en este corte, y lo comprado este mes después
+    /// del corte, que ya le cuenta al siguiente.
+    func cutoffNotes(in currency: Currency) -> [String] {
+        let monthStart = month
+        let counted = Set(expenses.map(\.id))
+        let carriedIn = personalSum(expenses.filter { $0.date < monthStart }, in: currency)
+        let carriedOut = personalSum(
+            calendarExpenses.filter { $0.kind == .expense && !counted.contains($0.id) },
+            in: currency)
+        var notes: [String] = []
+        if carriedIn > 0, let previous = calendar.date(byAdding: .month, value: -1, to: monthStart) {
+            let amount = MoneyDisplay.compact(Money(amount: carriedIn, currency: currency))
+            let name = LanaDateFormat.monthNameLowercased(previous)
+            notes.append("Incluye \(amount) de compras con tarjeta de \(name) que cerraron en el corte de este mes.")
+        }
+        if carriedOut > 0, let next = calendar.date(byAdding: .month, value: 1, to: monthStart) {
+            let amount = MoneyDisplay.compact(Money(amount: carriedOut, currency: currency))
+            let name = LanaDateFormat.monthNameLowercased(next)
+            notes.append("\(amount) de compras con tarjeta después del corte ya cuentan en \(name).")
+        }
+        return notes
+    }
+
+    private func personalSum(_ items: [Expense], in currency: Currency) -> Decimal {
+        items
+            .filter { $0.kind == .expense && $0.amount.currency == currency }
+            .reduce(Decimal(0)) { $0 + $1.personalAmount(viewerIdentities: viewerIdentities).amount }
+    }
+
+    /// Los sueldos que "Te queda" ya cuenta aunque todavía no caen.
+    func expectedIncome(in currency: Currency, asOf date: Date = Date()) -> [Commitment] {
+        MonthCommitments.expectedIncome(
+            month: month,
+            currency: currency,
+            recurringItems: recurringItems,
+            expenses: calendarExpenses,
+            asOf: date,
+            calendar: calendar)
+    }
+
+    /// "Incluye $24,000 que esperas el 14 y el 30.": sin esto, "Te queda"
+    /// parecería dinero que ya está en la cuenta. `nil` si no se espera nada.
+    func expectedIncomeNote(in currency: Currency, asOf date: Date = Date()) -> String? {
+        let expected = expectedIncome(in: currency, asOf: date)
+        guard !expected.isEmpty else { return nil }
+        let sum = expected.reduce(Decimal(0)) { $0 + $1.amount.amount }
+        let days = expected
+            .map { "el \(calendar.component(.day, from: $0.date))" }
+            .reduce(into: [String]()) {
+                if !$0.contains($1) {
+                    $0.append($1)
+                }
+            }
+        let when = days.count > 1
+            ? days.dropLast().joined(separator: ", ") + " y " + (days.last ?? "")
+            : days.joined()
+        return "Incluye \(MoneyDisplay.compact(Money(amount: sum, currency: currency))) que esperas \(when)."
+    }
+
+    /// `true` el último día del mes y en cualquier mes que ya pasó: ya no hay
+    /// "te queda" que repartir, hay lo que se ahorró (ADR-0060).
+    func isMonthClosing(asOf date: Date = Date()) -> Bool {
+        guard let progress = dayProgress(asOf: date) else {
+            return month < date
+        }
+        return progress.day == progress.daysInMonth
+    }
+
     /// La moneda que manda en los bloques de una sola moneda (categorías,
     /// formas de pago). Con más de una, Hoy muestra un carrusel por moneda.
     var primaryCurrency: Currency? {
@@ -55,12 +159,14 @@ public extension DashboardModel {
     }
 
     /// Lo libre del mes entre los días que faltan, contando hoy. `nil` sin
-    /// ingreso (no hay contra qué comparar) o fuera del mes en curso.
+    /// ingreso (no hay contra qué comparar), fuera del mes en curso o en su
+    /// último día: ahí ya no hay días que repartir (ADR-0060).
     ///
     /// - Parameter committed: lo que ya tiene dueño y no se puede repartir
     ///   (ADR-0046). En cero, es el ritmo de antes de ese ADR.
     func dailyPace(for total: PeriodTotal, committed: Decimal = 0, asOf date: Date = Date()) -> DailyPace? {
-        guard total.income > 0, let progress = dayProgress(asOf: date) else { return nil }
+        guard total.income > 0, let progress = dayProgress(asOf: date),
+              progress.day < progress.daysInMonth else { return nil }
         guard total.remaining >= 0 else {
             return .overspent(Money(amount: -total.remaining, currency: total.currency))
         }
@@ -86,7 +192,7 @@ public extension DashboardModel {
             currency: total.currency,
             from: MonthCommitments.Inputs(
                 recurringItems: recurringItems,
-                expenses: expenses,
+                expenses: calendarExpenses,
                 cards: cards,
                 ledger: cardLedger),
             asOf: date,
@@ -96,7 +202,7 @@ public extension DashboardModel {
     /// Los movimientos de hoy o, si no hubo, los del último día con actividad
     /// del mes visible. Como máximo `limit`.
     func recentMovements(asOf date: Date = Date(), limit: Int = 3) -> RecentDay? {
-        let sections = daySections
+        let sections = calendarExpenses.groupedByDay(calendar: calendar)
         let pastOrToday = sections.filter { $0.day <= date }
         guard let latest = pastOrToday.max(by: { $0.day < $1.day }) ?? sections.first else { return nil }
         return RecentDay(

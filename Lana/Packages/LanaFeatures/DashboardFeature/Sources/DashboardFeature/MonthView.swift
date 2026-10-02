@@ -86,13 +86,18 @@ public struct MonthView: View {
                             .padding(.bottom, Space.p28.rawValue)
                     } else {
                         totalsSection
+                        DailySpendingSection(model: model) { expense in
+                            editExpenseModel = model.makeEditExpenseModel(for: expense)
+                        }
                         categoriesSection
                     }
 
                     accessCard
                         .padding(.bottom, Space.p28.rawValue)
 
-                    movementsSection
+                    MonthMovementsList(model: model) { expense in
+                        editExpenseModel = model.makeEditExpenseModel(for: expense)
+                    }
                 }
                 .padding(.horizontal, LanaMetrics.screenMargin)
                 .padding(.top, Space.sm.rawValue)
@@ -121,7 +126,9 @@ public struct MonthView: View {
     // MARK: - Gastado / Ingresos
 
     private var totalsSection: some View {
-        ForEach(model.monthTotals) { total in
+        // Las mismas cifras que Hoy: la tarjeta por su corte y los sueldos que
+        // faltan por caer (ADR-0060).
+        ForEach(model.budgetTotals()) { total in
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: Space.lg.rawValue) {
                     stat("Gastado", Money(amount: total.expenses, currency: total.currency), color: lana.ink)
@@ -134,6 +141,8 @@ public struct MonthView: View {
                 if let fraction = DashboardModel.spentFraction(of: total) {
                     ProgressTrack(fraction: fraction, height: LanaMetrics.barThick, fill: .accentGradient)
                 }
+
+                MonthTotalsNotes(notes: model.monthTotalsNotes(in: total.currency))
             }
             .padding(.bottom, Space.xl.rawValue)
             .contentShape(Rectangle())
@@ -254,24 +263,6 @@ public struct MonthView: View {
         return "\(MoneyDisplay.whole(Money(amount: total.expenses, currency: currency))) en \(yearModel.year)"
     }
 
-    // MARK: - Movimientos
-
-    private var movementsSection: some View {
-        LazyVStack(alignment: .leading, spacing: Space.p20.rawValue) {
-            ForEach(model.daySections) { section in
-                VStack(alignment: .leading, spacing: 0) {
-                    SectionHeader(LanaDateFormat.dayHeader(section.day))
-                    MovementRows(
-                        expenses: section.items,
-                        source: model,
-                        highlightedIDs: model.highlightedExpenseIDs) { expense in
-                            editExpenseModel = model.makeEditExpenseModel(for: expense)
-                        }
-                }
-            }
-        }
-    }
-
     // MARK: - Destinos
 
     @ViewBuilder
@@ -337,5 +328,68 @@ public struct MonthView: View {
                 cardStore: InMemoryCardStore(),
                 sharedListStore: InMemorySharedListStore()))
             .lanaTheme(theme)
+    }
+}
+
+/// Lo que explica la cifra de Mes frente a su lista: los sueldos que ya cuenta
+/// y lo que movió el corte de las tarjetas (ADR-0060).
+private struct MonthTotalsNotes: View {
+    @Environment(\.lana) private var lana
+    let notes: [String]
+
+    var body: some View {
+        if !notes.isEmpty {
+            VStack(alignment: .leading, spacing: Space.p6.rawValue) {
+                ForEach(notes, id: \.self) { note in
+                    Text(note)
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.ink42)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, Space.p10.rawValue)
+        }
+    }
+}
+
+/// La lista de Mes: lo del mes por fecha, con "Para octubre" en lo que ya le
+/// cuenta al siguiente, y al final lo del mes anterior que entró en este
+/// corte (ADR-0060).
+private struct MonthMovementsList: View {
+    let model: DashboardModel
+    let onSelect: (Expense) -> Void
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: Space.p20.rawValue) {
+            ForEach(model.daySections) { section in
+                daySection(section, header: LanaDateFormat.dayHeader(section.day))
+            }
+            let carriedIn = model.carriedInSections
+            if !carriedIn.isEmpty {
+                SectionHeader(carriedInTitle)
+                    .padding(.top, Space.p10.rawValue)
+                ForEach(carriedIn) { section in
+                    daySection(section, header: LanaDateFormat.dayHeader(section.day))
+                }
+            }
+        }
+    }
+
+    /// "De septiembre, en este corte".
+    private var carriedInTitle: String {
+        let previous = model.calendar.date(byAdding: .month, value: -1, to: model.month) ?? model.month
+        return "De \(LanaDateFormat.monthNameLowercased(previous)), en este corte"
+    }
+
+    private func daySection(_ section: DaySection, header: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(header)
+            MovementRows(
+                expenses: section.items,
+                source: model,
+                highlightedIDs: model.highlightedExpenseIDs,
+                deferredLabel: model.deferredLabel(for:),
+                onSelect: onSelect)
+        }
     }
 }

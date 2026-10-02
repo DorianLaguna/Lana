@@ -60,6 +60,10 @@ public struct GuiaApplePayView: View {
 
     // MARK: - Los cinco pasos
 
+    private var canGoBack: Bool {
+        model.currentScreen != .requirements
+    }
+
     @ViewBuilder
     private var stepContent: some View {
         if let content = model.content {
@@ -73,6 +77,7 @@ public struct GuiaApplePayView: View {
                     Que tus pagos con Apple Pay se registren solos. Necesitas la app Atajos y \
                     tus tarjetas dadas de alta en Lana.
                     """,
+                    onBack: nil,
                     onSkip: { model.skip() },
                     content: {
                         VStack(alignment: .leading, spacing: Space.md.rawValue) {
@@ -92,6 +97,7 @@ public struct GuiaApplePayView: View {
                     En la app Atajos vas a crear una automatización. Lana necesita que conectes \
                     estos campos:
                     """,
+                    onBack: { model.back() },
                     onSkip: { model.skip() },
                     content: {
                         mappingStep(content)
@@ -102,6 +108,7 @@ public struct GuiaApplePayView: View {
                     totalSteps: Self.totalSteps,
                     title: "Arma la automatización",
                     message: nil,
+                    onBack: { model.back() },
                     onSkip: { model.skip() },
                     content: {
                         automationStep(content)
@@ -112,6 +119,7 @@ public struct GuiaApplePayView: View {
                     totalSteps: Self.totalSteps,
                     title: "Qué esperar",
                     message: nil,
+                    onBack: { model.back() },
                     onSkip: { model.skip() },
                     content: {
                         LimitationsStepView(limitations: content.limitations)
@@ -122,6 +130,7 @@ public struct GuiaApplePayView: View {
                     totalSteps: Self.totalSteps,
                     title: "Repasa lo que configuraste",
                     message: nil,
+                    onBack: { model.back() },
                     onSkip: { model.skip() },
                     content: {
                         closingStep
@@ -210,11 +219,29 @@ public struct GuiaApplePayView: View {
             }
             .buttonStyle(.lana(size: .large, isExpanded: true))
 
-            Button(secondaryTitle) { model.skip() }
-                .lanaFont(.bodyEmphasis)
-                .foregroundStyle(lana.ink50)
-                .buttonStyle(.plain)
-                .frame(minHeight: LanaMetrics.minTouchTarget)
+            if canGoBack {
+                HStack(spacing: Space.p14.rawValue) {
+                    Button("Paso anterior") { model.back() }
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink70)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: LanaMetrics.minTouchTarget)
+
+                    Spacer()
+
+                    Button(secondaryTitle) { model.skip() }
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink50)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: LanaMetrics.minTouchTarget)
+                }
+            } else {
+                Button(secondaryTitle) { model.skip() }
+                    .lanaFont(.bodyEmphasis)
+                    .foregroundStyle(lana.ink50)
+                    .buttonStyle(.plain)
+                    .frame(minHeight: LanaMetrics.minTouchTarget)
+            }
         }
         .padding(.horizontal, LanaMetrics.screenMargin)
         .padding(.bottom, Space.p44.rawValue)
@@ -231,7 +258,7 @@ public struct GuiaApplePayView: View {
         if isLastStep {
             return model.mode == .onboarding ? "Listo, ya la creé" : "Listo"
         }
-        return model.currentScreen == .matching ? "Abrir la app Atajos" : "Siguiente"
+        return "Siguiente"
     }
 
     /// En onboarding se omite un paso del flujo; reabierta desde Tarjetas no se

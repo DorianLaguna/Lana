@@ -4,13 +4,16 @@ import SwiftUI
 
 /// De qué está hecho "Te queda" (ADR-0046).
 ///
-/// Tres pisos, en este orden: lo **comprometido** —solo los recurrentes que
-/// faltan por cobrarse—, lo **libre** que queda de ellos, y aparte las
-/// **tarjetas**, porque su dinero no sale igual: lo ya facturado se paga este
-/// mes y lo del ciclo abierto se paga el que entra.
+/// Lo **comprometido** —solo los recurrentes que faltan por cobrarse— y lo
+/// **libre** que queda de ellos. Aparte, lo que se acumula en tarjetas para el
+/// mes que entra, con su total, que se ve pero no se resta.
 ///
-/// El total de abajo puede salir **negativo**, y ese es el dato: el mes no
-/// cierra sin el ingreso que todavía no cae.
+/// Lo que cae justo después del mes (ADR-0046, "y el 1 de octubre: Renta") ya
+/// no se muestra: el dueño lo leyó como ruido del mes siguiente (ADR-0060).
+///
+/// Lo que ya se debe a las tarjetas este mes no tiene renglón propio: desde
+/// ADR-0060, lo comprado con crédito ya cuenta en "Gastaste" del mes de su
+/// corte, y restarlo aquí otra vez lo contaría dos veces.
 struct CommittedBreakdown: View {
     @Environment(\.lana) private var lana
     let commitments: MonthCommitments
@@ -23,26 +26,12 @@ struct CommittedBreakdown: View {
                 split
             }
 
-            if !dueCards.isEmpty {
-                cardsDueBlock
-                    .padding(.top, commitments.committed > 0 ? Space.p14.rawValue : 0)
-            }
-
             if !nextMonthCards.isEmpty {
                 nextMonthBlock
-                    .padding(.top, Space.p14.rawValue)
-            }
-
-            if !commitments.justAfter.isEmpty {
-                lookahead
-                    .padding(.top, Space.p12.rawValue)
+                    .padding(.top, commitments.committed > 0 ? Space.p14.rawValue : 0)
             }
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var dueCards: [MonthCommitments.CardBalance] {
-        commitments.cards.filter { $0.dueThisMonth.amount > 0 }
     }
 
     private var nextMonthCards: [MonthCommitments.CardBalance] {
@@ -84,27 +73,6 @@ struct CommittedBreakdown: View {
 
     // MARK: - Tarjetas
 
-    /// Lo que se le debe a cada tarjeta **este mes**: ya está facturado, así que
-    /// sale del dinero de este mes aunque su día límite ya haya pasado.
-    private var cardsDueBlock: some View {
-        VStack(alignment: .leading, spacing: Space.p6.rawValue) {
-            SectionHeader("Tarjetas", style: .minor)
-
-            ForEach(dueCards) { card in
-                detailRow(label: cardLabel(card), amount: card.dueThisMonth.amount)
-            }
-
-            HairlineDivider()
-                .padding(.vertical, Space.p6.rawValue)
-
-            row(
-                title: "Después de tarjetas",
-                amount: Money(amount: commitments.afterCards(from: remaining), currency: commitments.currency),
-                isStrong: true,
-                isFree: true)
-        }
-    }
-
     /// Lo del ciclo abierto: se factura en el próximo corte, así que no se resta
     /// de este mes. Decirlo evita la sorpresa del mes que entra.
     private var nextMonthBlock: some View {
@@ -114,6 +82,15 @@ struct CommittedBreakdown: View {
                 .foregroundStyle(lana.ink42)
             ForEach(nextMonthCards) { card in
                 detailRow(label: cardLabel(card), amount: card.nextMonth.amount, isMuted: true)
+            }
+            // Con una sola tarjeta el total repetiría su renglón.
+            if nextMonthCards.count > 1 {
+                HairlineDivider()
+                    .padding(.vertical, Space.p6.rawValue)
+                row(
+                    title: "Total de tarjetas",
+                    amount: Money(amount: commitments.cardsNextMonth, currency: commitments.currency),
+                    isStrong: false)
             }
         }
     }
@@ -163,24 +140,5 @@ struct CommittedBreakdown: View {
     private func label(_ concept: String, date: Date?) -> String {
         guard let date else { return concept }
         return "\(concept) · \(LanaDateFormat.dayLabel(date))"
-    }
-
-    /// Lo que cae justo pasando el mes. Se ve pero no se suma: si no, alguien a
-    /// día 28 se gasta la renta del 1.
-    private var lookahead: some View {
-        VStack(alignment: .leading, spacing: Space.p2.rawValue) {
-            ForEach(commitments.justAfter, id: \.self) { commitment in
-                Text(lookaheadText(commitment))
-                    .lanaFont(.rowSubtitle)
-                    .foregroundStyle(lana.ink42)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func lookaheadText(_ commitment: Commitment) -> String {
-        let amount = Money(amount: abs(commitment.amount.amount), currency: commitment.amount.currency)
-        let day = LanaDateFormat.dayLabel(commitment.date).lowercased()
-        return "Y el \(day): \(commitment.concept) \(MoneyDisplay.compact(amount))"
     }
 }

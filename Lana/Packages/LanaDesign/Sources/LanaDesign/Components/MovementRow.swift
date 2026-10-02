@@ -19,6 +19,7 @@ public struct MovementRow: View {
     private let isSubtitleMuted: Bool
     private let needsReview: Bool
     private let isShared: Bool
+    private let deferredText: String?
 
     /// - Parameters:
     ///   - subtitle: "Despensa · Crédito Nu", o "Tarjeta eliminada".
@@ -26,6 +27,9 @@ public struct MovementRow: View {
     ///   - secondaryAmountText: una segunda línea bajo el monto ("de $9,000"
     ///     cuando solo se muestra la parte propia de un gasto compartido).
     ///   - isSubtitleMuted: el subtítulo en `ink35` — para "Tarjeta eliminada".
+    ///   - deferredText: "Para octubre" — un gasto con tarjeta que ya le
+    ///     cuenta al mes siguiente. El monto se apaga: está en la lista, pero
+    ///     no en la cifra de este mes.
     public init(
         title: String,
         subtitle: String,
@@ -34,7 +38,8 @@ public struct MovementRow: View {
         isIncome: Bool = false,
         isSubtitleMuted: Bool = false,
         needsReview: Bool = false,
-        isShared: Bool = false) {
+        isShared: Bool = false,
+        deferredText: String? = nil) {
         self.title = title
         self.subtitle = subtitle
         self.amountText = amountText
@@ -43,6 +48,7 @@ public struct MovementRow: View {
         self.isSubtitleMuted = isSubtitleMuted
         self.needsReview = needsReview
         self.isShared = isShared
+        self.deferredText = deferredText
     }
 
     public var body: some View {
@@ -76,7 +82,12 @@ public struct MovementRow: View {
                 Text(isIncome ? "+\(amountText)" : amountText)
                     .lanaFont(.rowAmount)
                     .fontWeight(isIncome ? .semibold : .medium)
-                    .foregroundStyle(isIncome ? lana.positive : lana.ink)
+                    .foregroundStyle(amountColor)
+                if let deferredText {
+                    Text(deferredText)
+                        .lanaFont(.rowSubtitle)
+                        .foregroundStyle(lana.accent)
+                }
                 if let secondaryAmountText {
                     Text(secondaryAmountText)
                         .lanaFont(.rowSubtitle)
@@ -89,6 +100,13 @@ public struct MovementRow: View {
         .frame(minHeight: LanaMetrics.minRowHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private var amountColor: Color {
+        if isIncome {
+            return lana.positive
+        }
+        return deferredText == nil ? lana.ink : lana.ink42
     }
 }
 
@@ -136,6 +154,12 @@ public struct HairlineDivider: View {
                         amountText: "$4,500.00",
                         secondaryAmountText: "de $9,000.00",
                         isShared: true)
+                    HairlineDivider()
+                    MovementRow(
+                        title: "Cena",
+                        subtitle: "Restaurantes · Crédito Bancomer",
+                        amountText: "$700.00",
+                        deferredText: "Para octubre")
                 }
                 .padding(.horizontal, LanaMetrics.screenMargin)
                 .background(LanaColors(theme: theme, colorScheme: .dark).bg)

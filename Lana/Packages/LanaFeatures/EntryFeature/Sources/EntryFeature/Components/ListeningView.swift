@@ -59,16 +59,16 @@ public struct ListeningView: View {
                 .lanaFont(.minorHeader)
                 .foregroundStyle(lana.attention)
                 .accessibilityAddTraits(.isHeader)
-                .padding(.bottom, Space.p38.rawValue)
+                .padding(.bottom, Space.md.rawValue)
 
             transcriptView
-                .padding(.bottom, Space.p26.rawValue)
+                .padding(.bottom, Space.md.rawValue)
 
             VoiceWaveformView(level: level)
                 .padding(.bottom, Space.md.rawValue)
 
             suggestionArea
-                .padding(.bottom, Space.p28.rawValue)
+                .padding(.bottom, Space.md.rawValue)
 
             if !preview.isEmpty {
                 previewView
@@ -77,12 +77,12 @@ public struct ListeningView: View {
             }
 
             stopButton
-                .padding(.bottom, Space.p18.rawValue)
+                .padding(.bottom, Space.p14.rawValue)
 
             if !transcript.isEmpty {
                 Button("Borrar y seguir escuchando", action: onClear)
                     .buttonStyle(.lana(.secondary, size: .medium))
-                    .padding(.bottom, Space.p18.rawValue)
+                    .padding(.bottom, Space.p14.rawValue)
                     .transition(.opacity)
             }
 
@@ -92,7 +92,7 @@ public struct ListeningView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, Space.p28.rawValue)
-        .padding(.vertical, Space.p40.rawValue)
+        .padding(.vertical, Space.lg.rawValue)
         .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.25), value: preview)
         .animation(.easeInOut(duration: 0.25), value: transcript.isEmpty)

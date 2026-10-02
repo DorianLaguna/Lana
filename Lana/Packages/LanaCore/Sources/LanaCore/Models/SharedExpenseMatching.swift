@@ -71,7 +71,7 @@ public extension SharedExpenseMatch {
         case "yo", "solo", "yo solo":
             .payerOnly
         default:
-            list.preferredSplit
+            list.proportionalSplitFromIncomes ?? list.fallbackProportionalSplit
         }
     }
 }

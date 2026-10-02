@@ -151,6 +151,15 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
     /// punto del historial, no reescribe el split de correcciones previas.
     public let split: SplitRule?
     public let needsReview: Bool?
+    /// Liga el movimiento al recurrente del que salió, cuando se registró sin
+    /// ese vínculo y el usuario lo confirmó en "Por revisar" (ADR-0061).
+    /// `nil` conserva el que tuviera; ninguna corrección lo quita. Opcional
+    /// por compatibilidad: las correcciones ya guardadas no lo traen.
+    public let recurringItemID: RecurringItemID?
+    /// Recurrentes de los que el usuario dijo que el movimiento no salió
+    /// (ADR-0061). Se suman a los de correcciones anteriores, nunca los
+    /// reemplazan: así el orden en que se plieguen no importa (ADR-0005).
+    public let declinedRecurringItemIDs: Set<RecurringItemID>?
     public let recordedAt: Date
 
     public init(
@@ -167,6 +176,8 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
         needsReview: Bool? = nil,
+        recurringItemID: RecurringItemID? = nil,
+        declinedRecurringItemIDs: Set<RecurringItemID>? = nil,
         recordedAt: Date = Date()) {
         self.id = id
         self.correctsEventID = correctsEventID
@@ -181,6 +192,8 @@ public struct ExpenseCorrected: Sendable, Hashable, Codable, Identifiable {
         self.payer = payer
         self.split = split
         self.needsReview = needsReview
+        self.recurringItemID = recurringItemID
+        self.declinedRecurringItemIDs = declinedRecurringItemIDs
         self.recordedAt = recordedAt
     }
 }

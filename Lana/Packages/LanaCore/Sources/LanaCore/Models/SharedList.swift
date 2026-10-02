@@ -50,12 +50,18 @@ public extension SharedList {
             shares: ProportionalShares.normalized(weights: weights, among: participants.map(\.id)))
     }
 
+    /// Una división proporcional por defecto entre los participantes de la lista,
+    /// asignando pesos iguales si no se han capturado sus ingresos aún.
+    var fallbackProportionalSplit: SplitRule {
+        let ids = participants.map(\.id)
+        let equalWeights = Dictionary(uniqueKeysWithValues: ids.map { ($0, Decimal(1)) })
+        return .proportional(shares: ProportionalShares.normalized(weights: equalWeights, among: ids))
+    }
+
     /// Con qué regla pre-llenar un gasto nuevo: proporcional si la lista
-    /// tiene los ingresos capturados (lo pedido por el usuario como default),
-    /// si no el `defaultSplit` guardado. Nunca falla — siempre hay una regla
-    /// con la cual capturar.
+    /// tiene los ingresos capturados, si no el fallback proporcional. Nunca falla.
     var preferredSplit: SplitRule {
-        proportionalSplitFromIncomes ?? defaultSplit
+        proportionalSplitFromIncomes ?? fallbackProportionalSplit
     }
 
     /// El nombre a mostrar de un participante, con "Yo" en lugar del nombre

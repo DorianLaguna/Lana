@@ -66,7 +66,7 @@ struct SharedListSplitTests {
         #expect(list([0, 0]).proportionalSplitFromIncomes == nil)
     }
 
-    @Test("preferredSplit usa el proporcional si existe, si no el default guardado")
+    @Test("preferredSplit siempre usa proporcional — de ingresos o fallback equitativo")
     func preferredSplitPrefiereElProporcional() {
         let conIngresos = list([20000, 10000])
         let sinIngresos = list([nil, nil])
@@ -75,6 +75,9 @@ struct SharedListSplitTests {
             Issue.record("Con ingresos debería preferir proporcional")
             return
         }
-        #expect(sinIngresos.preferredSplit == sinIngresos.defaultSplit)
+        guard case .proportional = sinIngresos.preferredSplit else {
+            Issue.record("Sin ingresos debería preferir fallback proporcional")
+            return
+        }
     }
 }

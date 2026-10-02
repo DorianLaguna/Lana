@@ -53,6 +53,9 @@ public struct DraftCard: View {
                     if draft.kind == .expense {
                         paymentChip
                     }
+                    if draft.kind == .expense, !sharedLists.isEmpty {
+                        sharedChip
+                    }
                     if draft.currency != .mxn {
                         Chip(draft.currency.rawValue)
                     }
@@ -242,6 +245,44 @@ public struct DraftCard: View {
     private func cardAlias(_ cardID: CardID, kind: String) -> String {
         guard let card = cards.first(where: { $0.id == cardID }) else { return kind }
         return "\(kind) \(card.alias)"
+    }
+
+    private var sharedChip: some View {
+        Menu {
+            if draft.sharedListID != nil {
+                Button("Gasto personal") {
+                    draft.sharedListID = nil
+                    draft.payer = nil
+                    draft.split = nil
+                }
+            }
+            ForEach(sharedLists) { list in
+                Button(list.name) {
+                    draft.sharedListID = list.id
+                    // Quien captura es quien más probablemente pagó: "Yo", no el
+                    // primero de la lista. Se cambia en el bloque compartido.
+                    if draft.payer == nil,
+                       let payer = list.participants.first(where: { viewerName($0.id, list.id) == "Yo" })
+                       ?? list.participants.first {
+                        draft.payer = payer.id
+                    }
+                    draft.split = list.preferredSplit
+                }
+            }
+        } label: {
+            Chip(
+                sharedChipLabel,
+                tone: .neutral)
+        }
+        .accessibilityLabel("Compartir: \(sharedChipLabel)")
+    }
+
+    private var sharedChipLabel: String {
+        guard let sharedListID = draft.sharedListID,
+              let list = sharedLists.first(where: { $0.id == sharedListID }) else {
+            return "Compartir…"
+        }
+        return list.name
     }
 }
 

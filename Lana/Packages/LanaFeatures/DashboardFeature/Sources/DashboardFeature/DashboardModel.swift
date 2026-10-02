@@ -10,10 +10,23 @@ import Observation
 public final class DashboardModel: ExpenseProviding {
     /// El primer día del mes que se muestra.
     public private(set) var month: Date
-    /// Todo lo cargado del mes vigente — gastos e ingresos juntos.
+    /// Lo que le cuenta al mes vigente — gastos e ingresos juntos. Lo pagado
+    /// con crédito cuenta en el mes en que cierra su corte, no en el que se
+    /// compró (ADR-0060): puede traer compras del mes anterior y le faltan
+    /// las de después del corte de este. De aquí salen Mes y sus drill-downs.
     public private(set) var expenses: [Expense] = []
-    /// Las sumas del mes vigente. Se calculan una vez por carga, no en cada
+    /// Lo que tiene fecha en el mes vigente, sin importar a qué mes le cuente:
+    /// los movimientos de hoy, lo que falta revisar y si un recurrente ya se
+    /// registró son preguntas de calendario, no de corte.
+    public private(set) var calendarExpenses: [Expense] = []
+    /// Lo que tiene fecha en el mes anterior, completo: contra eso se compara
+    /// "Día a día" en Mes. Ya se lee para el corte (ADR-0060); no es otra
+    /// consulta.
+    public private(set) var previousCalendarExpenses: [Expense] = []
+    /// Las sumas de `expenses`. Se calculan una vez por carga, no en cada
     /// lectura: `DashboardView` consulta los totales varias veces por refresco.
+    /// Sin los sueldos por venir — esos dependen de la hora y se suman en
+    /// `budgetTotals(asOf:)`.
     public private(set) var statistics = PeriodStatistics(expenses: [])
     /// `true` mientras se está cargando el mes.
     public private(set) var isLoading = false
@@ -197,21 +210,31 @@ public final class DashboardModel: ExpenseProviding {
         // este ajuste, un gasto exactamente a esa medianoche contaría en dos
         // meses a la vez.
         let range = DateInterval(start: monthInterval.start, end: monthInterval.end.addingTimeInterval(-1))
+        // Desde el mes anterior: una compra con tarjeta hecha después de su
+        // corte le cuenta a este mes (ADR-0060).
+        let budgetStart = calendar.date(byAdding: .month, value: -1, to: monthInterval.start) ?? monthInterval.start
         isLoading = true
         errorMessage = nil
-        do {
-            expenses = try await store.expenses(in: range)
-            viewerIdentities = await Self.loadViewerIdentities(for: expenses, from: sharedListStore)
-        } catch {
-            errorMessage = error.localizedDescription
-            expenses = []
-            viewerIdentities = [:]
-        }
-        statistics = PeriodStatistics(expenses: expenses, viewerIdentities: viewerIdentities)
+        // Las tarjetas van antes que las sumas: deciden a qué mes cuenta cada
+        // compra con crédito.
         if let loadedCards = try? await cardStore.cards() {
             cards = loadedCards
             hasLoadedCards = true
         }
+        do {
+            let loaded = try await store.expenses(in: DateInterval(start: budgetStart, end: range.end))
+            calendarExpenses = loaded.filter { range.contains($0.date) }
+            previousCalendarExpenses = loaded.filter { $0.date < range.start }
+            expenses = BudgetMonth.expenses(loaded, countingIn: month, cards: cards, calendar: calendar)
+            viewerIdentities = await Self.loadViewerIdentities(for: loaded, from: sharedListStore)
+        } catch {
+            errorMessage = error.localizedDescription
+            expenses = []
+            calendarExpenses = []
+            previousCalendarExpenses = []
+            viewerIdentities = [:]
+        }
+        statistics = PeriodStatistics(expenses: expenses, viewerIdentities: viewerIdentities)
         // Que falle una de estas no puede tumbar el mes: sin ellas el desglose
         // de lo comprometido se queda vacío y la cifra grande sigue siendo
         // cierta (ADR-0046).
@@ -245,9 +268,18 @@ public final class DashboardModel: ExpenseProviding {
         await sharedListStore.viewerIdentities(for: sharedListIDs)
     }
 
-    /// Agrupadas por día, el día más reciente primero.
+    /// La lista de Mes: todo lo que tiene fecha en el mes, agrupado por día y
+    /// el más reciente primero — también lo que ya le cuenta al siguiente, que
+    /// lleva su etiqueta (`deferredLabel(for:)`, ADR-0060).
     public var daySections: [DaySection] {
-        expenses.groupedByDay(calendar: calendar)
+        calendarExpenses.groupedByDay(calendar: calendar)
+    }
+
+    /// Lo comprado con tarjeta el mes anterior que cerró en el corte de este,
+    /// agrupado por día. Va aparte, al final de la lista de Mes: cuenta aquí,
+    /// pero no se hizo aquí (ADR-0060).
+    public var carriedInSections: [DaySection] {
+        expenses.filter { $0.date < month }.groupedByDay(calendar: calendar)
     }
 
     /// El total del mes, por moneda.
@@ -270,14 +302,14 @@ public final class DashboardModel: ExpenseProviding {
 
     /// Lo que quedó ambiguo y necesita que el usuario lo revise.
     public var needsReviewItems: [Expense] {
-        expenses.filter(\.needsReview).sorted { $0.date > $1.date }
+        calendarExpenses.filter(\.needsReview).sorted { $0.date > $1.date }
     }
 
     /// Cuántos de los que esperan revisión llegaron solos por Apple Pay — lo
     /// que dice "2 de Apple Pay" en Hoy: si eso lo puso el usuario dictando o
     /// entró sin que hiciera nada (ADR-0049).
     public var needsReviewFromApplePayCount: Int {
-        expenses.count { $0.needsReview && $0.source == .applePay }
+        calendarExpenses.count { $0.needsReview && $0.source == .applePay }
     }
 
     /// El desglose del mes por forma de pago (efectivo, débito, crédito,

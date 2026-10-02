@@ -1,6 +1,6 @@
 # ADR-0045: "Te queda" en Hoy es del mes calendario, no el disponible proyectado
 
-- **Estado:** Aceptada
+- **Estado:** Aceptada; en parte superseded por ADR-0060
 - **Fecha:** 2026-09-15
 - **Relacionada:** ADR-0039 (el disponible se ancla al sueldo)
 

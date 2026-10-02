@@ -58,7 +58,7 @@ public enum LanaMetrics {
     /// Separación de la barra respecto a los bordes laterales.
     public static let tabBarSideInset: CGFloat = 12
     /// Separación de la barra respecto al borde inferior.
-    public static let tabBarBottomInset: CGFloat = 24
+    public static let tabBarBottomInset: CGFloat = 0
     /// Diámetro del botón de micrófono en la barra.
     public static let micDiameter: CGFloat = 48
     /// Ancho de la ranura central del micrófono.
@@ -113,6 +113,21 @@ public enum LanaMetrics {
     public static let yearBarsHeight: CGFloat = 96
     /// Alto de un mes sin movimiento en la vista anual, como fracción.
     public static let yearBarEmptyFraction: CGFloat = 0.08
+    /// "Día a día" en Mes: alto de la gráfica de lo acumulado.
+    public static let dailyLineChartHeight: CGFloat = 150
+    /// "Día a día" en Mes: alto de la gráfica de recurrentes.
+    public static let dailyRecurringChartHeight: CGFloat = 110
+    /// "Día a día" en Mes: alto de las barras por día.
+    public static let dailyBarsChartHeight: CGFloat = 80
+    /// Ancho fijo de las etiquetas del eje de montos: las dos gráficas de
+    /// "Día a día" comparten eje de días y sus áreas tienen que alinearse.
+    public static let chartAxisLabelWidth: CGFloat = 44
+    /// Guiones de la serie de referencia (el mes anterior): la distingue sin
+    /// depender del color.
+    public static let chartReferenceDash: [CGFloat] = [4, 4]
+    /// Puntos de una serie que no es de este periodo (lo que ya le cuenta al
+    /// siguiente): distinta de la línea y del guion.
+    public static let chartDots: [CGFloat] = [1, 3]
     /// Onda de voz: alto máximo.
     public static let waveformHeight: CGFloat = 44
     /// Cuatro renglones de la transcripción en vivo (26 pt × 1.4); al pasarse,

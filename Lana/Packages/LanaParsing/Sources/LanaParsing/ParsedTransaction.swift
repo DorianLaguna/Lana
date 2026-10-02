@@ -23,11 +23,12 @@ public struct ParsedTransaction: Sendable {
     public var currencyCode: String
 
     @Guide(description: """
-    Qué se compró, cobró o pagó, en 2 a 5 palabras, en español. Si la \
-    persona lo dijo de forma torpe, cortada o con muletillas pero el \
-    significado es claro, escribe el concepto limpio y bien dicho — no \
-    copies literalmente cada palabra tal cual se dijo, se trata de \
-    comunicar qué fue, no de transcribir.
+    Qué se compró, cobró o pagó (p. ej. 'Chetos', 'Tacos', 'Súper', 'Renta'). \
+    Preserva las palabras o término exacto expresado por la persona para el concepto \
+    (el producto, servicio o comercio específico mencionado), limpiando únicamente \
+    muletillas o palabras de relleno — nunca reemplaces el término dicho por otro \
+    producto genérico (p. ej. si dijo 'chetos' no cambies a 'chicles', si dijo \
+    'comida' no cambies a 'refresco').
     """)
     public var concept: String
 

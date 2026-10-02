@@ -21,6 +21,7 @@ public enum EntryStage: Equatable, Sendable {
 /// caso a un `PresentationDetent` concreto — el modelo solo dice "compacta",
 /// "media" o "completa", no puntos ni fracciones (eso es presentación).
 public enum CaptureHeight: Equatable, Sendable {
+    case idle
     case compact
     case medium
     case full

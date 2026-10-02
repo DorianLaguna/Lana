@@ -40,6 +40,10 @@ public struct ReviewTrayView: View {
                                 onDelete: model.drafts.count > 1 ? { model.remove(id: draft.id) } : nil)
                         }
                     }
+
+                    if !model.recurringSuggestions.isEmpty {
+                        recurringSection
+                    }
                 }
                 .padding(.horizontal, LanaMetrics.screenMargin)
             }
@@ -67,7 +71,7 @@ public struct ReviewTrayView: View {
                 }
             }
             .buttonStyle(.lana(size: .large, isExpanded: true))
-            .disabled(model.isSaving || model.drafts.isEmpty)
+            .disabled(model.isSaving)
             .padding(.horizontal, LanaMetrics.screenMargin)
             .padding(.top, Space.md.rawValue)
             .padding(.bottom, Space.p40.rawValue)
@@ -81,7 +85,7 @@ public struct ReviewTrayView: View {
             Circle()
                 .fill(lana.attention)
                 .frame(width: LanaMetrics.dot, height: LanaMetrics.dot)
-            Text(model.drafts.count == 1 ? "1 por revisar" : "\(model.drafts.count) por revisar")
+            Text(model.pendingCount == 1 ? "1 por revisar" : "\(model.pendingCount) por revisar")
                 .lanaFont(.sectionHeader)
                 .foregroundStyle(lana.attention)
             Spacer(minLength: Space.sm.rawValue)
@@ -90,6 +94,58 @@ public struct ReviewTrayView: View {
                 .foregroundStyle(lana.ink42)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// "¿Es tu recurrente?": lo que se registró sin vínculo y se parece a uno
+    /// (ADR-0061). Cada respuesta se guarda al tocarla.
+    private var recurringSection: some View {
+        VStack(alignment: .leading, spacing: Space.p12.rawValue) {
+            Text("¿Son tus recurrentes?")
+                .lanaFont(.sectionHeader)
+                .foregroundStyle(lana.ink50)
+                .padding(.top, model.drafts.isEmpty ? 0 : Space.p12.rawValue)
+            ForEach(model.recurringSuggestions) { suggestion in
+                suggestionCard(suggestion)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func suggestionCard(_ suggestion: RecurringLinkSuggestion) -> some View {
+        LanaCard {
+            VStack(alignment: .leading, spacing: Space.p10.rawValue) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(suggestion.expense.concept)
+                        .lanaFont(.rowTitle)
+                        .foregroundStyle(lana.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: Space.sm.rawValue)
+                    Text(suggestion.expense.amount.formatted())
+                        .lanaFont(.rowAmount)
+                        .monospacedDigit()
+                        .foregroundStyle(lana.ink)
+                }
+                Text(question(for: suggestion))
+                    .lanaFont(.rowSubtitle)
+                    .foregroundStyle(lana.ink50)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: Space.sm.rawValue) {
+                    Button("No es") {
+                        Task { await model.declineSuggestion(suggestion) }
+                    }
+                    .buttonStyle(.lana(.secondary, size: .compact))
+                    Button("Sí, es \(suggestion.item.name)") {
+                        Task { await model.acceptSuggestion(suggestion) }
+                    }
+                    .buttonStyle(.lana(size: .compact))
+                }
+            }
+        }
+    }
+
+    /// "26 sept 2026 · ¿Es tu recurrente Netflix?".
+    private func question(for suggestion: RecurringLinkSuggestion) -> String {
+        "\(LanaDateFormat.shortDate(suggestion.expense.date)) · ¿Es tu recurrente \(suggestion.item.name)?"
     }
 
     /// De dónde vino: la hora a la que se registró. Lana no guarda el origen

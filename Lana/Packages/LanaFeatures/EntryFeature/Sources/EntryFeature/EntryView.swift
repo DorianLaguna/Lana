@@ -170,6 +170,7 @@ public struct EntryView: View {
         VStack(alignment: .leading, spacing: 0) {
             reviewHeader
                 .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.top, Space.lg.rawValue)
                 .padding(.bottom, Space.md.rawValue)
 
             if !model.inputText.isEmpty {
@@ -191,6 +192,7 @@ public struct EntryView: View {
                     }
                 }
                 .padding(.horizontal, LanaMetrics.screenMargin)
+                .padding(.bottom, Space.md.rawValue)
             }
 
             if let errorMessage = model.errorMessage {

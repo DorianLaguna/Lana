@@ -14,6 +14,9 @@ struct MovementRows: View {
     /// Los movimientos recién guardados, que se resaltan un momento. Vacío en
     /// las pantallas que no vienen de la captura.
     var highlightedIDs: Set<ExpenseID> = []
+    /// "Para octubre" en lo que ya le cuenta a otro mes (ADR-0060). Solo lo
+    /// pasan Hoy y Mes; un drill-down ya muestra solo lo que cuenta.
+    var deferredLabel: @MainActor (Expense) -> String? = { _ in nil }
     let onSelect: (Expense) -> Void
 
     var body: some View {
@@ -64,6 +67,7 @@ struct MovementRows: View {
             isIncome: expense.kind == .income,
             isSubtitleMuted: subtitle.isMuted,
             needsReview: expense.needsReview,
-            isShared: expense.sharedListID != nil)
+            isShared: expense.sharedListID != nil,
+            deferredText: deferredLabel(expense))
     }
 }

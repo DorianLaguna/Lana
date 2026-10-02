@@ -84,15 +84,21 @@ struct SharedExpenseMatchingTests {
         #expect(match?.split == .payerOnly)
     }
 
-    @Test("splitHint no reconocido o ausente cae al preferredSplit — sin ingresos, el default guardado")
-    func splitHintNoReconocidoCaeAlPreferredSplit() {
+    @Test("splitHint no reconocido o ausente cae al preferredSplit — proporcional por default")
+    func splitHintNoReconocidoCaeAlPreferredSplit() throws {
         let depa = list(participants: [alice, bob], defaultSplit: .equally(among: [alice.id, bob.id]))
-        let matchSinHint = SharedExpenseMatch.bestMatch(
-            payerHint: "Alice", splitHint: nil, in: [depa], viewerIdentities: [:])
-        let matchHintRaro = SharedExpenseMatch.bestMatch(
-            payerHint: "Alice", splitHint: "60-40", in: [depa], viewerIdentities: [:])
-        #expect(matchSinHint?.split == .equally(among: [alice.id, bob.id]))
-        #expect(matchHintRaro?.split == .equally(among: [alice.id, bob.id]))
+        let matchSinHint = try #require(SharedExpenseMatch.bestMatch(
+            payerHint: "Alice", splitHint: nil, in: [depa], viewerIdentities: [:]))
+        let matchHintRaro = try #require(SharedExpenseMatch.bestMatch(
+            payerHint: "Alice", splitHint: "60-40", in: [depa], viewerIdentities: [:]))
+        guard case .proportional = matchSinHint.split else {
+            Issue.record("Debería caer a proporcional, cayó en \(matchSinHint.split)")
+            return
+        }
+        guard case .proportional = matchHintRaro.split else {
+            Issue.record("Debería caer a proporcional, cayó en \(matchHintRaro.split)")
+            return
+        }
     }
 
     @Test("Lista de listas vacía: nil")
@@ -129,18 +135,26 @@ struct SplitRuleKindTests {
         }
     }
 
-    @Test("Sin ingresos, proporcional no se ofrece — no se puede resolver sin números")
-    func sinIngresosProporcionalNoSeOfrece() {
+    @Test("Sin ingresos explícitos, proporcional siempre se ofrece y resuelve equitativo base")
+    func sinIngresosProporcionalSeOfrece() throws {
         let depa = list(withIncomes: false)
-        #expect(!SplitRuleKind.resolvable(in: depa).contains(.proportional))
-        #expect(SplitRuleKind.proportional.resolve(in: depa) == nil)
+        #expect(SplitRuleKind.resolvable(in: depa).contains(.proportional))
+        let resolved = try #require(SplitRuleKind.proportional.resolve(in: depa))
+        guard case .proportional = resolved else {
+            Issue.record("Debería resolver a .proportional")
+            return
+        }
     }
 
-    @Test("Porcentaje y montos exactos nunca se ofrecen fuera del formulario completo")
-    func porcentajeYMontosExactosNuncaSeOfrecen() {
+    @Test("Todas las 5 reglas de división se ofrecen al cambiar división")
+    func todasLasReglasSeOfrecen() {
         let offered = SplitRuleKind.resolvable(in: list(withIncomes: true))
-        #expect(!offered.contains(.percentage))
-        #expect(!offered.contains(.exactAmounts))
+        #expect(offered.contains(.proportional))
+        #expect(offered.contains(.equally))
+        #expect(offered.contains(.payerOnly))
+        #expect(offered.contains(.percentage))
+        #expect(offered.contains(.exactAmounts))
+        #expect(offered.count == 5)
     }
 
     @Test("Proporcional va primero en el picker — es el default que se quiere")

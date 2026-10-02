@@ -18,8 +18,10 @@ public extension EntryModel {
     ///   medidos.
     var captureHeight: CaptureHeight {
         switch stage {
-        case .reviewing, .saving:
+        case .saving:
             .full
+        case .reviewing:
+            drafts.count > 1 ? .full : .medium
         case .listening:
             switch inputText.count {
             case ...Self.transcriptLengthForMediumSheet:
@@ -31,7 +33,7 @@ public extension EntryModel {
                 .full
             }
         case .checkingAvailability, .unavailable, .composing, .parsing, .saved:
-            .compact
+            .idle
         }
     }
 

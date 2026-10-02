@@ -10,5 +10,6 @@ import WidgetKit
 struct LanaWidgetBundle: WidgetBundle {
     var body: some Widget {
         LanaCaptureWidget()
+        LanaCaptureControl()
     }
 }

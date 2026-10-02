@@ -19,8 +19,26 @@ struct GuideStepChrome<Content: View>: View {
     /// El párrafo bajo el título; `nil` en los pasos que abren con contenido.
     /// No se llama `body`: chocaría con el de la propia vista.
     let message: String?
+    let onBack: (() -> Void)?
     let onSkip: () -> Void
     @ViewBuilder let content: () -> Content
+
+    init(
+        step: Int,
+        totalSteps: Int,
+        title: String,
+        message: String? = nil,
+        onBack: (() -> Void)? = nil,
+        onSkip: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content) {
+        self.step = step
+        self.totalSteps = totalSteps
+        self.title = title
+        self.message = message
+        self.onBack = onBack
+        self.onSkip = onSkip
+        self.content = content
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -55,6 +73,17 @@ struct GuideStepChrome<Content: View>: View {
     /// configuración que decidió no hacer.
     private var progress: some View {
         HStack(spacing: Space.p10.rawValue) {
+            if let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .lanaFont(.bodyEmphasis)
+                        .foregroundStyle(lana.ink70)
+                }
+                .buttonStyle(.plain)
+                .frame(minHeight: LanaMetrics.minTouchTarget)
+                .accessibilityLabel("Paso anterior")
+            }
+
             HStack(spacing: Space.p5.rawValue) {
                 ForEach(1 ... totalSteps, id: \.self) { index in
                     Capsule()

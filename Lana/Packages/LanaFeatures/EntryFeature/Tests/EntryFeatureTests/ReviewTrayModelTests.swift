@@ -87,4 +87,34 @@ struct ReviewTrayModelTests {
         #expect(uno.confirmLabel == "Confirmar")
         #expect(tres.confirmLabel == "Confirmar los 3")
     }
+
+    @Test("Decir que sí liga el movimiento a su recurrente; que no, lo recuerda (ADR-0061)")
+    func contestarLaPreguntaDelRecurrente() async throws {
+        let netflix = try RecurringItem(
+            name: "Netflix",
+            amount: Money(amount: 120, currency: .mxn),
+            kind: .expense,
+            dayOfMonth: 26)
+        let yes = expense(concept: "netflix", needsReview: false)
+        let no = expense(concept: "Netflix", needsReview: false)
+        let store = InMemoryExpenseStore(seed: [yes, no])
+        let model = ReviewTrayModel(
+            expenses: [],
+            recurringSuggestions: [
+                RecurringLinkSuggestion(expense: yes, item: netflix),
+                RecurringLinkSuggestion(expense: no, item: netflix)
+            ],
+            store: store)
+        #expect(model.pendingCount == 2)
+        #expect(model.confirmLabel == "Listo")
+
+        await model.acceptSuggestion(model.recurringSuggestions[0])
+        await model.declineSuggestion(model.recurringSuggestions[0])
+
+        #expect(model.recurringSuggestions.isEmpty)
+        let stored = try await store.expenses(in: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(stored.first { $0.id == yes.id }?.recurringItemID == netflix.id)
+        #expect(stored.first { $0.id == no.id }?.recurringItemID == nil)
+        #expect(stored.first { $0.id == no.id }?.declinedRecurringItemIDs == [netflix.id])
+    }
 }

@@ -49,16 +49,50 @@ public enum SplitRuleKind: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// La regla concreta que sale de esta opción con los datos que la lista
-    /// ya tiene, sin pedirle nada más al usuario. `nil` cuando hacen falta
-    /// números que solo el formulario completo puede capturar
-    /// (`.percentage`/`.exactAmounts`, o `.proportional` en una lista sin
-    /// ingresos) — quien llama ofrece solo las opciones que sí resuelven.
-    public func resolve(in list: SharedList) -> SplitRule? {
+    /// ya tiene o con valores por defecto (ej. partes iguales de porcentaje o del monto).
+    public func resolve(in list: SharedList, amount: Decimal = 0) -> SplitRule? {
+        let ids = list.participants.map(\.id)
+        guard !ids.isEmpty else { return nil }
         switch self {
-        case .equally: .equally(among: list.participants.map(\.id))
-        case .payerOnly: .payerOnly
-        case .proportional: list.proportionalSplitFromIncomes
-        case .percentage, .exactAmounts: nil
+        case .equally:
+            return .equally(among: ids)
+        case .payerOnly:
+            return .payerOnly
+        case .proportional:
+            return list.proportionalSplitFromIncomes ?? list.fallbackProportionalSplit
+        case .percentage:
+            if let proportional = list.proportionalSplitFromIncomes,
+               case let .proportional(shares) = proportional {
+                let percentageShares = shares.mapValues { ($0 * 100).rounded(scale: 2, mode: .down) }
+                return .percentage(shares: percentageShares)
+            }
+            let n = Decimal(ids.count)
+            let basePercentage = (Decimal(100) / n).rounded(scale: 2, mode: .down)
+            var shares: [ParticipantID: Decimal] = [:]
+            var sum = Decimal(0)
+            let sorted = ids.sorted()
+            for id in sorted.dropLast() {
+                shares[id] = basePercentage
+                sum += basePercentage
+            }
+            if let last = sorted.last {
+                shares[last] = 100 - sum
+            }
+            return .percentage(shares: shares)
+        case .exactAmounts:
+            let n = Decimal(ids.count)
+            let baseAmount = (amount / n).rounded(scale: 2, mode: .down)
+            var amounts: [ParticipantID: Decimal] = [:]
+            var sum = Decimal(0)
+            let sorted = ids.sorted()
+            for id in sorted.dropLast() {
+                amounts[id] = baseAmount
+                sum += baseAmount
+            }
+            if let last = sorted.last {
+                amounts[last] = amount - sum
+            }
+            return .exactAmounts(amounts: amounts)
         }
     }
 

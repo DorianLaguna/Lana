@@ -72,14 +72,18 @@ struct MainTabView: View {
     /// El alto vigente de la hoja de captura.
     @State private var captureDetent: PresentationDetent = MainTabView.compactCaptureDetent
 
-    /// El alto de arranque de la hoja de captura: un movimiento (sección 07).
-    private static let compactCaptureDetent: PresentationDetent = .height(340)
+    /// El alto de reposo (sin voz / cancelado): se ajusta al contenido mínimo.
+    private static let idleCaptureDetent: PresentationDetent = .height(230)
+
+    /// El alto de arranque del dictado: cabe "Escuchando", onda y botones sin recortarse.
+    private static let compactCaptureDetent: PresentationDetent = .height(410)
 
     /// Un escalón intermedio para que la hoja crezca acompañando al dictado.
     private static let mediumCaptureDetent: PresentationDetent = .medium
 
     private func captureDetent(for height: CaptureHeight) -> PresentationDetent {
         switch height {
+        case .idle: Self.idleCaptureDetent
         case .compact: Self.compactCaptureDetent
         case .medium: Self.mediumCaptureDetent
         case .full: .large
@@ -256,7 +260,7 @@ struct MainTabView: View {
                 // Tocar el micrófono ya ES "quiero dictar" (ADR-0018).
                 autoStartListening: true)
                 .presentationDetents(
-                    [Self.compactCaptureDetent, Self.mediumCaptureDetent, .large],
+                    [Self.idleCaptureDetent, Self.compactCaptureDetent, Self.mediumCaptureDetent, .large],
                     selection: $captureDetent)
                 .presentationDragIndicator(.visible)
                 .onChange(of: entryModel.captureHeight) { _, height in
@@ -285,15 +289,19 @@ struct MainTabView: View {
                     .lanaTheme(settingsModel.selectedTheme)
                     .preferredColorScheme(preferredScheme)
             })
-        .sheet(item: $reviewTrayModel) { identified in
-            ReviewTrayView(model: identified.value, onDone: {
-                reviewTrayModel = nil
-                Task { await refreshAfterExpenseChange() }
+        // Se refresca al cerrarse de cualquier forma: las respuestas de "¿es
+        // tu recurrente?" se guardan al tocarlas, no al confirmar (ADR-0061).
+        .sheet(
+            item: $reviewTrayModel,
+            onDismiss: { Task { await refreshAfterExpenseChange() } },
+            content: { identified in
+                ReviewTrayView(model: identified.value, onDone: {
+                    reviewTrayModel = nil
+                })
+                .presentationDragIndicator(.visible)
+                .lanaTheme(settingsModel.selectedTheme)
+                .preferredColorScheme(preferredScheme)
             })
-            .presentationDragIndicator(.visible)
-            .lanaTheme(settingsModel.selectedTheme)
-            .preferredColorScheme(preferredScheme)
-        }
         .sheet(item: $appEditExpenseModel) { editModel in
             EditExpenseView(model: editModel, onDone: {
                 appEditExpenseModel = nil

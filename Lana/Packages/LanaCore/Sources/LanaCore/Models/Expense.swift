@@ -36,6 +36,10 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
     /// (`RecurringItem.registration(in:forMonthOf:calendar:)`, ADR-0042): al
     /// borrar el movimiento, el recurrente vuelve a quedar pendiente solo.
     public var recurringItemID: RecurringItemID?
+    /// Los recurrentes de los que el usuario dijo que este movimiento **no**
+    /// salió, al preguntárselo en "Por revisar" (ADR-0061). Lana no vuelve a
+    /// sugerirlos.
+    public var declinedRecurringItemIDs: Set<RecurringItemID>
     /// Por dónde entró: dictado, Apple Pay, el formulario o un recurrente
     /// (ADR-0049). `nil` en lo registrado antes de que existiera.
     public var source: CaptureSource?
@@ -54,6 +58,7 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         payer: ParticipantID? = nil,
         split: SplitRule? = nil,
         recurringItemID: RecurringItemID? = nil,
+        declinedRecurringItemIDs: Set<RecurringItemID> = [],
         source: CaptureSource? = nil) {
         self.id = id
         self.kind = kind
@@ -68,6 +73,7 @@ public struct Expense: Sendable, Hashable, Identifiable, Codable {
         self.payer = payer
         self.split = split
         self.recurringItemID = recurringItemID
+        self.declinedRecurringItemIDs = declinedRecurringItemIDs
         self.source = source
     }
 }

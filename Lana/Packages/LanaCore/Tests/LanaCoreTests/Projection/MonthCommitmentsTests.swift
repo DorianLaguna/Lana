@@ -260,4 +260,60 @@ struct MonthCommitmentsTests {
 
         #expect(result.cards.isEmpty)
     }
+
+    // MARK: - Sueldos esperados (ADR-0060)
+
+    @Test("Los sueldos del 14 y del 30 se esperan desde el día 1")
+    func sueldosEsperados() throws {
+        let items = try [
+            recurring("Sueldo", 12000, day: 14, kind: .income),
+            recurring("Sueldo", 12000, day: 30, kind: .income),
+            recurring("Renta", 9000, day: 5)
+        ]
+
+        let expected = MonthCommitments.expectedIncome(
+            month: date(2026, 10, 1),
+            currency: .mxn,
+            recurringItems: items,
+            expenses: [],
+            asOf: date(2026, 10, 1),
+            calendar: calendar)
+
+        #expect(expected.map(\.amount.amount) == [12000, 12000])
+    }
+
+    @Test("Un sueldo ya registrado, o cuyo día ya pasó, deja de esperarse")
+    func sueldoRegistradoOPasado() throws {
+        let first = try recurring("Sueldo", 12000, day: 14, kind: .income)
+        let second = try recurring("Sueldo", 12000, day: 30, kind: .income)
+        let registered = Expense(
+            kind: .income,
+            amount: Money(amount: 12000, currency: .mxn),
+            concept: "Sueldo",
+            date: date(2026, 10, 14),
+            recurringItemID: first.id)
+
+        let expected = MonthCommitments.expectedIncome(
+            month: date(2026, 10, 1),
+            currency: .mxn,
+            recurringItems: [first, second],
+            expenses: [registered],
+            asOf: date(2026, 10, 20),
+            calendar: calendar)
+
+        #expect(expected.map(\.date) == [date(2026, 10, 30, hour: 0)])
+    }
+
+    @Test("En febrero, el sueldo del 30 se espera el 28")
+    func sueldoEnFebrero() throws {
+        let expected = try MonthCommitments.expectedIncome(
+            month: date(2027, 2, 1),
+            currency: .mxn,
+            recurringItems: [recurring("Sueldo", 12000, day: 30, kind: .income)],
+            expenses: [],
+            asOf: date(2027, 2, 15),
+            calendar: calendar)
+
+        #expect(expected.map(\.date) == [date(2027, 2, 28, hour: 0)])
+    }
 }

@@ -244,7 +244,12 @@ public actor CoreDataExpenseStore: ExpenseStore {
             clearsSharedContext: wasShared && expense.sharedListID == nil,
             payer: expense.payer,
             split: expense.split,
-            needsReview: expense.needsReview))
+            needsReview: expense.needsReview,
+            // `nil` conserva lo anterior: un movimiento sin recurrente no
+            // quita el que tuviera, y los rechazos se suman (ADR-0061).
+            recurringItemID: expense.recurringItemID,
+            declinedRecurringItemIDs: expense.declinedRecurringItemIDs.isEmpty
+                ? nil : expense.declinedRecurringItemIDs))
     }
 
     /// `internal`, no `private` — `CoreDataCardPaymentStore.swift` también

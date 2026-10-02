@@ -7,6 +7,7 @@ import SwiftUI
 /// presenta la app.
 private enum TodayDestination: Hashable {
     case settings
+    case carriedInCard(CardID, Currency)
 }
 
 /// Hoy: responde una sola pregunta — cuánto me queda y cuánto puedo gastar
@@ -71,7 +72,7 @@ public struct TodayView<Settings: View>: View {
                         header
                             .id(Self.topID)
                             .padding(.bottom, Space.p34.rawValue)
-                        if model.monthTotals.isEmpty {
+                        if model.calendarExpenses.isEmpty, model.budgetTotals().isEmpty {
                             emptyState
                         } else {
                             content
@@ -92,6 +93,10 @@ public struct TodayView<Settings: View>: View {
                 switch destination {
                 case .settings:
                     settings()
+                case let .carriedInCard(cardID, currency):
+                    CarriedInCardView(model: model, cardID: cardID, currency: currency) { expense in
+                        editExpenseModel = model.makeEditExpenseModel(for: expense)
+                    }
                 }
             }
             .sheet(item: $editExpenseModel) { editModel in
@@ -151,11 +156,15 @@ public struct TodayView<Settings: View>: View {
         heroSection
             .padding(.bottom, Space.p28.rawValue)
 
-        if let total = model.monthTotals.first {
+        let budgetTotals = model.budgetTotals()
+        if let total = budgetTotals.first {
             let commitments = model.monthCommitments(for: total)
             // Con varias monedas el héroe es un carrusel paginado: un desglose
             // fijo debajo no correspondería a la página que se está viendo.
-            if model.monthTotals.count == 1, !commitments.isEmpty {
+            // Lo que se debe a tarjetas este mes ya no tiene renglón
+            // (ADR-0060): sin nada más, el desglose quedaría vacío.
+            let hasBreakdown = commitments.committed > 0 || commitments.cardsNextMonth > 0
+            if budgetTotals.count == 1, hasBreakdown {
                 CommittedBreakdown(commitments: commitments, remaining: total.remaining)
                     .padding(.bottom, Space.p20.rawValue)
             }
@@ -165,7 +174,9 @@ public struct TodayView<Settings: View>: View {
             }
         }
 
-        let reviewCount = model.needsReviewItems.count
+        // Lo dudoso y las preguntas de "¿esto es tu Netflix?" (ADR-0061)
+        // viven en la misma bandeja.
+        let reviewCount = model.needsReviewItems.count + model.recurringLinkSuggestions.count
         if reviewCount > 0 {
             ReviewPromptRow(
                 count: reviewCount,
@@ -189,6 +200,19 @@ public struct TodayView<Settings: View>: View {
             .padding(.bottom, Space.p28.rawValue)
         }
 
+        let carriedIn = model.carriedInByCard()
+        if model.calendarExpenses.isEmpty, !carriedIn.isEmpty {
+            SectionHeader(
+                "Ya cuentan en \(LanaDateFormat.monthNameLowercased(model.month))",
+                actionTitle: "Ver el mes",
+                action: onOpenMonth)
+                .padding(.bottom, Space.p12.rawValue)
+            CarriedInCardsCard(cards: carriedIn, previousMonthName: previousMonthName) { item in
+                path.append(.carriedInCard(item.card.id, item.amount.currency))
+            }
+                .padding(.bottom, Space.p28.rawValue)
+        }
+
         if let recent = model.recentMovements() {
             SectionHeader(
                 recent.isToday ? "Hoy" : LanaDateFormat.dayHeader(recent.day),
@@ -197,7 +221,8 @@ public struct TodayView<Settings: View>: View {
             MovementRows(
                 expenses: recent.items,
                 source: model,
-                highlightedIDs: model.highlightedExpenseIDs) { expense in
+                highlightedIDs: model.highlightedExpenseIDs,
+                deferredLabel: model.deferredLabel(for:)) { expense in
                     editExpenseModel = model.makeEditExpenseModel(for: expense)
                 }
         }
@@ -206,12 +231,17 @@ public struct TodayView<Settings: View>: View {
     /// Con más de una moneda, una página por moneda — nunca se mezclan.
     @ViewBuilder
     private var heroSection: some View {
-        let totals = model.monthTotals
+        let totals = model.budgetTotals()
+        let isClosing = model.isMonthClosing()
         if totals.count > 1 {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) {
                     ForEach(totals) { total in
-                        TodayHero(total: total, showsCurrency: true)
+                        TodayHero(
+                            total: total,
+                            showsCurrency: true,
+                            isClosing: isClosing,
+                            expectedNote: model.expectedIncomeNote(in: total.currency))
                             .containerRelativeFrame(.horizontal)
                     }
                 }
@@ -219,8 +249,19 @@ public struct TodayView<Settings: View>: View {
             }
             .scrollTargetBehavior(.paging)
         } else if let total = totals.first {
-            TodayHero(total: total, showsCurrency: false)
+            TodayHero(
+                total: total,
+                showsCurrency: false,
+                isClosing: isClosing,
+                expectedNote: model.expectedIncomeNote(in: total.currency))
         }
+    }
+
+    /// "septiembre": el mes de donde vienen las compras que cerraron en este
+    /// corte.
+    private var previousMonthName: String {
+        let previous = model.calendar.date(byAdding: .month, value: -1, to: model.month) ?? model.month
+        return LanaDateFormat.monthNameLowercased(previous)
     }
 
     private var emptyState: some View {

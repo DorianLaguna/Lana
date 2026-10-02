@@ -121,11 +121,11 @@ struct EntryModelSheetHeightTests {
             sharedListStore: InMemorySharedListStore())
     }
 
-    @Test("Al abrir, la hoja se queda compacta")
+    @Test("Al abrir, la hoja se queda en alto reposo")
     func alAbrirLaHojaSeQuedaCompacta() {
         let model = makeModel(speech: InMemorySpeechTranscribing())
 
-        #expect(model.captureHeight == .compact)
+        #expect(model.captureHeight == .idle)
     }
 
     @Test("El dictado crece por escalones: compacta, media y luego toda la pantalla")
@@ -173,27 +173,27 @@ struct EntryModelSheetHeightTests {
         _ = await listening.value
     }
 
-    @Test("Revisando siempre pide toda la pantalla — el método de pago es el último campo")
-    func revisandoSiemprePideTodaLaPantalla() async {
+    @Test("Revisando 1 o 2 borradores pide alto medio")
+    func revisandoConPocosBorradoresPideAltoMedio() async {
         let model = makeModel(speech: InMemorySpeechTranscribing(), results: [Self.superResult])
         model.inputText = "gasté 300 en el súper"
 
         await model.submit()
 
         #expect(model.stage == .reviewing)
-        #expect(model.captureHeight == .full)
+        #expect(model.captureHeight == .medium)
     }
 
-    @Test("Al terminar la captura, la hoja vuelve a pedir el alto compacto")
+    @Test("Al terminar la captura, la hoja vuelve a pedir el alto de reposo")
     func alTerminarLaCapturaVuelveAlAltoCompacto() async {
         let model = makeModel(speech: InMemorySpeechTranscribing(), results: [Self.superResult])
         model.inputText = "gasté 300 en el súper"
         await model.submit()
-        #expect(model.captureHeight == .full)
+        #expect(model.captureHeight == .medium)
 
         model.startOver()
 
-        #expect(model.captureHeight == .compact)
+        #expect(model.captureHeight == .idle)
     }
 }
 

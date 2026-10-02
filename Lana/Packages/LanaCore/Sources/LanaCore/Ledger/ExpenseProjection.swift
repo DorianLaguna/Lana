@@ -25,6 +25,7 @@ public enum ExpenseProjection {
                 payer: transaction.payer,
                 split: transaction.split,
                 recurringItemID: transaction.recurringItemID,
+                declinedRecurringItemIDs: transaction.declinedRecurringItemIDs,
                 source: transaction.source)
         }
     }

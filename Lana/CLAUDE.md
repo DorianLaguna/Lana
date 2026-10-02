@@ -115,3 +115,11 @@ app directo en modo escucha, vía un deep link (`lana://capture`), para
 capturar con el menor número de toques posible. No es un widget
 informativo (no muestra saldos ni gastos) ni un App Intent de Siri
 completo — solo el atajo de abrir-y-escuchar.
+
+El mismo atajo llega a la **pantalla bloqueada** (decisión 2026-09-17, ver
+ADR-0057): un Control (`ControlWidget`) en los botones de abajo — que además
+sale en el Centro de Control y en el Botón de Acción — y el widget de siempre
+en su familia `accessoryCircular`, bajo el reloj. Los dos abren
+`lana://capture`; no hay un segundo camino de captura. El `AppIntent` que pide
+el Control va con `isDiscoverable = false`: exponer algo a Siri o a Atajos
+sigue fuera de v1.0.

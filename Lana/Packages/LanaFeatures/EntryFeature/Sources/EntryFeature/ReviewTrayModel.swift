@@ -9,12 +9,18 @@ import Observation
 /// bandeja), pero sobre movimientos que **ya existen**: confirmar emite una
 /// corrección del mismo movimiento —mismo `id`— quitándole la marca, nunca
 /// crea uno nuevo (ADR-0005).
+///
+/// También pregunta "¿esto es tu Netflix?" por lo que se registró sin vínculo
+/// a su recurrente (ADR-0061). Cada pregunta se contesta con un toque y se
+/// guarda en ese momento, aparte de "Confirmar".
 @MainActor
 @Observable
 public final class ReviewTrayModel {
     /// Lo que espera revisión, editable antes de confirmar. `internal(set)`
     /// porque la hoja los edita con un `Binding`, igual que en la captura.
     public internal(set) var drafts: [DraftTransaction]
+    /// Lo que se parece a un recurrente y todavía no se contesta.
+    public private(set) var recurringSuggestions: [RecurringLinkSuggestion]
     /// Las tarjetas reales, para que el chip de forma de pago diga "Crédito Nu".
     public let cards: [Card]
     /// Las subcategorías ya usadas, por categoría.
@@ -30,22 +36,62 @@ public final class ReviewTrayModel {
 
     /// - Parameter expenses: los movimientos con `needsReview`, de más
     ///   reciente a más viejo; los ordena quien los lee del store.
+    ///   - recurringSuggestions: `RecurringLinking.suggestions`, de quien ya
+    ///     tiene cargados los movimientos.
     public init(
         expenses: [Expense],
+        recurringSuggestions: [RecurringLinkSuggestion] = [],
         store: any ExpenseStore,
         cards: [Card] = [],
         allSubcategories: [String: [String]] = [:],
         sharedLists: [SharedList] = []) {
         drafts = expenses.map(DraftTransaction.init(expense:))
+        self.recurringSuggestions = recurringSuggestions
         self.store = store
         self.cards = cards
         self.allSubcategories = allSubcategories
         self.sharedLists = sharedLists
     }
 
-    /// El texto del botón: "Confirmar los 3", o "Confirmar" con uno solo.
+    /// Cuánto queda por contestar en la bandeja.
+    public var pendingCount: Int {
+        drafts.count + recurringSuggestions.count
+    }
+
+    /// El texto del botón: "Confirmar los 3", "Confirmar" con uno solo, o
+    /// "Listo" cuando solo quedaban preguntas de recurrentes.
     public var confirmLabel: String {
-        drafts.count > 1 ? "Confirmar los \(drafts.count)" : "Confirmar"
+        if drafts.isEmpty {
+            return "Listo"
+        }
+        return drafts.count > 1 ? "Confirmar los \(drafts.count)" : "Confirmar"
+    }
+
+    /// "Sí, es mi Netflix": liga el movimiento a su recurrente con una
+    /// corrección. Desde ahí cuenta como recurrente y como el registro de ese
+    /// mes (ADR-0042).
+    public func acceptSuggestion(_ suggestion: RecurringLinkSuggestion) async {
+        var linked = suggestion.expense
+        linked.recurringItemID = suggestion.item.id
+        await answer(suggestion, saving: linked)
+    }
+
+    /// "No es": se recuerda en el movimiento para no volver a preguntar por
+    /// ese recurrente.
+    public func declineSuggestion(_ suggestion: RecurringLinkSuggestion) async {
+        var declined = suggestion.expense
+        declined.declinedRecurringItemIDs.insert(suggestion.item.id)
+        await answer(suggestion, saving: declined)
+    }
+
+    private func answer(_ suggestion: RecurringLinkSuggestion, saving expense: Expense) async {
+        errorMessage = nil
+        do {
+            try await store.save(expense)
+            recurringSuggestions.removeAll { $0.id == suggestion.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Quitar de la bandeja **no** borra el movimiento: lo deja como estaba,

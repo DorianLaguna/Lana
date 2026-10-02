@@ -1,6 +1,6 @@
 # ADR-0046: "Te queda" se parte en lo que ya tiene dueño y lo que queda libre
 
-- **Estado:** Aceptada
+- **Estado:** Aceptada; en parte superseded por ADR-0060
 - **Fecha:** 2026-09-16
 - **Relacionada:** ADR-0045 (la enmienda), ADR-0039 (el disponible se ancla al
   sueldo), ADR-0008 (solo cuenta lo que tiene fecha)

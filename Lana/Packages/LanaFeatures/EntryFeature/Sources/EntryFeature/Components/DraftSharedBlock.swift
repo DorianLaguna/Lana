@@ -99,9 +99,9 @@ struct DraftSharedBlock: View {
     /// ofrecen las reglas que no piden un número por participante (ADR-0030).
     private func splitMenu(in list: SharedList) -> some View {
         Menu {
-            ForEach(SplitRuleKind.resolvable(in: list)) { kind in
+            ForEach(SplitRuleKind.allCases) { kind in
                 Button(kind.displayName) {
-                    if let resolved = kind.resolve(in: list) {
+                    if let resolved = kind.resolve(in: list, amount: draft.amount) {
                         draft.split = resolved
                     }
                 }
