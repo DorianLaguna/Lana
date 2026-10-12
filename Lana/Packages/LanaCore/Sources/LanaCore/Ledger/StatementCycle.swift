@@ -14,6 +14,24 @@ public struct StatementCycle: Sendable {
         date > start && date <= end
     }
 
+    /// El ciclo anterior a este, para una tarjeta con este `cutoffDay`.
+    ///
+    /// Se resuelve pidiendo el ciclo que contiene el día antes de `start` — el
+    /// mismo camino que ya usa `CardLedger.lastStatementBalance` — y no restando
+    /// un mes a las fechas que ya tiene: así el día de corte se vuelve a calcular
+    /// con `min(cutoffDay, daysInMonth)` en cada mes, y un corte 31 que pasó por
+    /// febrero regresa al 31 en marzo en vez de quedarse pegado al 28.
+    public func previous(cutoffDay: Int, calendar: Calendar) -> StatementCycle {
+        let dayBefore = calendar.date(byAdding: .day, value: -1, to: start) ?? start
+        return .containing(dayBefore, cutoffDay: cutoffDay, calendar: calendar)
+    }
+
+    /// El ciclo siguiente a este. Simétrico a `previous`, y por la misma razón.
+    public func next(cutoffDay: Int, calendar: Calendar) -> StatementCycle {
+        let dayAfter = calendar.date(byAdding: .day, value: 1, to: end) ?? end
+        return .containing(dayAfter, cutoffDay: cutoffDay, calendar: calendar)
+    }
+
     /// El ciclo que contiene `date` para una tarjeta con este `cutoffDay`.
     /// Si el día de corte no existe en un mes (p. ej. 31 en febrero), se usa
     /// el último día de ese mes.
