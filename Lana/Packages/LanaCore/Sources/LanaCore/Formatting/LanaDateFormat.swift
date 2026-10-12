@@ -75,6 +75,30 @@ public enum LanaDateFormat {
                 .day().month(.abbreviated).year().hour().minute())
     }
 
+    /// "Corte del 12 de octubre", o "Corte del 12 de octubre de 2025" cuando
+    /// cerró en otro año.
+    ///
+    /// Nombra **el día en que cierra** y no el rango de días que abarca, aunque
+    /// el rango sería más explícito: un ciclo es `(start, end]` con `end` a la
+    /// medianoche del día de corte, así que un cargo de ese mismo día a las 3 pm
+    /// ya cae en el ciclo siguiente. Cualquier rango escrito quedaría corrido un
+    /// día respecto a lo que la pantalla de verdad lista, o respecto a lo que el
+    /// dueño cree (ADR-0060: con corte el 23, para él el 23 todavía es de este
+    /// corte). Mientras esa pregunta no se resuelva, la etiqueta no opina.
+    ///
+    /// El año solo aparece cuando estorbaría no tenerlo — mismo criterio que
+    /// `dayLabel` con "Hoy" y "Ayer".
+    ///
+    /// - Parameter end: el día del corte, el extremo cerrado del ciclo.
+    public static func cycleName(end: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        let calendar = Self.calendar(calendar)
+        let day = calendar.component(.day, from: end)
+        let name = "Corte del \(day) de \(monthNameLowercased(end, calendar: calendar))"
+        let year = calendar.component(.year, from: end)
+        guard year != calendar.component(.year, from: now) else { return name }
+        return "\(name) de \(year)"
+    }
+
     /// "S" — la inicial de un mes bajo una barra de la vista anual.
     public static func monthInitial(_ date: Date, calendar: Calendar = .current) -> String {
         String(monthName(date, calendar: calendar).prefix(1))

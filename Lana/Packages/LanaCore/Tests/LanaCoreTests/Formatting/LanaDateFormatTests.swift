@@ -46,4 +46,18 @@ struct LanaDateFormatTests {
     func inicialDelMes() {
         #expect(LanaDateFormat.monthInitial(date(2026, 3, 1), calendar: calendar) == "M")
     }
+
+    @Test("Un corte se nombra por el día en que cierra")
+    func nombreDelCorte() {
+        let corte = calendar.startOfDay(for: date(2026, 10, 12))
+        #expect(LanaDateFormat.cycleName(end: corte, calendar: calendar, now: date(2026, 10, 5))
+            == "Corte del 12 de octubre")
+    }
+
+    @Test("Un corte de otro año trae el año")
+    func nombreDelCorteDeOtroAnio() {
+        let corte = calendar.startOfDay(for: date(2025, 10, 12))
+        #expect(LanaDateFormat.cycleName(end: corte, calendar: calendar, now: date(2026, 10, 5))
+            == "Corte del 12 de octubre de 2025")
+    }
 }
