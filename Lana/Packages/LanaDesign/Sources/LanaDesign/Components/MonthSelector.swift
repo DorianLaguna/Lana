@@ -54,6 +54,52 @@ public struct YearSelector: View {
     }
 }
 
+/// Navegación entre ciclos de corte: ‹ Corte del 12 de octubre ›.
+///
+/// Misma forma que `MonthSelector`, con una diferencia que el dominio impone:
+/// los extremos existen —no hay corte después del vigente, ni antes del primer
+/// cargo registrado— y por eso las flechas se pueden apagar.
+///
+/// Recibe la etiqueta **ya formateada**, igual que `MonthSelector` y por la
+/// misma razón (ADR-0047): el formato de fechas en español vive en
+/// `LanaDateFormat`, dentro de `LanaCore`, y el sistema de diseño no depende del
+/// dominio.
+public struct CycleSelector: View {
+    private let label: String
+    private let canGoPrevious: Bool
+    private let canGoNext: Bool
+    private let onPrevious: () -> Void
+    private let onNext: () -> Void
+
+    /// - Parameters:
+    ///   - label: el corte ya escrito, "Corte del 12 de octubre".
+    ///   - canGoPrevious: `false` apaga la flecha izquierda sin quitarla.
+    ///   - canGoNext: `false` apaga la derecha — el caso del corte vigente.
+    public init(
+        label: String,
+        canGoPrevious: Bool = true,
+        canGoNext: Bool = true,
+        onPrevious: @escaping () -> Void,
+        onNext: @escaping () -> Void) {
+        self.label = label
+        self.canGoPrevious = canGoPrevious
+        self.canGoNext = canGoNext
+        self.onPrevious = onPrevious
+        self.onNext = onNext
+    }
+
+    public var body: some View {
+        PeriodSelector(
+            label: label,
+            previousLabel: "Corte anterior",
+            nextLabel: "Corte siguiente",
+            canGoPrevious: canGoPrevious,
+            canGoNext: canGoNext,
+            onPrevious: onPrevious,
+            onNext: onNext)
+    }
+}
+
 /// ‹ periodo ›: flechas apagadas con área de toque de 44 pt, el periodo al
 /// centro en 17 pt semibold.
 private struct PeriodSelector: View {
@@ -62,34 +108,57 @@ private struct PeriodSelector: View {
     let label: String
     let previousLabel: String
     let nextLabel: String
+    /// Los selectores de mes y de año no tienen extremos: se mueven para siempre
+    /// en las dos direcciones, así que el default deja las dos flechas vivas.
+    var canGoPrevious = true
+    var canGoNext = true
     let onPrevious: () -> Void
     let onNext: () -> Void
 
     var body: some View {
         HStack {
-            arrow("chevron.left", label: previousLabel, action: onPrevious)
+            arrow("chevron.left", label: previousLabel, isEnabled: canGoPrevious, action: onPrevious)
             Spacer()
             Text(label)
                 .lanaFont(.sheetTitle)
                 .monospacedDigit()
                 .foregroundStyle(lana.ink)
                 .contentTransition(.numericText())
+                // "Corte del 12 de octubre" es más largo que "Septiembre 2026":
+                // entre dos áreas de toque de 44 pt y con Dynamic Type grande,
+                // se trunca si no se le deja encogerse.
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
             Spacer()
-            arrow("chevron.right", label: nextLabel, action: onNext)
+            arrow("chevron.right", label: nextLabel, isEnabled: canGoNext, action: onNext)
         }
     }
 
-    private func arrow(_ systemImage: String, label: String, action: @escaping () -> Void) -> some View {
+    /// Una flecha sin a dónde ir deja de dibujarse, pero conserva su área de
+    /// 44 pt: así el periodo del centro no brinca al llegar al extremo.
+    ///
+    /// Se esconde en vez de solo apagarse de color porque el chevron vivo ya usa
+    /// `ink35` —el token de texto deshabilitado— y bajarlo un paso más sería una
+    /// diferencia que nadie ve. El color nunca es el único portador de
+    /// información (Docs/CONVENTIONS.md).
+    private func arrow(
+        _ systemImage: String,
+        label: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .lanaFont(.cardAmount)
                 .fontWeight(.regular)
                 .foregroundStyle(lana.ink35)
+                .opacity(isEnabled ? 1 : 0)
                 .frame(width: LanaMetrics.minTouchTarget, height: LanaMetrics.minTouchTarget)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .accessibilityLabel(label)
+        .accessibilityHidden(!isEnabled)
     }
 }
 
@@ -99,6 +168,11 @@ private struct PeriodSelector: View {
             VStack {
                 MonthSelector(label: "Septiembre 2026", onPrevious: {}, onNext: {})
                 YearSelector(year: 2026, onPrevious: {}, onNext: {})
+                CycleSelector(
+                    label: "Corte del 12 de octubre",
+                    canGoNext: false,
+                    onPrevious: {},
+                    onNext: {})
             }
             .lanaTheme(theme)
         }
