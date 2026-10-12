@@ -4,7 +4,9 @@ import Observation
 
 /// El drill-down de una tarjeta: cuánto se debe (total, lo que toca pagar
 /// en el próximo corte, y lo que ya se facturó y sigue pendiente), el
-/// desglose por categoría del ciclo vigente y la lista de transacciones
+/// desglose por categoría y la lista de transacciones del corte que se está
+/// viendo —que se puede mover corte por corte hacia atrás, mientras los saldos
+/// de arriba siguen siendo los de hoy (ADR-0062)—
 /// (Fase 6.5/7.5, calca `TarjetaDetalle.dc.html`). Solo cuenta cargos de
 /// crédito (`PaymentMethod.credit`) — el débito nunca genera deuda
 /// (Docs/CLAUDE.md). Usa `CardLedger` de verdad — antes esto reimplementaba
@@ -21,9 +23,16 @@ public final class CardDetailModel {
     /// misma cambia — antes, `Card.id` para el destino ya evitaba quedarse
     /// con datos viejos al editar la tarjeta; esto conserva eso.
     public private(set) var card: Card
-    /// Los cargos de crédito a esta tarjeta, en el ciclo de corte vigente
+    /// Los cargos de crédito a esta tarjeta en el corte que se está viendo
     /// — para el desglose por categoría y la lista de transacciones.
     public private(set) var expenses: [Expense] = []
+    /// El corte que se está viendo. `nil` en débito, que no tiene ciclo.
+    ///
+    /// Vive en el modelo y no en un `@State` de la vista a propósito:
+    /// `CardsModel.makeCardDetailModel(for:)` reutiliza esta misma instancia
+    /// mientras siga empujada en el stack, y `navigationDestination` vuelve a
+    /// llamarlo en cualquier redibujado — un `@State` perdería el corte elegido.
+    public private(set) var selectedCycle: StatementCycle?
     /// Lo ya facturado en el último corte, neto de pagos registrados — lo
     /// que hay que pagar para no generar intereses.
     public private(set) var statementDue: Money = .zero(.mxn)
@@ -33,6 +42,19 @@ public final class CardDetailModel {
     public private(set) var isLoading = false
     /// El último error, si algo falló al cargar o pagar.
     public private(set) var errorMessage: String?
+
+    /// Todos los cargos de crédito a esta tarjeta, de siempre — de aquí sale la
+    /// rebanada de cada corte.
+    ///
+    /// Se cargan de una sola vez y se rebanan en memoria en vez de pedirle un
+    /// rango al store por cada flechazo: `CoreDataExpenseStore.expenses(in:)`
+    /// hace fetch de todos los eventos y pliega el log completo en cada llamada,
+    /// así que una consulta cuesta lo mismo que la de un solo ciclo. De paso
+    /// deja la navegación entre cortes sincrónica, sin spinner.
+    private var charges: [Expense] = []
+    /// El "ahora" de la última carga, para saber cuál es el corte vigente y
+    /// cuándo el año de un corte estorba en su nombre.
+    private var referenceDate = Date()
 
     private let store: any ExpenseStore
     private let cardPaymentStore: any CardPaymentStore
@@ -74,28 +96,46 @@ public final class CardDetailModel {
     public func onAppear(asOf date: Date = Date()) async {
         isLoading = true
         errorMessage = nil
+        referenceDate = date
         do {
             // El débito no tiene ciclo de corte — no acumula deuda, así que
             // no hay nada que cargar aquí (Docs/CLAUDE.md).
             guard let cutoffDay = card.cutoffDay else {
+                charges = []
                 expenses = []
+                selectedCycle = nil
                 statementDue = .zero(.mxn)
                 currentCycleAccrued = .zero(.mxn)
                 isLoading = false
                 return
             }
-            let cycle = StatementCycle.containing(date, cutoffDay: cutoffDay, calendar: calendar)
-            let all = try await store.expenses(in: DateInterval(start: cycle.start, end: cycle.end))
-            expenses = all.filter { expense in
+            let current = StatementCycle.containing(date, cutoffDay: cutoffDay, calendar: calendar)
+            // El tope es el cierre del corte vigente y no `date`: ese cierre cae
+            // en el futuro, y un cargo con fecha de mañana ya entra en este corte.
+            let all = try await store.expenses(in: DateInterval(start: .distantPast, end: current.end))
+            charges = all.filter { expense in
                 guard case let .credit(cardID) = expense.paymentMethod else { return false }
                 return cardID == card.id
             }
+            // Conserva el corte que se estaba viendo: `refreshCurrentCardDetail()`
+            // corre tras editar o borrar un gasto, y regresar al corte de hoy
+            // perdería el lugar del usuario. Se vuelve a resolver desde su cierre
+            // para que un `cutoffDay` editado lo reacomode en un corte que existe.
+            let cycle = selectedCycle
+                .map { StatementCycle.containing($0.end, cutoffDay: cutoffDay, calendar: calendar) }
+                ?? current
+            selectedCycle = cycle
+            sliceExpenses(for: cycle)
 
+            // Los saldos son los de hoy, no los del corte que se esté viendo:
+            // el saldo actual y el saldo al corte se calculan distinto y no se
+            // usan indistintamente (Docs/CONVENTIONS.md).
             let ledger = try await CardLedger(events: cardPaymentStore.events())
             statementDue = ledger.outstandingStatementBalance(for: card, asOf: date, calendar: calendar)
             currentCycleAccrued = ledger.currentCycleBalance(for: card, asOf: date, calendar: calendar)
         } catch {
             errorMessage = error.localizedDescription
+            charges = []
             expenses = []
         }
         isLoading = false
@@ -112,13 +152,84 @@ public final class CardDetailModel {
                 cardID: card.id,
                 amount: Money(amount: amount, currency: currency),
                 date: date))
-            await onAppear(asOf: date)
+            // Recarga con el "ahora" de la pantalla y no con la fecha del pago:
+            // registrar un pago fechado en el pasado no cambia cuál es el corte
+            // vigente, y antes movía ahí los saldos y la etiqueta del selector.
+            await onAppear(asOf: referenceDate)
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
     }
+
+    // MARK: - Moverse entre cortes
+
+    /// El corte vigente — el que contiene la fecha de la última carga.
+    private var currentCycle: StatementCycle? {
+        guard let cutoffDay = card.cutoffDay else { return nil }
+        return .containing(referenceDate, cutoffDay: cutoffDay, calendar: calendar)
+    }
+
+    /// `true` si queda algún cargo más viejo que el corte que se está viendo.
+    ///
+    /// Se apaga la flecha en vez de dejar pasear por cortes vacíos: una tarjeta
+    /// que empezó antes de usar Lana solo trae lo que se registró (ADR-0060).
+    public var canGoToPreviousCycle: Bool {
+        guard let cycle = selectedCycle else { return false }
+        return charges.contains { $0.date <= cycle.start }
+    }
+
+    /// `false` en el corte vigente: no hay nada que ver adelante.
+    public var canGoToNextCycle: Bool {
+        guard let cycle = selectedCycle, let current = currentCycle else { return false }
+        return cycle.end < current.end
+    }
+
+    /// `true` cuando se está viendo el corte abierto — de eso depende qué decir
+    /// si no hay movimientos.
+    public var isViewingCurrentCycle: Bool {
+        guard let cycle = selectedCycle, let current = currentCycle else { return true }
+        return cycle.end == current.end
+    }
+
+    /// "Corte del 12 de octubre". `nil` en débito.
+    public var cycleLabel: String? {
+        guard let cycle = selectedCycle else { return nil }
+        return LanaDateFormat.cycleName(end: cycle.end, calendar: calendar, now: referenceDate)
+    }
+
+    /// Se mueve al corte anterior. Sincrónica: los cargos ya están cargados y
+    /// solo hay que volver a rebanarlos.
+    public func goToPreviousCycle() {
+        guard canGoToPreviousCycle,
+              let cutoffDay = card.cutoffDay,
+              let cycle = selectedCycle else { return }
+        let previous = cycle.previous(cutoffDay: cutoffDay, calendar: calendar)
+        selectedCycle = previous
+        sliceExpenses(for: previous)
+    }
+
+    /// Se mueve al corte siguiente, sin pasarse del vigente.
+    public func goToNextCycle() {
+        guard canGoToNextCycle,
+              let cutoffDay = card.cutoffDay,
+              let cycle = selectedCycle else { return }
+        let next = cycle.next(cutoffDay: cutoffDay, calendar: calendar)
+        selectedCycle = next
+        sliceExpenses(for: next)
+    }
+
+    /// Los cargos de un corte, de entre todos los de la tarjeta.
+    ///
+    /// Filtra con `StatementCycle.contains(_:)` y no con `DateInterval`: el ciclo
+    /// es `(start, end]` y `DateInterval` incluye los dos extremos, así que un
+    /// cargo justo en la medianoche del corte saldría en dos cortes distintos.
+    private func sliceExpenses(for cycle: StatementCycle) {
+        expenses = charges.filter { cycle.contains($0.date) }
+    }
+
+    // MARK: - Límite
 
     /// Qué fracción del límite ya se debe (deuda total), para la barra de
     /// progreso — nunca más de 1, aunque el gasto real haya rebasado el
@@ -136,7 +247,7 @@ public final class CardDetailModel {
         return limitUsageText(debt: totalDebt.amount, limit: limit.amount)
     }
 
-    /// El desglose por categoría de los cargos del ciclo vigente.
+    /// El desglose por categoría de los cargos del corte que se está viendo.
     ///
     /// - Important: aquí cuenta el **monto completo** del cargo, no la parte
     ///   de quien mira — y por eso se construye sin `viewerIdentities`, que es
@@ -149,7 +260,7 @@ public final class CardDetailModel {
         PeriodStatistics(expenses: expenses).categoryTotals
     }
 
-    /// Los cargos a esta tarjeta, agrupados por día.
+    /// Los cargos a esta tarjeta en el corte que se está viendo, por día.
     public var daySections: [DaySection] {
         expenses.groupedByDay(calendar: calendar)
     }

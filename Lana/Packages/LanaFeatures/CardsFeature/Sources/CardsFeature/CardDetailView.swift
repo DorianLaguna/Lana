@@ -39,8 +39,10 @@ public struct CardDetailView: View {
                         .padding(.bottom, Space.xl.rawValue)
                 }
 
+                cycleSelector
+
                 if !model.categoryTotals.isEmpty {
-                    SectionHeader("En qué usas esta tarjeta")
+                    SectionHeader(breakdownTitle)
                         .padding(.bottom, Space.p12.rawValue)
                     RankedBarList(
                         items: model.categoryTotals.prefix(4).map(rankedItem),
@@ -52,6 +54,7 @@ public struct CardDetailView: View {
                 DaySectionListView(
                     sections: model.daySections,
                     cardAlias: model.card.alias,
+                    emptyMessage: emptyMessage,
                     onSelect: onExpenseTap)
             }
             .padding(.horizontal, LanaMetrics.screenMargin)
@@ -74,6 +77,37 @@ public struct CardDetailView: View {
                 prefillsStatementDue: paysEverything,
                 onDone: { isPaying = false })
         }
+    }
+
+    // MARK: - Corte que se está viendo
+
+    /// De aquí para abajo manda el corte seleccionado: el desglose y la lista.
+    /// Los saldos de arriba siguen siendo los de hoy (ADR-0062).
+    ///
+    /// Va fuera del `if` del desglose a propósito: en un corte sin movimientos
+    /// el desglose desaparece, y sin el selector no habría cómo salir de ahí.
+    @ViewBuilder
+    private var cycleSelector: some View {
+        if let label = model.cycleLabel {
+            CycleSelector(
+                label: label,
+                canGoPrevious: model.canGoToPreviousCycle,
+                canGoNext: model.canGoToNextCycle,
+                onPrevious: { model.goToPreviousCycle() },
+                onNext: { model.goToNextCycle() })
+                .padding(.bottom, Space.p22.rawValue)
+        }
+    }
+
+    /// En pasado cuando el corte ya cerró: ahí ya no se usa, se usó.
+    private var breakdownTitle: String {
+        model.isViewingCurrentCycle ? "En qué usas esta tarjeta" : "En qué usaste esta tarjeta"
+    }
+
+    private var emptyMessage: String {
+        model.isViewingCurrentCycle
+            ? "Cuando pagues algo con esta tarjeta, aparece aquí."
+            : "No registraste movimientos con esta tarjeta en este corte."
     }
 
     // MARK: - Debes en total
@@ -205,7 +239,24 @@ public struct CardDetailView: View {
                 CardDetailView(
                     model: CardDetailModel(
                         card: card,
-                        store: InMemoryExpenseStore(),
+                        // Con cargos en dos cortes, para que el selector se vea
+                        // con la flecha de atrás viva.
+                        store: InMemoryExpenseStore(seed: [
+                            Expense(
+                                kind: .expense,
+                                amount: Money(amount: 540, currency: .mxn),
+                                concept: "Súper",
+                                category: "despensa",
+                                date: .now,
+                                paymentMethod: .credit(cardID: card.id)),
+                            Expense(
+                                kind: .expense,
+                                amount: Money(amount: 820, currency: .mxn),
+                                concept: "Gasolina",
+                                category: "transporte",
+                                date: .now.addingTimeInterval(-60 * 60 * 24 * 45),
+                                paymentMethod: .credit(cardID: card.id))
+                        ]),
                         cardPaymentStore: InMemoryCardPaymentStore()),
                     onEdit: {},
                     onExpenseTap: { _ in })

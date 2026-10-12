@@ -10,11 +10,21 @@ struct DaySectionListView: View {
 
     private let sections: [DaySection]
     private let cardAlias: String
+    private let emptyMessage: String
     private let onSelect: (Expense) -> Void
 
-    init(sections: [DaySection], cardAlias: String, onSelect: @escaping (Expense) -> Void = { _ in }) {
+    /// - Parameter emptyMessage: qué decir si no hay movimientos. El default
+    ///   espera que lleguen; un corte ya cerrado y vacío necesita otro texto,
+    ///   porque ahí ya no va a aparecer nada y el de espera sonaría a que la
+    ///   pantalla está rota.
+    init(
+        sections: [DaySection],
+        cardAlias: String,
+        emptyMessage: String = "Cuando pagues algo con esta tarjeta, aparece aquí.",
+        onSelect: @escaping (Expense) -> Void = { _ in }) {
         self.sections = sections
         self.cardAlias = cardAlias
+        self.emptyMessage = emptyMessage
         self.onSelect = onSelect
     }
 
@@ -23,7 +33,7 @@ struct DaySectionListView: View {
             EmptyStateView(
                 systemImage: "tray",
                 title: "Sin movimientos",
-                message: "Cuando pagues algo con esta tarjeta, aparece aquí.")
+                message: emptyMessage)
         } else {
             LazyVStack(alignment: .leading, spacing: Space.p20.rawValue) {
                 ForEach(sections) { section in
